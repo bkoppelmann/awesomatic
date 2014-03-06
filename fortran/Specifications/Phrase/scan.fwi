@@ -1,0 +1,26 @@
+This document describes the lexical analysis problem for FORTRAN.
+It is a part of an Eli specification from which compilers for FORTRAN 77
+and FORTRAN 90 can be generated.
+Generation of the lexical analyzer is controlled by a FunnelWeb
+macro.
+The following selects the code for FORTRAN 77 analysis (@{0@}
+selects the code for FORTRAN 90 analysis):
+
+@$@<Fortran77@>@M@{1@}
+
+The generated FORTRAN 90 compiler uses a command line option to decide
+whether to accept fixed- or variable-format source text.
+
+Only the lexical analysis task (scanning and computation of intrinsic
+attributes) is covered in this document.
+Because of the ad-hoc nature of basic symbol definition in FORTRAN, a
+mixture of declarative and operational specifications is necessary.
+The declarative specifications are regular expressions, and are used to
+describe some of the character strings the FORTRAN scanner must recognize.
+Descriptions for other strings are extracted automatically by Eli from the
+context-free grammar defining FORTRAN's phrase structure.
+Those descriptions need not be repeated here.
+
+This specification was developed while the author was a visiting researcher
+at the GMD in Berlin, and was originally published as Arbeitspapiere der
+GMD 816 in January of 1994.

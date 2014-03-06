@@ -1,0 +1,7 @@
+begin comment $Id: 5.4.4.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+For a procedure declaration to define the value of a function designator
+there must, within the procedure body, occur one or more assignment
+statements with the procedure identifier in a left part;
+
+integer procedure f; ;
+end

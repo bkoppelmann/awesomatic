@@ -1,0 +1,6 @@
+begin comment $Id: 3.3.4-2.a60,v 1.1 2012/11/28 21:15:25 profw Exp $
+An arithmetic expression cannot contain a Boolean variable;
+
+  Boolean v;
+  integer x; x := x + v;
+end

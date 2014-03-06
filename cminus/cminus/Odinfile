@@ -1,0 +1,6 @@
+# C-- language definition
+
+cminus.exe == cminus.fw :exe
+%source == cminus.fw :source
+
+sigplan.tex == paper.fw :fwTex

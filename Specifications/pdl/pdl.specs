@@ -1,0 +1,12 @@
+/* $Id: pdl.specs,v 1.2 1999/11/28 22:29:10 tony Exp $ */
+/* Property Definition Language (PDL) translator */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+phrase.fw
+name.fw
+type.fw
+func.fw
+header.fw
+
+KnownKey.fw				/* Initialized DefTableKeys */
+CloneKey.fw				/* DefTableKey cloning  */

@@ -1,0 +1,6 @@
+begin comment $Id: 3.1.4-3.a60,v 1.1 2012/11/28 21:15:25 profw Exp $
+The number of subscripts must match the number of dimensions;
+
+  array r[1:10]; r[1,2] := 1.2;
+
+end

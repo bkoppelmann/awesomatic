@@ -1,0 +1,13 @@
+begin
+
+  switch exit := foo, bar, exit[2], if y>5 then baz else foo;
+  integer y;
+  y:=2;
+  go to foo;
+bar:
+  go to exit[5];
+baz:
+  go to exit[if y < 0 then 3 else 4];
+  go to if y < 3 then bar else exit[if y<0 then 3 else 4];
+foo:
+end

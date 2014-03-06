@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?NLS TYPE="org.eclipse.help.toc"?>
+<toc label="Eli Documentation" href="html/index.html">
+  <topic label="Tutorials" href="html/tute.html">
+    <topic label="Quick Reference Card" href="html/EliRefCard_toc.html">
+      <topic label="Products and Parameters ." href="html/EliRefCard_1.html#SEC1">
+        <topic label="Processor Generation" href="html/EliRefCard_1.html#SEC2"/>
+        <topic label="Generating Specifications" href="html/EliRefCard_1.html#SEC3"/>
+        <topic label="Diagnostics" href="html/EliRefCard_1.html#SEC4"/>
+        <topic label="Testing a Generated Processor" href="html/EliRefCard_1.html#SEC5"/>
+        <topic label="Producing Formatted Documents" href="html/EliRefCard_1.html#SEC6"/>
+        <topic label="Information About the Derivation" href="html/EliRefCard_1.html#SEC7"/>
+      </topic>
+      <topic label="Eli Specifications" href="html/EliRefCard_2.html#SEC8"/>
+      <topic label="User Interface" href="html/EliRefCard_3.html#SEC9"/>
+    </topic>
+    <topic label="Guide for New Eli Users" href="html/novice_toc.html">
+      <topic label="How Eli Creates a Text Processing Program" href="html/novice_1.html#SEC1">
+        <topic label="How to Decompose a Text Processing Problem" href="html/novice_1.html#SEC2"/>
+        <topic label="Descriptive Mechanisms Known to Eli" href="html/novice_1.html#SEC3"/>
+        <topic label="Common Derived Objects" href="html/novice_1.html#SEC4"/>
+        <topic label="How to Request Product Manufacture" href="html/novice_1.html#SEC5"/>
+        <topic label="How to Invoke Unix Commands" href="html/novice_1.html#SEC6"/>
+      </topic>
+      <topic label="Example of Eli Use" href="html/novice_2.html#SEC7">
+        <topic label="Statement of the problem to be solved" href="html/novice_2.html#SEC8">
+          <topic label="Exercises" href="html/novice_2.html#SEC9"/>
+        </topic>
+        <topic label="Specifying the desired phrase structure" href="html/novice_2.html#SEC10">
+          <topic label="Exercises" href="html/novice_2.html#SEC11"/>
+        </topic>
+        <topic label="Nonliteral character sequences and comments" href="html/novice_2.html#SEC12">
+          <topic label="Exercises" href="html/novice_2.html#SEC13"/>
+        </topic>
+        <topic label="Managing source text definitions" href="html/novice_2.html#SEC14">
+          <topic label="Exercises" href="html/novice_2.html#SEC15"/>
+        </topic>
+        <topic label="Creating structured output text" href="html/novice_2.html#SEC16">
+          <topic label="Exercises" href="html/novice_2.html#SEC17"/>
+        </topic>
+/>
+      </topic>
+      <topic label="Customizing Eli's Behavior" href="html/novice_3.html#SEC18">
+        <topic label="Hints on Cache Management" href="html/novice_3.html#SEC19"/>
+        <topic label="Hints on Session Management" href="html/novice_3.html#SEC20"/>
+      </topic>
+      <topic label="System Documentation" href="html/novice_4.html#SEC21">
+        <topic label="How On-line Documentation Supports Debugging" href="html/novice_4.html#SEC22"/>
+      </topic>
+      <topic label="Index" href="html/novice_5.html#SEC23"/>
+    </topic>
+    <topic label="Tutorial on Name Analysis" href="html/nametutorial_toc.html">
+      <topic label="Kernel Grammar" href="html/nametutorial_1.html#SEC1"/>
+      <topic label="Basic Scope Rules" href="html/nametutorial_2.html#SEC2"/>
+      <topic label="Produce Output of Identifier binding" href="html/nametutorial_3.html#SEC3"/>
+      <topic label="Messages on Scope Rule Violations" href="html/nametutorial_4.html#SEC4"/>
+      <topic label="Predefined Identifiers" href="html/nametutorial_5.html#SEC5"/>
+      <topic label="Joined Ranges" href="html/nametutorial_6.html#SEC6"/>
+      <topic label="A Second Name Space" href="html/nametutorial_7.html#SEC7"/>
+      <topic label="Scopes being Properties of Objects" href="html/nametutorial_8.html#SEC8"/>
+      <topic label="Insertion of Scopes into the Environment Hierarchy" href="html/nametutorial_9.html#SEC9"/>
+      <topic label="Classes with Multiple Inheritance" href="html/nametutorial_10.html#SEC10"/>
+      <topic label="Objects Having a Scope Type" href="html/nametutorial_11.html#SEC11"/>
+    </topic>
+    <topic label="Tutorial on Type Analysis" href="html/typetutorial_toc.html">
+      <topic label="Kernel Language" href="html/typetutorial_1.html#SEC1"/>
+      <topic label="Basic Scope Rules" href="html/typetutorial_2.html#SEC2"/>
+      <topic label="Messages on Scope Rule Violations" href="html/typetutorial_3.html#SEC3"/>
+      <topic label="Properties of Predefined Objects" href="html/typetutorial_4.html#SEC4"/>
+      <topic label="Declaration of Typed Objects" href="html/typetutorial_5.html#SEC5"/>
+      <topic label="Type Checking in Expressions" href="html/typetutorial_6.html#SEC6"/>
+      <topic label="Different Kinds of Objects" href="html/typetutorial_7.html#SEC7"/>
+      <topic label="Operator Overloading" href="html/typetutorial_8.html#SEC8"/>
+      <topic label="Record Types" href="html/typetutorial_9.html#SEC9"/>
+      <topic label="Type Definitions" href="html/typetutorial_10.html#SEC10"/>
+      <topic label="Array Types" href="html/typetutorial_11.html#SEC11"/>
+      <topic label="Pointer Types" href="html/typetutorial_12.html#SEC12"/>
+      <topic label="Functions" href="html/typetutorial_13.html#SEC13"/>
+      <topic label="Function Types" href="html/typetutorial_14.html#SEC14"/>
+    </topic>
+  </topic>
+</toc>

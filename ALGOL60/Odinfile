@@ -1,0 +1,15 @@
+# $Id: Odinfile,v 1.2 2012/11/28 21:15:25 profw Exp $
+# Derive an ALGOL 60 processor
+
+%base   == ALGOL60.fw +monitor +debug +cc=gcc
+%tm   ! == %base +arg=(input) :mon
+
+a60 == %base :exe
+a60.pdf == TexALGOL60.fw :fwTex :pdf
+a60.html == HtmlALGOL60.fw :fwHtml
+
+%source == ALGOL60.fw :source
+
+%lint ! == <<
+  . +cmd=(tests/try) (a60) (tests/Conform) :run
+  . +cmd=(tests/try) '-d' (a60) (tests/Deviate) :run

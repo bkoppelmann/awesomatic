@@ -1,0 +1,1223 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Type Analysis@>
+\label{type}
+
+Java type analysis is complex, but it is based upon a number of
+language-independent concepts.
+Eli type analysis modules encapsulate the necessary computations
+and the dependence relationships among them, and export a nomenclature
+for language constructs.
+Type analyzer code for Java can be created by instantiating the
+modules and then classifying Java constructs according to
+that nomenclature.
+
+@O@<Type.specs@>==@{@-
+@<Instantiate required modules@>
+@}
+
+Section \ref{types} defines the Java type model, and the necessary type
+denotations and type identifiers are implemented in Section \ref{typeattr}.
+Identifiers representing typed entities (fields, variables, and parameters)
+are established in Section \ref{typed}.
+
+Language-defined operators and the mechanisms for creating methods are
+defined in Section \ref{indic}.
+The chapter concludes with definitions of type relationships in
+expressions (Section \ref{sec:exprtyping}) and statements
+(Section \ref{statements}).
+
+@O@<Type.lido@>==@{@-
+ATTR Type: DefTableKey;
+
+@<Types and type identifiers@>
+@<Typed identifiers@>
+@<Method declaration@>
+@<Expressions@>
+@<Statements@>
+@}
+
+The process described in this chapter associates a type with every
+construct yielding a value and every identifier representing a type or
+typed entity.
+It relies not only on computations in the abstract syntax tree, but also on
+properties stored in the definition table.
+
+@O@<Type.pdl@>==@{@-
+@<Property definitions@>
+@}
+
+
+@B@<The Java type model@>
+\label{types}
+
+A type model consists of a number of language-defined types and operators,
+plus facilities for constructing user-defined types.
+The model is defined primarily with OIL, but this section also contains
+some LIDO computations.
+
+@O@<Type.oil@>==@{@-
+@<Primitive types@>
+@<Reference types@>
+@<void@>
+@}
+
+@C@<Integral types@>
+
+Java defines some operators only for integral types.
+Note that the shift operators do not demand that both operands be of the
+same type.
+
+@$@<Primitive types@>+=@{@-
+SET integralType  = [byteType, shortType, intType, longType, charType];
+SET integrl2Type  = integralType;
+
+OPER
+  lshiftOp, rshiftOp, urshiftOp(integralType,integrl2Type):integralType;
+  complOp(integralType):integralType;
+  andOp, orOp, exorOp(integralType,integralType):integralType;
+
+INDICATION
+  llInd:    lshiftOp;
+  ggInd:    rshiftOp;
+  gggInd:   urshiftOp;
+  tildeInd: complOp;
+  ampInd:   andOp;
+  barInd:   orOp;
+  upInd:    exorOp;
+
+COERCION
+  (byteType): charType;
+  (byteType): shortType;
+  (shortType): intType;
+  (intType): longType;
+  (charType): intType;
+@}
+
+@C@<Numeric types@>
+
+Arithmetic operations are defined on both integral and floating-point
+operands.
+There are no operators that operate exclusively on floating-point operands.
+
+@$@<Primitive types@>+=@{@-
+SET floatingType = [floatType, doubleType];
+SET numericType  = integralType + floatingType;
+SET numerc2Type  = numericType;
+
+OPER
+  cmplsOp, cmpgtOp, cmpleOp, cmpgeOp(numericType,numericType): boolType;
+  incrOp, decrOp, posOp, negOp(numericType): numericType;
+  addOp, subOp, mulOp, divOp, remOp(numericType,numericType): numericType;
+  castNumOp(numericType):numerc2Type;
+
+INDICATION
+  leqInd:        cmpleOp;
+  lssInd:        cmplsOp;
+  geqInd:        cmpgeOp;
+  gtrInd:        cmpgtOp;
+  plusplusInd:   incrOp;
+  minusminusInd: decrOp;
+  plusInd:       posOp, addOp;
+  minusInd:      negOp, subOp;
+  starInd:       mulOp;
+  slashInd:      divOp;
+  percentInd:    remOp;
+  castInd:       castNumOp;
+
+COERCION
+  (longType): floatType;
+  (floatType): doubleType;
+@}
+
+@C@<boolean type@>
+
+Boolean operations include the normal logical operators and also
+conditional versions of disjunction and conjunction.
+
+@$@<Primitive types@>+=@{@-
+OPER
+  invOp(boolType): boolType;
+  disjOp, conjOp, candOp, corOp(boolType,boolType): boolType;
+
+INDICATION
+  bangInd:   invOp;
+  barbarInd: corOp;
+  ampampInd: candOp;
+@}
+
+@C
+
+Tests for equality are available for all primitive types, and also for
+string types.
+Also, a value of any primitive type can be concatenated with a string to
+yield a string.
+
+@$@<Primitive types@>+=@{@-
+SET primitiveType = [boolType] + numericType;
+
+OPER
+  cmpeqOp, cmpneOp(primitiveType,primitiveType): boolType;
+  prmCondOp(primitiveType,primitiveType): primitiveType;
+  prmstrOp(primitiveType,stringType): stringType;
+  strprmOp(stringType,primitiveType): stringType;
+
+INDICATION
+  eqlInd:  cmpeqOp;
+  neqInd:  cmpneOp;
+  plusInd: strprmOp, prmstrOp;
+  conditionalInd: prmCondOp;
+  equalInd: prmCondOp;
+@}
+
+@C@<Classes@>
+
+Every user-defined class is a subclass of a parent class (which may be
+java.lang.Object).
+A value of the parent class can be cast to the type of an object,
+an object can be concatenated to a string,
+its type can be queried,
+and references can be compared for equality.
+
+An OIL class is used as a template to create the operations required by
+the Java class:
+
+@$@<Reference types@>+=@{@-
+CLASS classOps() BEGIN
+  OPER
+    strclsOp(classOps,stringType): stringType;
+    clsstrOp(stringType,classOps): stringType;
+    clseqOp, clsneOp(classOps,classOps): boolType;
+    clsCondOp(classOps,classOps): classOps;
+
+  COERCION
+    (nullType): classOps;
+END;
+
+CLASS classInh(parentClass) BEGIN
+  OPER
+    narrowOp(parentClass): classInh;
+
+  COERCION
+    (classInh): parentClass;
+END;
+
+INDICATION
+  plusInd:        strclsOp, clsstrOp;
+  castInd:        narrowOp;
+  conditionalInd: clsCondOp;
+  eqlInd:         clseqOp;
+  neqInd:         clsneOp;
+  equalInd:       clsCondOp;
+@}
+
+A special type is used as the type of a class literal, and we need a bogus
+operator to define it:
+
+@$@<Reference types@>+=@{@-
+OPER classOp(classType): classType;
+@}
+
+@C@<Throwable@>
+
+We need a bogus operator to define @{throwableType@} as a type:
+
+@$@<Reference types@>+=@{@-
+OPER throwOp(throwableType): throwableType;
+@}
+
+@C@<Arrays@>
+
+@$@<Reference types@>+=@{@-
+CLASS arrayOps(elementType) BEGIN
+  OPER
+    arrayinit(elementType): arrayOps;
+    arrayaccess(arrayOps,intType): elementType;
+    obj2arrOp(objectType): arrayOps;
+    strarrOp(arrayOps,stringType): stringType;
+    arrstrOp(stringType,arrayOps): stringType;
+    arrCondOp(arrayOps,arrayOps): arrayOps;
+    arreqOp, arrneOp(arrayOps,arrayOps): boolType;
+
+  COERCION
+    (arrayOps): objectType;
+    (nullType): arrayOps;
+END;
+
+INDICATION
+  arrayInit:      arrayinit;
+  arrayAccess:    arrayaccess;
+  plusInd:        strarrOp, arrstrOp;
+  castInd:        obj2arrOp;
+  conditionalInd: arrCondOp;
+  eqlInd:         arreqOp;
+  neqInd:         arrneOp;
+  equalInd:       arrCondOp;
+@}
+
+@C@<void@>
+
+Void is not a type in Java.
+Nevertheless, a method that does not return a result is declared using the
+keyword @{void@} in place of the result type.
+In order to allow a uniform representation of methods, it is useful to
+define a ``void'' type as the result type in those cases.
+Since this fictitious type does not participate in any normal Java
+operations, we define a bogus operator in order to get OIL to regard
+@{voidType@} as a legitimate type:
+
+@$@<void@>==@{@-
+OPER voidOp(voidType): voidType;
+@}
+
+@B
+\label{typeattr}
+
+Java distinguishes primitive types, class and interface types, and array
+types.
+Primitive types are language-defined and named by keywords.
+Class and interface types are program-defined and named by type names.
+Array types are anonymous, and can only be denoted by using brackets.
+
+@$@<Types and type identifiers@>==@{@-
+ATTR Type: DefTableKey;
+
+RULE: Type ::= PrimitiveType COMPUTE
+  Type.Type=PrimitiveType.Type;
+END;
+
+@<PrimitiveType@>
+
+RULE: Type ::= TypeName COMPUTE
+  Type.Type=TypeName.Type;
+END;
+
+@<Class and interface types@>
+
+RULE: Type ::= ArrayType COMPUTE
+  Type.Type=ArrayType.Type;
+END;
+
+@<Array types@>
+
+RULE: Type ::= 'void' COMPUTE
+  Type.Type=voidType;
+END;
+@}
+
+Chapter \ref{name} showed how each type name and typed entity name had its
+@{Key@} attribute set to the appropriate definition table key.
+Thus the @{Typing@} module should be instantiated without a @{referto@}
+parameter:
+
+@$@<Instantiate required modules@>+=@{@-
+$/Type/Typing.gnrc :inst
+@}
+
+@C@<Primitive types@>
+
+Primitive types defined by Java are represented in the text of a program by
+keywords:
+
+@$@<PrimitiveType@>==@{@-
+RULE: PrimitiveType ::= 'boolean' COMPUTE
+  PrimitiveType.Type=boolType;
+END;
+
+RULE: PrimitiveType ::= 'byte' COMPUTE
+  PrimitiveType.Type=byteType;
+END;
+
+RULE: PrimitiveType ::= 'short' COMPUTE
+  PrimitiveType.Type=shortType;
+END;
+
+RULE: PrimitiveType ::= 'int' COMPUTE
+  PrimitiveType.Type=intType;
+END;
+
+RULE: PrimitiveType ::= 'long' COMPUTE
+  PrimitiveType.Type=longType;
+END;
+
+RULE: PrimitiveType ::= 'char' COMPUTE
+  PrimitiveType.Type=charType;
+END;
+
+RULE: PrimitiveType ::= 'float' COMPUTE
+  PrimitiveType.Type=floatType;
+END;
+
+RULE: PrimitiveType ::= 'double' COMPUTE
+  PrimitiveType.Type=doubleType;
+END;
+@}
+
+@C
+
+Each class or interface type is declared once and named,
+and then represented by its name wherever it is used in the program text.
+No two class or interface types are equivalent, even though they may have
+identical declarations:
+
+@$@<Class and interface types@>+=@{@-
+SYMBOL TypeIdDef       INHERITS TypeDefDefId   END;
+SYMBOL TypeName        INHERITS TypeDefUseId   END;
+SYMBOL pTypeName       INHERITS TypeDefUseId   END;
+
+RULE: TypeDeclaration ::=
+        Modifiers 'class' TypeIdDef Super Interfaces ClassBody
+COMPUTE
+  TypeIdDef.Type=TypeDeclaration.Type;
+END;
+
+RULE: TypeDeclaration ::=
+        Modifiers 'interface' TypeIdDef Interfaces InterfaceBody
+COMPUTE
+  TypeIdDef.Type=TypeDeclaration.Type;
+END;
+@}
+
+Interface types differ in several ways from class types, and therefore we
+use a property to distinguish them:
+
+@$@<Property definitions@>+=@{@-
+IsInterfaceType: int;
+@}
+
+@$@<Class and interface types@>+=@{@-
+RULE: TypeDeclaration ::=
+        Modifiers 'interface' TypeIdDef Interfaces InterfaceBody
+COMPUTE
+  TypeDeclaration.GotType=ResetIsInterfaceType(TypeDeclaration.Type,1);
+END;
+@}
+
+The @{TypeDenotation@} role establishes the value of the @{Type@} attribute
+as a new definition table key, but three classes in the @{java.lang@}
+package (@{Object@}, @{String@}, and @{Throwable@}) are represented in this
+specification by known keys.
+Therefore it is necessary to override the computation of the @{Type@}
+attribute in a class declaration:
+
+@$@<Class and interface types@>+=@{@-
+SYMBOL TypeDeclaration INHERITS TypeDenotation END;
+
+RULE: TypeDeclaration ::=
+        Modifiers 'class' TypeIdDef Super Interfaces ClassBody COMPUTE
+  TypeDeclaration.Type=
+    IF(NOT(INCLUDING CompilationUnit.IsJavaLang),NewType(),
+    IF(EQ(TypeIdDef.Sym,MakeName("Object")),objectType,
+    IF(EQ(TypeIdDef.Sym,MakeName("String")),stringType,
+    IF(EQ(TypeIdDef.Sym,MakeName("Throwable")),throwableType,
+    NewType()))));
+END;
+
+ATTR IsJavaLang: int;
+
+RULE: CompilationUnit ::=
+        PackageDeclarationOpt
+	ImportJavaLang ImportDeclarationsOpt TypeDeclarationsOpt
+COMPUTE
+  CompilationUnit.IsJavaLang=PackageDeclarationOpt.IsJavaLang;
+END;
+
+RULE: PackageDeclarationOpt ::= 'package' PackageName ';' COMPUTE
+  PackageDeclarationOpt.IsJavaLang=
+    EQ(FullyQualifiedName(PackageName.Ids),MakeName("java.lang"));
+END;
+
+RULE: PackageDeclarationOpt ::= COMPUTE
+  PackageDeclarationOpt.IsJavaLang=0;
+END;
+@}
+
+Each class and interface type has associated operators, defined by
+instantiating the OIL class @{classOps@}:
+
+@$@<Class and interface types@>+=@{@-
+SYMBOL TypeDeclaration INHERITS OperatorDefs END;
+
+TREE SYMBOL TypeDeclaration COMPUTE
+  SYNT.GotOper=
+    ORDER(
+      InstClass0(classOps,THIS.Type),
+      ListOperator(
+        FinalType(THIS.Type),
+	NoOprName,
+	NULLDefTableKeyList,
+	THIS.Type));
+END;
+@}
+
+There are also operators associated with inheritance, defined by
+instantiating @{classInh@}:
+
+@$@<Class and interface types@>+=@{@-
+SYMBOL Super INHERITS OperatorDefs END;
+
+RULE: Super ::= 'extends' InhName COMPUTE
+  Super.GotOper=
+    InstClass1(classInh,INCLUDING TypeDeclaration.Type,InhName.Type);
+END;
+
+RULE: Super ::= COMPUTE
+  Super.GotOper=
+    InstClass1(classInh,INCLUDING TypeDeclaration.Type,objectType);
+END;
+
+SYMBOL InterfaceType INHERITS OperatorDefs END;
+
+RULE: InterfaceType ::= InhName COMPUTE
+  InterfaceType.GotOper=
+    InstClass1(classInh,INCLUDING TypeDeclaration.Type,InhName.Type);
+END;
+@}
+
+We need to keep track of the supertype of each class in order to access it
+when the keyword @{super@} shows up in expressions:
+
+@$@<Class and interface types@>+=@{@-
+TREE SYMBOL TypeDeclaration: SuperType: DefTableKey;
+
+RULE: TypeDeclaration ::=
+        Modifiers 'class' TypeIdDef Super Interfaces ClassBody COMPUTE
+  TypeDeclaration.SuperType=Super.Type;
+END;
+
+RULE: TypeDeclaration ::=
+        Modifiers 'interface' TypeIdDef Interfaces InterfaceBody COMPUTE
+  TypeDeclaration.SuperType=NoKey;
+END;
+@}
+
+Not all of the contexts in which the supertype is needed are textually
+enclosed by the type in question.
+Therefore we need to store the supertype as a property of the type, and
+ensure that it has been set whenever it is accessed.
+
+@$@<Property definitions@>+=@{@-
+SuperType: DefTableKey;
+@}
+
+@$@<Class and interface types@>+=@{@-
+TREE SYMBOL Goal COMPUTE
+  SYNT.GotSuperTypes=CONSTITUENTS TypeDeclaration.GotSuperType;
+END;
+
+TREE SYMBOL TypeDeclaration COMPUTE
+  SYNT.GotSuperType=ResetSuperType(THIS.Type,THIS.SuperType);
+END;
+@}
+
+@C@<Array types@>
+\label{sec:arraytype}
+
+Array types cannot be declared or named; every use of an array type is
+represented by its denotation.
+Two array type denotations are equivalent if they have the same element
+type and the same number of dimensions.
+This is a restricted form of structural equivalence, which requires that
+the @{StructEquiv@} module be instantiated:
+
+@$@<Instantiate required modules@>+=@{@-
+$/Type/StructEquiv.fw
+@}
+
+@{StructEquiv@} defines a partition on the set of types such that types
+that could be equivalent on the basis of their construction rule lie in
+the same block of the partition.
+After all type denotations have been examined, @{StructEquiv@} refines the
+partition on the basis of the component types of each type.
+The blocks of the refined partitions are the type equivalence classes.
+
+We therefore use @{AddTypeToBlock@} to assign each array denotation to the
+@{ArrayTypes@} block with the element type as a singleton component type
+list:
+
+@$@<Property definitions@>+=@{@-
+ArrayTypes;
+@}
+
+@$@<Array types@>+=@{@-
+TREE SYMBOL ArrayType: ElementType: DefTableKey;
+
+TREE SYMBOL ArrayType INHERITS TypeDenotation COMPUTE
+  SYNT.GotType=
+    AddTypeToBlock(
+      THIS.Type,
+      ArrayTypes,
+      SingleDefTableKeyList(THIS.ElementType));
+END;
+
+RULE: ArrayType ::= PrimitiveType '[' ']' COMPUTE
+  ArrayType.ElementType=PrimitiveType.Type;
+END;
+
+RULE: ArrayType ::= Name $pTypeName '[' ']' COMPUTE
+  ArrayType.ElementType=pTypeName.Type;
+END;
+
+RULE: ArrayType ::= ArrayType '[' ']' COMPUTE
+  ArrayType[1].ElementType=ArrayType[2].Type;
+END;
+@}
+
+Each array type has an associated set of operators that must be
+added to the operator database.
+Those operators should only be instantiated once for each unique array
+type.
+The @{Ops@} property of the final array type is set to indicate that the
+operators for that array type have been entered into the database.
+
+@$@<Property definitions@>+=@{@-
+Ops: int [Has, KReset];
+@}
+
+@$@<Array types@>+=@{@-
+TREE SYMBOL ArrayType INHERITS OperatorDefs COMPUTE
+  SYNT.GotOper=
+    IF(NOT(HasOps(THIS.Type)),
+      InstClass1(
+        arrayOps,
+	KResetOps(FinalType(THIS.Type),1),
+	THIS.ElementType));
+END;
+@}
+
+Every array access is also an array type denotation, but with some
+subscripts specified.
+The processing of these denotations is basically the same as the processing
+specified above.
+The only difference is that there is no direct access to the element type.
+We therefore use a chain, started in the context of the array access,
+to carry the element type from one dimension to the next:
+
+@$@<Array types@>+=@{@-
+CHAIN ArrTyp: DefTableKey;
+
+SYMBOL Dimension INHERITS TypeDenotation, OperatorDefs COMPUTE
+  SYNT.GotType=
+    AddTypeToBlock(THIS.Type,ArrayTypes,SingleDefTableKeyList(THIS.ArrTyp));
+  SYNT.GotOper=
+    IF(NOT(HasOps(THIS.Type)),
+      InstClass1(
+        arrayOps,
+	KResetOps(FinalType(THIS.Type),1),
+	THIS.ArrTyp));
+  THIS.ArrTyp=THIS.Type;
+END;
+@}
+
+As discussed in Section \ref{typed}, Java allows identifiers to be declared
+with trailing dimensions.
+This requires operations like those above, associated with the particular
+context in which the trailing dimensions occur.
+If there is no trailing dimension, do nothing:
+
+@$@<Array types@>+=@{@-
+TREE SYMBOL VariableDeclaratorId INHERITS TypeDenotation, OperatorDefs
+COMPUTE
+  SYNT.GotType="yes";
+  SYNT.GotOper="yes";
+END;
+
+RULE: VariableDeclaratorId ::= VariableDeclaratorId '[' ']' COMPUTE
+  VariableDeclaratorId[1].GotType=
+    AddTypeToBlock(
+      VariableDeclaratorId[1].Type,
+      ArrayTypes,
+      SingleDefTableKeyList(
+        INCLUDING (VariableDeclaratorId.Type,TypedDefinition.Type)));
+  VariableDeclaratorId[1].GotOper=
+    IF(NOT(HasOps(VariableDeclaratorId[1].Type)),
+      InstClass1(
+        arrayOps,
+	KResetOps(FinalType(VariableDeclaratorId[1].Type),1),
+	INCLUDING (VariableDeclaratorId.Type,TypedDefinition.Type)));
+END;
+@}
+
+For compatibility with older versions of the Java platform, a declaration
+form for a method that returns an array is allowed to place (some or all of)
+the empty bracket pairs that form the declaration of the array type after
+the parameter list.
+By now, the operations should be familiar:
+
+@$@<Array types@>+=@{@-
+TREE SYMBOL MethodDeclarator INHERITS TypeDenotation, OperatorDefs
+COMPUTE
+  SYNT.GotType="yes";
+  SYNT.GotOper="yes";
+END;
+
+RULE: MethodDeclarator ::= MethodDeclarator '[' ']' COMPUTE
+  MethodDeclarator[1].GotType=
+    AddTypeToBlock(
+      MethodDeclarator[1].Type,
+      ArrayTypes,
+      SingleDefTableKeyList(
+        INCLUDING (MethodDeclarator.Type,MethodHeader.Type)));
+  MethodDeclarator[1].GotOper=
+    IF(NOT(HasOps(MethodDeclarator[1].Type)),
+      InstClass1(
+        arrayOps,
+	KResetOps(FinalType(MethodDeclarator[1].Type),1),
+	INCLUDING (MethodDeclarator.Type,MethodHeader.Type)));
+END;
+@}
+
+See Section \ref{sec:methods} for the context of this computation.
+
+@B
+\label{typed}
+
+Fields, local variables, and formal parameters are the only typed
+identifiers in Java.
+Formal parameters are considered to be variables, and their defining
+occurrences are represented by the nonterminal @{VariableDeclaratorId@}.
+
+@$@<Typed identifiers@>+=@{@-
+TREE SYMBOL FieldDeclarators    INHERITS TypedDefinition END;
+TREE SYMBOL VariableDeclarators INHERITS TypedDefinition END;
+TREE SYMBOL FormalParameter     INHERITS TypedDefinition END;
+
+TREE SYMBOL FieldIdDef          INHERITS TypedDefId      END;
+TREE SYMBOL VariableIdDef       INHERITS TypedDefId      END;
+@}
+
+All of the typed definitions get their type information from their
+context, and the simple identifier definitions reach up to those typed
+definitions.
+
+@$@<Typed identifiers@>+=@{@-
+RULE: FieldDeclaration ::= Modifiers Type FieldDeclarators ';' COMPUTE
+  FieldDeclarators.Type=Type.Type;
+END;
+
+RULE: LocalVariableDeclaration ::= 'final' Type VariableDeclarators COMPUTE
+  VariableDeclarators.Type=Type.Type;
+END;
+
+RULE: LocalVariableDeclaration ::= Type VariableDeclarators COMPUTE
+  VariableDeclarators.Type=Type.Type;
+END;
+
+RULE: FormalParameter ::= 'final' Type VariableDeclaratorId COMPUTE
+  FormalParameter.Type=Type.Type;
+END;
+
+RULE: FormalParameter ::= Type VariableDeclaratorId COMPUTE
+  FormalParameter.Type=Type.Type;
+END;
+@}
+
+Java also allows a C-like declaration in which the dimensions follow the
+identifier.
+In fact, it is legal to mix the two.
+We implement this requirement by using the @{VariableDeclaratorId@} as a
+mechanism to provide the necessary type denotations
+(see Section \ref{sec:arraytype} for the necessary definitions).
+If no dimension is attached to the variable, then the type is passed
+through unmodified:
+
+@$@<Typed identifiers@>+=@{@-
+TREE SYMBOL VariableDeclaratorId COMPUTE
+  SYNT.Type=INCLUDING TypedDefinition.Type;
+END;
+
+RULE: VariableDeclaratorId ::= VariableIdDef COMPUTE
+  VariableIdDef.Type=VariableDeclaratorId.Type;
+END;
+@}
+
+@B@<Indications@>
+\label{indic}
+
+An indication is a set of operators with different signatures.
+It is represented by a definition table key.
+Some indications are defined by the language, and often represented by
+sequences of special characters.
+Java methods are also indications, which are defined by the user.
+
+The specification must associate the indication's definition table key with
+each occurrence of a source language representation of that indication.
+
+@C@<Language-defined indications@>
+
+All language-defined indications are represented by known keys defined in
+Section \ref{types}.
+The set of operators associated with the indication was also defined
+there.
+
+This Section assigns the same indication to an @{Operator@} and to the
+related @{AssignmentOperator@}.
+The reason is that the type analysis of assignment operations is split into
+two parts: the assignment part and the operation part.
+The operation part is processed in exactly the same manner as a dyadic
+operation with the related @{Operator@}.
+
+@N@<Operator.d@>==@{@-
+PreDefInd('^=',   AssignmentOperator, upInd)
+PreDefInd('<<=',  AssignmentOperator, llInd)
+PreDefInd('=',    AssignmentOperator, equalInd)
+PreDefInd('>>=',  AssignmentOperator, ggInd)
+PreDefInd('>>>=', AssignmentOperator, gggInd)
+PreDefInd('|=',   AssignmentOperator, barInd)
+PreDefInd('-=',   AssignmentOperator, minusInd)
+PreDefInd('/=',   AssignmentOperator, slashInd)
+PreDefInd('*=',   AssignmentOperator, starInd)
+PreDefInd('&=',   AssignmentOperator, ampInd)
+PreDefInd('%=',   AssignmentOperator, percentInd)
+PreDefInd('+=',   AssignmentOperator, plusInd)
+PreDefInd('^',              Operator, upInd)
+PreDefInd('<<',             Operator, llInd)
+PreDefInd('<=',             Operator, leqInd)
+PreDefInd('<',              Operator, lssInd)
+PreDefInd('==',             Operator, eqlInd)
+PreDefInd('>=',             Operator, geqInd)
+PreDefInd('>>>',            Operator, gggInd)
+PreDefInd('>>',             Operator, ggInd)
+PreDefInd('>',              Operator, gtrInd)
+PreDefInd('||',             Operator, barbarInd)
+PreDefInd('|',              Operator, barInd)
+PreDefInd('+',              Operator, plusInd)
+PreDefInd('-',              Operator, minusInd)
+PreDefInd('!=',             Operator, neqInd)
+PreDefInd('/',              Operator, slashInd)
+PreDefInd('*',              Operator, starInd)
+PreDefInd('&',              Operator, ampInd)
+PreDefInd('&&',             Operator, ampampInd)
+PreDefInd('%',              Operator, percentInd)
+PreDefInd('++',             Operator, plusplusInd)
+PreDefInd('--',             Operator, minusminusInd)
+PreDefInd('~',              Operator, tildeInd)
+PreDefInd('!',              Operator, bangInd)
+@}
+
+These definitions are implemented by the @{PreDefOp@} module, which reads
+the non-product file @{Operator.d@}:
+
+@$@<Instantiate required modules@>+=@{@-
+$/Type/PreDefOp.gnrc +referto=(Operator.d) :inst
+@}
+
+@C
+\label{sec:methods}
+
+Each Java method declaration defines one operator in the method
+indication's set.
+Name analysis (Chapter \ref{name}) associates a definition table key with
+the method name, and that key is used as the indication.
+Each use of the method name is an instance of the @{MethodName@} node.
+
+@$@<Method declaration@>+=@{@-
+RULE: MethodHeader ::= Modifiers Type MethodDeclarator Throws COMPUTE
+  MethodHeader.Type=Type.Type;
+END;
+
+TREE SYMBOL MethodDeclarator COMPUTE
+  SYNT.Type=INCLUDING MethodHeader.Type;
+END;
+
+RULE: MethodDeclarator ::= MethodIdDef '(' FormalParameters ')' COMPUTE
+  MethodDeclarator.GotOper=
+    ListOperator(
+      MethodIdDef.Key,
+      NoOprName,
+      FormalParameters.OpndTypeList,
+      MethodDeclarator.Type);
+END;
+@}
+
+The roundabout mechanism for transmitting the return type of the method is
+due to the obsolete requirement for allowing dimensions to follow the
+parameter list when the method's return type is an array
+Section \ref{sec:arraytype} contains additional computations associated
+with @{MethodDeclarator@} in this case.
+
+Computational roles provide all of the necessary computations for gathering
+up the formal parameter types and computing the @{OpndTypeList@} attribute:
+
+@$@<Method declaration@>+=@{@-
+SYMBOL FormalParameters INHERITS OpndTypeListRoot END;
+SYMBOL FormalParameter  INHERITS OpndTypeListElem END;
+@}
+
+A constructor declaration is very similar to a method declaration, except
+that the type name serves as the method name:
+
+@$@<Method declaration@>+=@{@-
+SYMBOL ConstructorDeclaration INHERITS OperatorDefs END;
+
+RULE: ConstructorDeclaration ::=
+        Modifiers TypeName '(' FormalParameters ')' Throws
+	'{' Statements '}' COMPUTE
+  ConstructorDeclaration.GotOper=
+    ListOperator(
+      TypeName.TypeKey,
+      NoOprName,
+      FormalParameters.OpndTypeList,
+      TypeName.TypeKey);
+END;
+@}
+
+@B
+\label{statements}
+
+If a statement represents a context in which an expression is required to
+yield a specific type, @{Expression.Required@} must be set to that type.
+Computation provided by the type analysis modules will then report an error
+if the actual type is not acceptable as the required type.
+
+@$@<Statements@>+=@{@-
+RULE: Statement ::=
+        'if' '(' Expression ')' Statement 'else' Statement COMPUTE
+  Expression.Required=boolType;
+END;
+
+RULE: Statement ::= 'if' '(' Expression ')' Statement COMPUTE
+  Expression.Required=boolType;
+END;
+
+RULE: WhileStatement ::= 'while' '(' Expression ')' Statement COMPUTE
+  Expression.Required=boolType;
+END;
+
+RULE: DoStatement ::= 'do' Statement 'while' '(' Expression ')' ';' COMPUTE
+  Expression.Required=boolType;
+END;
+
+RULE: ForTest ::= Expression COMPUTE
+  Expression.Required=boolType;
+END;
+
+RULE: Statement ::= 'throw' Expression ';' COMPUTE
+  Expression.Required=throwableType;
+END;
+@}
+
+The expression of a return statement must return a value compatible with
+the method containing the return statement.
+This requires an extra attribute at the appropriate point to specify that
+type.
+Constructors and class initializers cannot return values, so the void type
+is specified in those cases.
+Since no other type is acceptable as the void type, this will result in an
+error report if a return statement with an expression is used in a
+constructor or class initializer.
+
+@$@<Statements@>+=@{@-
+ATTR ReturnType: DefTableKey;
+
+RULE: Statement ::= 'return' Expression ';' COMPUTE
+  Expression.Required=
+    INCLUDING (MethodBody.ReturnType,
+               ConstructorDeclaration.ReturnType,
+	       ClassInitializer.ReturnType);
+END;
+
+RULE: MethodDeclarator ::= MethodIdDef '(' FormalParameters ')' COMPUTE
+  MethodIdDef.ReturnType=MethodDeclarator.Type;
+END;
+
+RULE: MethodDeclaration ::= MethodHeader MethodBody COMPUTE
+  MethodBody.ReturnType=MethodHeader CONSTITUENT MethodIdDef.ReturnType;
+END;
+
+SYMBOL ConstructorDeclaration COMPUTE
+  SYNT.ReturnType=voidType;
+END;
+
+SYMBOL ClassInitializer COMPUTE
+  SYNT.ReturnType=voidType;
+END;
+@}
+
+The convoluted mechanism for obtaining the method return type is again due
+to the obsolete construct discussed in Section \ref{sec:arraytype}.
+
+@B@<Expressions@>
+\label{sec:exprtyping}
+
+Java overloading can be resolved on the basis of operand types alone, and
+therefore the @{Expression@} module should be instantiated without a
+@{referto@} parameter:
+
+@$@<Instantiate required modules@>+=@{@-
+$/Type/Expression.gnrc :inst
+@}
+
+@$@<Expressions@>==@{@-
+SYMBOL Expression INHERITS ExpressionSymbol END;
+
+@<Lexical literals@>
+@<Class literal@>
+@<this@>
+@<Class instance creation@>
+@<Array creation@>
+@<Field access@>
+@<Method invocation@>
+@<Array access@>
+@<Names@>
+@<Operators other than assignment@>
+@<Cast expressions@>
+@<Conditional expressions@>
+@<Assignment operators@>
+@}
+
+@C
+
+A literal denotes a fixed, unchanging value.
+Its type is defined by the language for each kind of literal.
+All literals are primary contexts:
+
+@$@<Lexical literals@>==@{@-
+RULE: Expression ::= CharacterLiteral COMPUTE
+  PrimaryContext(Expression,charType);
+END;
+
+RULE: Expression ::= IntLiteral COMPUTE
+  PrimaryContext(Expression,intType);
+END;
+
+RULE: Expression ::= LongLiteral COMPUTE
+  PrimaryContext(Expression,longType);
+END;
+
+RULE: Expression ::= FloatLiteral COMPUTE
+  PrimaryContext(Expression,floatType);
+END;
+
+RULE: Expression ::= DoubleLiteral COMPUTE
+  PrimaryContext(Expression,doubleType);
+END;
+
+RULE: Expression ::= 'false' COMPUTE
+  PrimaryContext(Expression,boolType);
+END;
+
+RULE: Expression ::= 'true' COMPUTE
+  PrimaryContext(Expression,boolType);
+END;
+
+RULE: Expression ::= 'null' COMPUTE
+  PrimaryContext(Expression,nullType);
+END;
+
+RULE: Expression ::= StringLiteral COMPUTE
+  PrimaryContext(Expression,stringType);
+END;
+@}
+
+@C
+
+The type of a class literal is @{classType@}.
+
+@$@<Class literal@>==@{@-
+RULE: Expression ::= Name $pTypeName '.' 'class' COMPUTE
+  PrimaryContext(Expression,classType);
+END;
+@}
+
+@C
+
+The keyword @{this@} represents the current instance of a class whose
+definition lexically encloses the expression.
+If the keyword is unqualified, then the closest-containing class definition
+provides the result type:
+
+@$@<this@>==@{@-
+RULE: Expression ::= 'this' COMPUTE
+  PrimaryContext(Expression,INCLUDING TypeDeclaration.Type);
+END;
+
+RULE: Expression ::= Name $pTypeName '.' 'this' COMPUTE
+  PrimaryContext(Expression,pTypeName.Type);
+END;
+@}
+
+@C
+
+The name following the @{new@} specifies a constructor that should be
+applied to the argument list to create a value.
+
+@$@<Class instance creation@>==@{@-
+TREE SYMBOL TypeIdUse INHERITS TypeDefUseId END;
+
+RULE: Expression ::=
+  Expression '.' 'new' TypeIdUse '(' Arguments ')' AnonymousClass
+COMPUTE
+  ListContext(Expression[1],,Arguments);
+  Indication(FinalType(TypeIdUse.Type));
+END;
+
+RULE: Expression ::= 'new' TypeName '(' Arguments ')' AnonymousClass
+COMPUTE
+  ListContext(Expression,,Arguments);
+  Indication(FinalType(TypeName.Type));
+END;
+@}
+
+@C
+
+@$@<Array creation@>==@{@-
+RULE: Expression ::= 'new' TypeName Dimensions COMPUTE
+  CHAINSTART Dimensions.ArrTyp=TypeName.Type;
+  PrimaryContext(Expression,Dimensions.ArrTyp);
+END;
+
+RULE: Expression ::= 'new' PrimitiveType Dimensions COMPUTE
+  CHAINSTART Dimensions.ArrTyp=PrimitiveType.Type;
+  PrimaryContext(Expression,Dimensions.ArrTyp);
+END;
+
+RULE: Dimension ::= '[' Expression ']' COMPUTE
+  Expression.Required=longType;
+END;
+@}
+
+@C
+
+@$@<Field access@>==@{@-
+SYMBOL FieldIdUse INHERITS TypedUseId END;
+
+RULE: Expression ::= Expression '.' FieldIdUse COMPUTE
+  PrimaryContext(Expression[1],FieldIdUse.Type);
+END;
+
+RULE: Expression ::= 'super' '.' FieldIdUse COMPUTE
+  PrimaryContext(Expression,FieldIdUse.Type);
+END;
+
+RULE: Expression ::= Name $pTypeName '.' 'super' '.' FieldIdUse COMPUTE
+  PrimaryContext(Expression,FieldIdUse.Type);
+END;
+@}
+
+@C
+
+@$@<Method invocation@>==@{@-
+RULE: Expression ::= MethodName '(' Arguments ')' COMPUTE
+  ListContext(Expression,,Arguments);
+  Indication(MethodName.Key);
+END;
+
+RULE: Expression ::= 'super' '.' MethodIdUse '(' Arguments ')' COMPUTE
+  ListContext(Expression,,Arguments);
+  Indication(MethodIdUse.Key);
+END;
+
+RULE: Expression ::= Expression '.' MethodIdUse '(' Arguments ')' COMPUTE
+  ListContext(Expression[1],,Arguments);
+  Indication(MethodIdUse.Key);
+END;
+
+SYMBOL Arguments INHERITS OpndExprListRoot END;
+SYMBOL Argument  INHERITS OpndExprListElem END;
+
+RULE: Argument ::= Expression COMPUTE
+  TransferContext(Argument,Expression);
+END;
+
+TREE SYMBOL ExpressionStatement INHERITS ExpressionSymbol END;
+
+RULE: ExpressionStatement ::= 'super' '(' Arguments ')' ';' COMPUTE
+  ListContext(ExpressionStatement,,Arguments);
+  Indication(INCLUDING TypeDeclaration.SuperType);
+END;
+
+RULE: ExpressionStatement ::= 'this' '(' Arguments ')' ';' COMPUTE
+  ListContext(ExpressionStatement,,Arguments);
+  Indication(INCLUDING TypeDeclaration.Type);
+  IF(AND(NOT(BadIndication),BadOperator),
+    message(ERROR,"Invalid constructor call",0,COORDREF));
+END;
+@}
+
+@C
+
+@$@<Array access@>==@{@-
+RULE: Expression ::= Expression '[' Expression ']' COMPUTE
+  DyadicContext(Expression[1],,Expression[2],Expression[3]);
+  Indication(arrayAccess);
+END;
+@}
+
+@C
+
+@$@<Names@>==@{@-
+TREE SYMBOL pExpressionName INHERITS TypedUseId END;
+
+RULE: Expression ::= Name $pExpressionName COMPUTE
+  PrimaryContext(Expression,pExpressionName.Type);
+END;
+@}
+
+@C
+
+@$@<Operators other than assignment@>==@{@-
+SYMBOL Operator INHERITS OperatorSymbol END;
+
+RULE: Expression ::= Operator Expression COMPUTE
+  MonadicContext(Expression[1],Operator,Expression[2]);
+END;
+
+RULE: Expression ::= Expression Operator COMPUTE
+  MonadicContext(Expression[1],Operator,Expression[2]);
+END;
+
+RULE: Expression ::= Expression Operator Expression COMPUTE
+  DyadicContext(Expression[1],Operator,Expression[2],Expression[3]);
+END;
+@}
+
+@C
+
+@$@<Cast expressions@>==@{@-
+RULE: Expression ::= '(' PrimitiveType ')' Expression COMPUTE
+  PrimaryContext(Expression[1],PrimitiveType.Type);
+  RootContext(PrimitiveType.Type,,Expression[2]);
+  Indication(castInd);
+END;
+
+RULE: Expression ::= '(' ArrayType ')' Expression COMPUTE
+  PrimaryContext(Expression[1],ArrayType.Type);
+  RootContext(ArrayType.Type,,Expression[2]);
+  Indication(castInd);
+END;
+
+RULE: Expression ::= '(' Expression $pTypeName ')' Expression COMPUTE
+  PrimaryContext(Expression[1],pTypeName.Key);
+END;
+@}
+
+@$@<Conditional expressions@>==@{@-
+RULE: Expression ::= Expression '?' Expression ':' Expression COMPUTE
+  Expression[2].Required=boolType;
+  DyadicContext(Expression[1],,Expression[3],Expression[4]);
+  Indication(conditionalInd);
+END;
+
+RULE: Expression ::= Expression 'instanceof' Type COMPUTE
+  PrimaryContext(Expression[1],boolType);
+END;
+@}
+
+@C
+
+@$@<Assignment operators@>==@{@-
+SYMBOL LeftHandSide       INHERITS ExpressionSymbol END;
+SYMBOL RightHandSide      INHERITS ExpressionSymbol END;
+SYMBOL AssignmentOperator INHERITS OperatorSymbol   END;
+
+RULE: Expression ::= LeftHandSide AssignmentOperator RightHandSide COMPUTE
+  DyadicContext(Expression,AssignmentOperator,LeftHandSide,RightHandSide);
+END;
+
+RULE: RightHandSide ::= Expression COMPUTE
+  ConversionContext(RightHandSide,,Expression);
+  Indication(castInd);	/* FIXME: Verify that castInd is correct */
+END;
+@}

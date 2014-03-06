@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.0"?>
+<plugin
+   id="au.edu.mq.ics.plrg.edt.eli.doc"
+   name="%name"
+   version="1.0.5"
+   provider-name="%providerName">
+
+   <runtime>
+   </runtime>
+
+   <extension
+         point="org.eclipse.help.toc">
+      <toc
+            file="main_toc.xml"
+            primary="true">
+      </toc>
+      <toc
+            file="gen_toc.xml">
+      </toc>
+      <toc
+            file="lib_toc.xml">
+      </toc>
+      <toc
+            file="ref_toc.xml">
+      </toc>
+      <toc
+            file="tasks_toc.xml">
+      </toc>
+      <toc
+            file="tools_toc.xml">
+      </toc>
+      <toc
+            file="tute_toc.xml">
+      </toc>
+   </extension>
+
+</plugin>

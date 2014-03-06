@@ -1,0 +1,13 @@
+mkCustomStr.c
+mkCustomStr1.c
+SpecSemantic.c
+transformsemaction.c
+transformsemaction.h
+transformsemaction.head
+
+pgram2bison.con
+word.gla
+$/Output/LeafPtg.gnrc :inst
+Translation.fw
+
+

@@ -1,0 +1,208 @@
+/* $Id: func.lido,v 1.7 1994/03/26 19:20:56 waite Exp $ */
+/* Attribution for generation of PDL C file */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+ATTR out: PTGNode;		/* generic output attribute */
+ATTR arglist: PTGNode;		/* argument list output for generated macros */
+ATTR formallist: PTGNode;	/* argument list output for generated macros */
+ATTR functions: funclist;	/* operations associated with a declaration */
+ATTR funcdef: VOID;		/* all function lists defined */
+ATTR funcout: PTGNode;		/* output for function definition */
+ATTR declout: PTGNode;		/* function argument declarations */
+ATTR opout: OpOutput;		/* Relevant output information for op's */
+ATTR sym: int;			/* symbol table index */
+
+CHAIN func: funclist;		/* operations associated with a declaration */
+
+NONTERM Source: GotAllFuncs: VOID;
+
+RULE Axiom: Source ::= Range '$LIBRARY' LibraryList
+COMPUTE
+  /* Global ordering dependency */
+  Source.GotAllFuncs=CONSTITUENTS (PropertyNameDecl.funcdef, Type.funcdef);
+
+  /* Concatenation of function definitions */
+  Source.funcout=CONSTITUENTS Type.funcout
+			WITH(PTGNode, concatptgnode, creatptgnode, nullptgnode);
+
+  PTGOutFile(
+    "pdl_gen.c",
+    PTGCGen(Source.funcout, Source.Element, Source.Array));
+END;
+
+RULE PropertySpec: PropertyDecl ::= PropertyNameList ':' Type ';'
+COMPUTE
+  /* Operations associated with this property declaration */
+  PropertyDecl.functions=Type.functions;
+END;
+
+RULE PropertyName: PropertyNameDecl ::= Identifier
+COMPUTE
+  /* Add the declared list of operations to the list of operations */
+  /* associated with this property */
+  PropertyNameDecl.funcdef=addfunclist(PropertyNameDecl.key, 
+					INCLUDING PropertyDecl.functions);
+END;
+
+RULE TypeNoOp: Type ::= TypeSpecifier
+COMPUTE
+  /* There are no operations declared in this tree fragment */
+  Type.functions=dummyfunclist;
+  Type.funcdef=VOIDEN(0);
+
+  /* Generate the necessary functions for this type */
+  Type.funcout=GenFunctions(TypeSpecifier.key, TypeSpecifier.sym, 
+			INCLUDING Source.openv,
+			GetFuncList(TypeSpecifier.key, dummyfunclist))
+		DEPENDS_ON INCLUDING Source.GotAllFuncs;
+END;
+
+RULE TypeWithOp: Type ::= TypeSpecifier '[' OperationNameList ']'
+COMPUTE
+  /* Add the declared list of operations to the list of operations */
+  /* associated with this type */
+  Type.funcdef=addfunclist(TypeSpecifier.key, Type.functions);
+
+  /* This is the list of operations declared in this tree fragment */
+  Type.functions=OperationNameList.func;
+
+  /* Generate the functions associated with this type */
+  Type.funcout=GenFunctions(TypeSpecifier.key, TypeSpecifier.sym, 
+			INCLUDING Source.openv,
+			GetFuncList(TypeSpecifier.key, dummyfunclist))
+		DEPENDS_ON INCLUDING Source.GotAllFuncs;
+
+  /* Accumulate the list of operations for this tree fragment */
+  CHAINSTART OperationNameList.func=nullfunclist();
+END;
+
+RULE GenericType: TypeSpecifier ::= 'TYPE'
+COMPUTE
+  /* 'TYPE' is not a valid type specifier */
+  TypeSpecifier.sym=0;
+  TypeSpecifier.key=NoKey;
+END;
+
+RULE DefinedType: TypeSpecifier ::= TypeIdent
+COMPUTE
+  /* propogate the type identifier's deftbl key and symbol table index */
+  TypeSpecifier.sym=CONSTITUENT Identifier.sym;
+  TypeSpecifier.key=TypeIdent.key;
+END;
+
+RULE OperationName: OperationNameDecl ::= Identifier
+COMPUTE
+  /* Fetch the correct operation declaration */
+  OperationNameDecl.key=FindOpKey(INCLUDING Source.openv, Identifier.sym)
+			DEPENDS_ON INCLUDING Source.GotAllOps;
+
+  /* concatenate to the list of operations for this declaration */
+  OperationNameDecl.func=concatfunclist(OperationNameDecl.key,
+					OperationNameDecl.func);
+END;
+
+RULE OperationSpec: OperationDecl ::=
+                        TypeSpecifier Identifier '(' ParameterList ')' Text
+COMPUTE
+  /* Output for the C function generated from this operation definition */
+  OperationDecl.opout=BuildOperationSpec(TypeSpecifier.out,
+					PTGIdentifier(Identifier.sym),
+					ParameterList.out,
+					ParameterList.declout,
+					PTGIdentifier(Text.sym));
+
+  /* argument list output for the generated macros */
+  OperationDecl.arglist=PTGParen(ParameterList.arglist);
+  OperationDecl.formallist=ParameterList.formallist;
+END;
+
+/* The remaining attribution accumulates the output from the descendants */
+/* of the OperationSpec for use by the OperationSpec */
+
+RULE GenericType: TypeSpecifier ::= 'TYPE'
+COMPUTE
+  TypeSpecifier.out=PTGString("TYPE");
+END;
+
+RULE DefinedType: TypeSpecifier ::= TypeIdent
+COMPUTE
+  TypeSpecifier.out=PTGIdentifier(CONSTITUENT Identifier.sym);
+END;
+
+RULE MultipleParameters: ParameterList ::= ParameterList ',' ParameterDecl
+COMPUTE
+  ParameterList[1].out=PTGCommaSeq(ParameterList[2].out, ParameterDecl.out);
+  ParameterList[1].declout=
+		PTGSeq(ParameterList[2].declout, ParameterDecl.declout);
+  ParameterList[1].arglist=PTGCommaSeq(ParameterList[2].arglist, 
+					ParameterDecl.arglist);
+  ParameterList[1].formallist=PTGCommaSeq(ParameterList[2].formallist,
+					ParameterDecl.formallist);
+END;
+
+RULE SingleParameter: ParameterList ::= ParameterDecl
+COMPUTE
+  ParameterList.out=ParameterDecl.out;
+  ParameterList.declout=ParameterDecl.declout;
+  ParameterList.arglist=ParameterDecl.arglist;
+  ParameterList.formallist=ParameterDecl.formallist;
+END;
+
+RULE ParameterSpec: ParameterDecl ::= TypeSpecifier Identifier Modifier
+COMPUTE
+  ParameterDecl.out=PTGIdentifier(Identifier.sym);
+  ParameterDecl.declout=IF(EQ(Modifier.out, PTGNULL),
+			   PTGParamDecl(TypeSpecifier.out,
+					PTGIdentifier(Identifier.sym),
+					PTGNULL),
+			   PTGParamDecl(TypeSpecifier.out,
+				    PTGFuncName(PTGIdentifier(Identifier.sym)),
+				    Modifier.out));
+  ParameterDecl.arglist=PTGIdentifier(Identifier.sym);
+  ParameterDecl.formallist=PTGParen(PTGIdentifier(Identifier.sym));
+END;
+
+RULE EmptyModifier: Modifier ::=
+COMPUTE
+  Modifier.out=PTGNULL;
+END;
+
+RULE VoidModifier: Modifier ::= '(' ')'
+COMPUTE
+  Modifier.out=PTGString("()");
+END;
+
+RULE SimpleModifier: Modifier ::= '(' ParameterTypeList ')'
+COMPUTE
+  Modifier.out=PTGSModifier(ParameterTypeList.out);
+END;
+
+RULE ExtendedModifier: Modifier ::= '(' ParameterTypeList ',' '...' ')'
+COMPUTE
+  Modifier.out=PTGEModifier(ParameterTypeList.out);
+END;
+
+RULE MultipleParameterTypes: ParameterTypeList ::=
+                        ParameterTypeList ',' ParameterTypeDecl
+COMPUTE
+  ParameterTypeList[1].out=PTGCommaSeq(ParameterTypeList[2].out,
+					ParameterTypeDecl.out);
+END;
+
+RULE SingleParameterType: ParameterTypeList ::= ParameterTypeDecl
+COMPUTE
+  ParameterTypeList.out=ParameterTypeDecl.out;
+END;
+
+RULE ParameterTypeSpec: ParameterTypeDecl ::= TypeSpecifier Modifier
+COMPUTE
+  ParameterTypeDecl.out=PTGPTypeSpec(TypeSpecifier.out, Modifier.out);
+END;
+
+RULE IdentParameterTS: ParameterTypeDecl ::= TypeSpecifier Identifier Modifier
+COMPUTE
+  ParameterTypeDecl.out=PTGIPTypeSpec(TypeSpecifier.out,
+						PTGIdentifier(Identifier.sym),
+						Modifier.out);
+END;
+

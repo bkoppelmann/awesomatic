@@ -1,0 +1,47 @@
+/* $Id: type.lido,v 1.1 1992/06/20 19:16:48 kadhim Exp $ */
+/* PDL type analysis */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+NONTERM PropertyNameDecl: reldef: VOID;
+NONTERM Source: GotAllRels: VOID;
+
+ATTR TypeKey: DefTableKey;
+
+RULE Axiom: Source ::= Range '$LIBRARY' LibraryList
+COMPUTE
+  /* global ordering dependencies */
+  Source.GotAllRels=CONSTITUENTS PropertyNameDecl.reldef;
+END;
+
+RULE GenericType: TypeSpecifier ::= 'TYPE'
+COMPUTE
+  TypeSpecifier.TypeKey=NoKey;
+END;
+
+RULE DefinedType: TypeSpecifier ::= TypeIdent
+COMPUTE
+  TypeSpecifier.TypeKey=TypeIdent.key;
+END;
+
+RULE PropertySpec: PropertyDecl ::= PropertyNameList ':' Type ';'
+COMPUTE
+  PropertyDecl.TypeKey=CONSTITUENT TypeSpecifier.TypeKey;
+
+  /* Check for valid type declaration */
+  IF(EQ(PropertyDecl.TypeKey,NoKey),
+  Message(FATAL,"TYPE is not a valid type specification for a property"));
+END;
+
+RULE PropertyName: PropertyNameDecl ::= Identifier
+COMPUTE
+  /* Set the type key as an attribute of the property key */
+  PropertyNameDecl.reldef=TypeIs(PropertyNameDecl.key, 
+				INCLUDING PropertyDecl.TypeKey);
+
+  /* If the property has been declared more than once with a different */
+  /* give an error message */
+  IF(EQ(GetDefine(PropertyNameDecl.key,Unknown),MultDefined),
+  Message(FATAL,"Redeclaration of Property with different type"))
+  DEPENDS_ON INCLUDING Source.GotAllRels;
+END;
+

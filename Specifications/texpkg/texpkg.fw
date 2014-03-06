@@ -1,0 +1,2504 @@
+% $Id: texpkg.fw,v 1.20 2007/03/27 21:10:35 profw Exp $
+
+@p typesetter = latex2html
+@p maximum_input_line_length = 82
+
+\documentclass{article}
+
+% US Letter
+
+\setlength{\topmargin}{0pt}
+\setlength{\textwidth}{6.5in}
+\setlength{\textheight}{8.5in}
+
+% A4
+
+%\setlength{\topmargin}{-1cm}
+%\setlength{\textwidth}{16cm}
+%\setlength{\textheight}{24.0cm}
+
+\setlength{\oddsidemargin}{0pt}
+\setlength{\evensidemargin}{0pt}
+\setlength{\marginparwidth}{0pt}
+\setlength{\marginparsep}{0pt}
+
+\usepackage{alltt}
+\usepackage{html}
+
+\begin{document}
+
+\title{Automating Document Manufacture}
+\author{W. M. Waite}
+\maketitle
+
+Manufacture of a document using TeX, LaTeX and BibTeX
+can be a rather complex process.
+The raw material consists of a number of files with different
+characteristics, and several tools need to be invoked in an order that
+depends partially on the document's content.
+A document owner would like to be able to request an up-to-date document,
+rendered in either PostScript or PDF, without worrying about which tools
+should be invoked in what order to satisfy that request.
+
+This problem is probably familiar to many people who prepare documents
+using Unix.
+It illustrates a number of common patterns in software manufacture, some
+straightforward and others more subtle, and therefore provides an
+interesting case study of automating a manufacturing process.
+The paper you are reading is a complete set of specifications enabling the
+software manufacturing system
+\htmladdnormallinkfoot{Odin}{http://www.cs.colorado.edu/\~{}eliuser/odin/}
+to satisfy a request for an up-to-date PostScript or PDF document.
+Its purpose is to show how manufacturing tasks can be analyzed, and how
+the facilities provided by Odin can be used to automate those tasks.
+Readers should be familiar with the concept of an Odin derivation,
+and the notation used to describe derivations.
+An understanding of shell script programming is also required.
+
+Odin can manage any computational process described by a set of actions
+that update shared artifacts.
+Odin only understands a few actions, but one of those is the execution of
+an arbitrary file with an arbitrary sequence of string parameters.
+The execution takes place in a directory that is initially empty.
+This means that the set of possible actions is constrained only by the
+facilities of the operating system --- anything that a user can do,
+Odin can do.
+
+Section \ref{process} explains the raw material for document manufacture
+using TeX, LaTeX and BibTeX, lays out the individual manufacturing steps,
+and shows how they relate to one another.
+This information is used in Section \ref{auto} to construct an Odin
+description of a process for manufacturing a document
+from a set of specifications.
+Finally, Section \ref{package} encapsulates this process as a @/package@/
+that can be combined with packages describing other processes to make any
+instance of Odin capable of manufacturing PostScript and PDF documents.
+
+@A@<The Document Manufacturing Process@>
+\label{process}
+
+TeX is a formatting program designed to produce high-quality typeset
+output from specifications.
+It was originally intended for documents containing mathematical text,
+but has come to be used for a variety of technical publications.
+LaTeX provides a collection of commands that abstract away formatting
+details, allowing the user to describe the kinds of constructs being used
+rather than how those constructs should be laid out.
+The underlying engine, however, remains TeX.
+
+Citations are common in the technical publications constructed using TeX
+and LaTeX, and they present a selection problem in addition to the
+formatting problem.
+The selection problem arises because citations are added and removed
+routinely during revision, and there must be a method for ensuring that
+the final bibliography includes exactly those references
+that are actually cited.
+BibTeX is a separate tool addressing this problem.
+
+Section \ref{raw} considers the information making up the raw material
+that defines the document, and Section \ref{tools} looks at the
+characteristics of the individual tools.
+Section \ref{relate} concludes the description of the manufacturing
+process by examining the relationships among the tool invocations.
+
+@B
+\label{raw}
+
+The raw material for a document to be constructed with TeX, LaTeX and
+BibTeX consists of four kinds of information:
+
+\begin{description}
+\item[Text] The actual content of the document, provided in a collection of
+files with names ending in @{.tex@}.
+
+\item[Bibliographic data] Complete bibliographic information for all of the
+references that might be cited in the document, provided in a collection of
+files with names ending in @{.bib@}.
+
+\item[Styles] Information about document style, provided in a collection of
+files with names ending in @{.sty@} or @{.cls@}, and
+bibliographic style, provided in a collection of files
+with names ending in @{.bst@}.
+
+\item[Pre-formatted material] Usually figures and other non-textual
+components of the document, provided in a collection of files with names
+ending in @{.ps@} or @{.pdf@}.
+\end{description}
+A simple document might be defined by a single text file, but in general
+the definition consists of a number of files of different kinds.
+Odin associates a @/type@/ with each artifact, and a distinct type is
+associated with each kind of file defining a document.
+These types and associations are specified by the implementor of the
+manufacturing process:
+
+@$@<Raw material@>==@{
+:tex 'TeX formatter input'? => :FILE;
+*.tex => :tex;
+
+:bib 'Bibliographic data file'? => :FILE;
+*.bib => :bib;
+
+:sty 'Formatting style file'? => :FILE;
+*.sty => :sty;
+
+:cls 'Formatting style file'? => :FILE;
+*.cls => :cls;
+
+:bst 'Bibliographic style file'? => :FILE;
+*.bst => :bst;
+
+:ps 'Postscript file'? => :FILE;
+*.ps => :ps;
+
+:pdf 'Portable Document Format file'? => :FILE;
+*.pdf => :pdf;
+@}
+The first line of each specification declares a type (e.g. @{:tex@})
+as a subtype of the built-in supertype @{:FILE@}.
+This means that operations applicable to files in general can be applied to
+artifacts of the declared type.
+A string (e.g. @{TeX formatter input@}) describing the general meaning
+of an artifact of the declared type is given.
+That string will be used to characterize the artifact type in messages
+produced by Odin's interactive help facility;
+@{?@} indicates that this type of artifact is interesting to the user,
+as opposed to being just an intermediate result.
+The second line of each specification says that any file whose name matches
+the given pattern can be used wherever an artifact of the given type is
+required.
+(Thus a file whose name ends in @{.tex@} can be used wherever an artifact
+of type @{:tex@} is required.)
+
+When a user provides raw material for a document, that raw material is
+almost never the @/complete@/ definition of the desired document.
+The complete definition probably involves pre-defined styles, and may
+include citations from a central bibliographic data base.
+What the user is really supplying is the @/variable@/ part of the
+definition --- the part that they will be changing as the document evolves.
+The meaning of ``up-to-date'' is relative to this part of the document:
+A request for an up-to-date copy is a request for a document reflecting all
+of the changes made there.
+
+The @/basis@/ of a document consists of the
+files making up the variable part of the definition of that document.
+An up-to-date version of the document is derived from the basis.
+
+If a document is large, its basis usually contains a number of text
+files.
+One of these text files, called the @/root@/ file, is the one whose name is
+given when invoking the formatting tool.
+The root file contains commands that include other text files (which may
+themselves contain include commands), building up the specification of the
+complete text.
+
+Text files can also contain commands that incorporate files other than text
+files (for example, the @{\usepackage@} command incorporates a style file).
+A command conventionally specifies the desired file by a simple identifier
+without any extension.
+When the formatting tool searches for such files, it constructs a name
+by appending an appropriate extension to the given identifier.
+Thus if the formatting tool encountered the command
+@{\usepackage{alltt}@} it would construct the file name @{alltt.sty@};
+@{\include{ch1}@} would result in the file name @{ch1.tex@}.
+
+Because TeX, LaTeX and BibTeX are rather fussy about names, it is imperative
+to retain complete control over the names used for files in the basis.
+This presents no problem if the files have been created by hand, but
+in an environment where automated manufacturing is available
+inputs to one process are often generated by another process.
+Thus the representation of the basis for document manufacture should
+provide for the possibility that each file is the result of some
+arbitrary manufacturing process, and is given a file name
+independent of that process.
+
+@B@<Tools@>
+\label{tools}
+
+TeX and LaTeX behave in the same way, since the tool underlying LaTeX is
+actually TeX.
+In each case, the tool is invoked with a single argument that is the name
+of the root text file (the trailing @{.tex@} may be omitted).
+As discussed above, the root file may use commands to incorporate
+the contents of other files.
+That process is recursive, collecting a file set of arbitrary size.
+
+The formatting tool deals only with simple file names, not full path names,
+and searches a sequence of directories for each file.
+The value of the environment variable @{TEXINPUTS@}, a colon-separated list
+of directory names, defines the search path.
+If the value of @{TEXINPUTS@} ends with a colon, then a standard search
+path is appended to it.
+
+@/Auxiliary files@/ are used to keep track of the evolving document
+definition.
+There are auxiliary files of different kinds corresponding to the root file,
+and auxiliary files corresponding to each text file included in the
+definition by an @{\include@} command.
+
+For each @{\citation@}, @{\bibliography@} and @{\bibliographystyle@}
+command appearing in a text file, the formatter stores information into an
+auxiliary file with the same basename as the text file and the suffix
+@{.aux@}.
+The information includes keys for the references cited, the names of the
+files making up the bibliographic data base, and the names of the files
+defining the styles to be used for formatting citations and references.
+BibTeX searches for the bibliographic data base files using the
+colon-separated list
+of directories specified by the environment variable @{BIBINPUTS@}, and for
+the style files using the colon-separated list of directories specified by
+the environment variable @{BSTINPUTS@} (or @{TEXINPUTS@} if @{BSTINPUTS@}
+is not set).
+It looks up the reference keys in the bibliographic data base, and formats
+the references according as specified by the selected style.
+The result is an auxiliary file containing formatted references; its name
+ends in @{.bbl@}.
+
+For each @{\index@} command appearing in a text file, the formatter stores
+an @{\indexentry@} command into an auxiliary file with the same basename as
+the root file and the suffix @{.idx@}.
+That command has two arguments, the argument of the original @{\index@}
+command and the number of the page on which the word associated with it
+appears.
+The @{makeindex@} processor accepts one or more of these auxiliary files,
+and possibly an index style file, and produces a single auxiliary file
+containing the alphabetized index; its name ends in @{.ind@}.
+
+TeX and LaTeX each produce a file defining the layout of the completed document
+in a device-independent form.
+This file must then be processed by a program specific to the output device
+in order to render the document for display.
+PostScript can be obtained from the device-independent formatter output by
+applying the converter @{dvips@}.
+This tool not only translates the formatter output file, but also incorporates
+any PostScript inserts that may have been specified by commands within the
+document definition.
+These files are sought in the directories on the search path defined
+by @{TEXINPUTS@}.
+
+Pdftex and pdflatex are plug-compatible with TeX and LaTeX, but they
+render the document into PDF instead of a device-independent intermediate
+file.
+Thus the manufacture of a PDF document is exactly the same as the
+manufacture of a PostScript document except that the name of the formatter
+is changed and the final conversion step is omitted.
+
+@B@<Relationships@>
+\label{relate}
+
+Each invocation of a formatter, BibTeX, or makeindex may alter the contents
+of auxiliary files.
+Those alterations may affect the results of subsequent tool invocations.
+Thus the individual tool invocations must occur in an appropriate order to
+obtain the final document.
+
+As an example of this process, consider a document having a number of
+sections and a table of contents.
+Assume for simplicity that the document is defined by a single text file.
+Initially there are no auxiliary files.
+The first invocation of the formatter will not be able to build a table of
+contents, because it has no information about the sections.
+It will, however, construct auxiliary files as it processes the text file
+and store the relevant information in them.
+A second invocation of the formatter can build the table of contents (using the
+information stored in the auxiliary files) as it processes the text file.
+Unfortunately, however, the introduction of the table of contents expands
+the printed document and therefore changes the starting page numbers of the
+sections.
+The auxiliary files are updated with the new information.
+Thus the table of contents is present but specifies the wrong page numbers.
+A third invocation of the formatter corrects the page numbers
+without changing the size of the document,
+so the contents of the auxiliary files remain constant.
+The table of contents now has the correct page numbers.
+
+If the document contains citations,
+the formatter will store information about them in auxiliary files.
+At some point, BibTeX must be invoked to obtain the corresponding
+references and produce the auxiliary file defining them.
+A subsequent invocation of the formatter can then be used to put the appropriate
+citations into the text and add the formatted bibliography.
+Of course this operation will generally change the length of the document
+and hence require yet another invocation of the formatter to update the table of
+contents.
+
+@A@<Automating the Process@>
+\label{auto}
+
+Responsibility for automating the manufacture of a particular document
+is divided between the owner of the document and the implementor of the
+manufacturing process:
+The document owner must describe the raw material and request the product,
+while the process implementor must specify how such products are manufactured
+when appropriate raw material is provided.
+Process design seeks to minimize the amount of information that must be
+provided by the document owner while preserving their ability to describe
+arbitrarily complex raw material and allowing them to maintain control over
+critical manufacturing parameters.
+This goal is met by providing very general descriptive mechanisms and then
+defining ways to manufacture those general descriptions from simpler ones
+in special cases.
+Section \ref{basis} follows this approach in designing the representation
+of the document basis.
+
+Once a complete description of the raw material is available,
+the document manufacturing process involves five distinct actions:
+
+\begin{itemize}
+\item Determine the formatter and BibTeX inputs
+(Section \ref{inputs})
+
+\item Run the formatter to format the text and construct auxiliary files
+(Section \ref{format})
+
+\item Run BibTeX to build a formatted bibliography
+(Section \ref{bib})
+
+\item Update the auxiliary files
+(Section \ref{merge})
+
+\item Run dvips to create PostScript output
+(Section \ref{ps})
+\end{itemize}
+These actions update shared artifacts like the formatter
+output and the auxiliary files.
+As discussed in Section \ref{relate},
+some actions may not be necessary for certain documents and
+multiple executions of others may be required.
+Given descriptions of the effects of the individual actions on the shared
+artifacts, Odin can determine the sequence in which they must be executed
+to yield the desired product.
+Thus the process implementor need describe only the effect of each action
+on the set of artifacts; they needn't consider evaluation order or any
+requirement for an action to be carried out more than once.
+
+@B@<Describing the Document Manufacturing Problem@>
+\label{basis}
+
+Every Odin derivation begins from a single @/key@/ artifact.
+A general approach to designing specification mechanisms is therefore to
+provide one artifact type capable of defining all of the necessary raw
+material, and then use an artifact of that type as the key from which
+the desired product is derived.
+
+As discussed at the end of Section \ref{raw}, the manufacturing problem
+being solved here is to make a document up-to-date with respect to the
+files in its basis.
+Some basis files may be written by hand and
+some manufactured from other raw material.
+They may lie in a variety of directories.
+Regardless of its origin, each file in the basis must have a name
+consisting of an identifier and a suffix that denotes the kind of information
+it contains.
+The identifiers appear in commands within the files,
+tying the components of the basis together into a tree.
+
+Odin's concept of a @/virtual target@/ allows us to meet the requirement
+that the files constituting the basis of a document may be generated
+by arbitrary processes but their names must be predetermined.
+A virtual target is an artifact manufactured by Odin and given a name by
+an explicit definition.
+The definition takes the form @{VirtualFileName==OdinExpression@}, where
+@{VirtualFileName@} is a simple file name beginning with an unescaped
+percent sign (@{%@}) and @{OdinExpression@} is an arbitrary derivation.
+
+A document owner can specify an arbitrary basis by using a text file
+containing a set of virtual target definitions, one per line.
+For example, the text file @{MyDocumentBasis.tex.vtd@}
+might consist of the following four lines
+(all white space within a line is optional):
+
+\begin{quote}
+\begin{verbatim}
+%MyRoot.tex      == original.fw +chapter :fwTex
+%program.tex     == program.c            :pretty
+%myrefs.bib      == ../bibfile
+%unfortunate.tex == unfortunate.tex
+\end{verbatim}
+\end{quote}
+The basis defined by the document owner in this example consists of four
+files whose names are @{MyRoot.tex@}, @{program.tex@}, @{myrefs.bib@} and
+@{unfortunate.tex@}.
+Two, @{MyRoot.tex@} and @{program.tex@}, result from some manufacturing
+processes applied to @{original.fw@} and @{program.c@} respectively.
+The others are just normal source files.
+The alias @{myrefs.bib@} is used for @{../bibfile@},
+but @{unfortunate.tex@} is referenced directly.
+
+With the additional convention that the virtual target given by the
+first line of the file is the document root, @{MyDocumentBasis.tex.vtd@}
+specifies the document completely.
+It could then serve as the key artifact in an Odin request like the following:
+
+\begin{quote}
+\begin{verbatim}
+MyDocumentBasis.tex.vtd :ps
+\end{verbatim}
+\end{quote}
+Section \ref{vtd} shows how the process implementor makes an artifact type
+@{:tex.vtd@} known to Odin so that a text file containing virtual target
+definitions can be used as the key artifact for document manufacture.
+
+Before making the above request, the document owner must build file
+@{MyDocumentBasis.tex.vtd@} by hand.
+While this is a reasonable approach if the basis is complex,
+involving many generated files, it's an annoyance when the basis consists
+of a single LaTeX file.
+In that case, the document owner should be able to simply write:
+
+\begin{quote}
+\begin{verbatim}
+MyFile.tex :ps
+\end{verbatim}
+\end{quote}
+Section \ref{texinput} defines a manufacturing step that makes such a
+request possible by creating a virtual target definition file from a
+LaTeX source file.
+That allows the process implementor to use the basic document derivation,
+while permitting the document owner to supply a simpler key artifact in
+situations not requiring full generality.
+This kind of ``generalizing step'' is a common design pattern for
+software manufacture.
+
+When a document owner provides a key artifact and requests a product,
+Odin selects the details of the manufacturing process on the basis
+of its understanding of how the product is usually made.
+In making this selection, it may do some analysis of the key artifact.
+For example, when manufacturing a document Odin must decide whether to use
+@{tex@} or @{latex@} as the formatting operation.
+LaTeX requires that the text contain certain commands, so Odin can normally
+make the decision after seeking these commands in the root file.
+It is possible, however, that they might appear in files other than the root
+and thus Odin would choose the wrong operation.
+If so, the document owner must be able to explicitly request that the
+document be formatted using LaTeX:
+
+\begin{quote}
+\begin{verbatim}
+MyDocumentBasis.tex.vtd +latex :ps
+\end{verbatim}
+\end{quote}
+
+The formatting operation is an example of a @/critical manufacturing
+parameter@/, over which the document owner must be allowed to maintain control.
+In order to provide this control, the process implementor declares a set of
+@/parameter types@/:
+
+\begin{quotation}
+\begin{tabular}{ll}
+@{tex@}	& Use plain TeX \\
+@{latex@}	& Use LaTeX \\
+@{dvips_flags@}	& Options for @{dvips@} \\
+@{index_flags@}	& Options for @{makeindex@} \\
+@{texroot@}	& Name of the document root \\
+@{texsearch@}	& Directories to be searched first
+\end{tabular}
+\end{quotation}
+The last two parameter types need arguments.
+For example, the following request says that a document should be
+manufactured from @{MyFile.tex@}, but
+the root is a file named @{skeleton.tex@}
+and files (including the root) should be sought in
+the @{Boilerplate@} subdirectory of the current directory
+and in directory @{/usr/local/refs@} (in that order)
+before searching any directories in the search path defined by
+the environment variable @{TEXINPUTS@} (Section \ref{tools}):
+
+\begin{quote}
+\begin{verbatim}
+MyFile.tex +texroot=skeleton +texsearch=(Boilerplate) (/usr/local/refs) :ps
+\end{verbatim}
+\end{quote}
+Section \ref{parameters} explains how the process implementor declares
+parameter types and
+how the information provided by parameters is incorporated into the
+manufacturing process.
+
+@C@<A general document specification@>
+\label{vtd}
+
+The process implementor must make Odin aware of the type of key artifact
+from which documents are to be derived.
+Just as in the case of raw material, this involves declaration of an
+artifact type and an association between that type and a file name pattern:
+
+@$@<Declare the most general key artifact@>==@{
+:tex.vtd 'Basis of a TeX formatted document'? => :vtd;
+*.tex.vtd => :tex.vtd;
+@}
+
+Virtual target definition files are useful in many contexts, so the
+@{:vtd@} artifact is a predefined subtype of the built-in supertype
+@{:FILE@}.
+Any operation that can be applied to every virtual target definition file can
+obviously be applied to a @{:tex.vtd@} artifact, but it's only possible to
+use TeX, LaTeX and BibTeX to derive a document from a virtual target
+definition file with the appropriate contents.
+Thus @{:tex.vtd@} is a subtype of @{:vtd@}.
+
+@C@<A simple document specification@>
+\label{texinput}
+
+Our document manufacturing process starts from a virtual target definition.
+In order to allow a single @{.tex@} file to be used as the key for a
+document manufacturing request, the process implementor needs to define a
+way of creating a virtual target definition from that file.
+Given a @{:tex@} artifact, Odin must manufacture an artifact that can be
+used wherever a @{:tex.vtd@} artifact can be used.
+Odin can then use this newly-created artifact as the real key for the
+derivation of the document:
+
+@$@<One-element virtual target definition@>==@{
+:one_tex_vtd 'Singleton set of TeX formatter inputs' => :tex.vtd;
+@}
+Since @{:one_tex_vtd@} is strictly intermediate, there is no @{?@}
+following the help string @{Singleton set of TeX formatter inputs@}.
+Also, the document owner will not supply artifacts of this type as files.
+Thus no file name pattern is needed.
+
+Here's a declaration of a manufacturing step that
+accepts a @{:tex@} artifact and creates a @{:one_tex_vtd@} artifact:
+
+@$@<Allow a single-file key@>==@{
+EXEC (oneTex.sh) (:tex) (:label) => (:one_tex_vtd);
+@}
+The Odin @{EXEC@} operation evaluates the @/input expressions@/ preceding
+@{=>@}, providing the values as arguments to an @{exec@} system call
+made in an empty working directory established by Odin.
+If the system call terminates with zero status,
+Odin looks in the working directory for files whose names match the names
+of the artifact types following @{=>@}.
+If such files exist, Odin makes them the values of artifacts of the
+matching types.
+
+Termination of the @{exec@} system call with nonzero status is interpreted
+by Odin as a catastrophic system error.
+In this case all result artifacts are given @{ABORT@} status.
+
+An input expression enclosed in parentheses is called a @/file argument@/,
+and its value is always a string that is the absolute path name of a file.
+File arguments that do not begin with @{(:@} or @{(+@} are evaluated
+in the context of the current package.
+(A package is a directory containing all of the information specifying a
+manufacturing subtask.
+Section \ref{package} explains how document manufacture using TeX, LaTeX
+and BibTeX is encapsulated as a package.)
+File arguments beginning with @{(:@} are derivations applied to the
+input artifact of the manufacturing step being implemented.
+
+The first argument to an @{exec@} system call, in this case the file
+argument @{(oneTex.sh)@}, must be the name of an executable file.
+File @{oneTex.sh@}, described below, is an executable shell script
+in the document manufacturing package.
+The value of the file argument @{(oneTex.sh)@} is therefore the absolute
+path name of that shell script.
+
+The @{:tex@} derivation can only be applied to an artifact of type @{:tex@}
+or one of its subtypes.
+The built-in Odin derivation @{:label@}, on the other hand, can be applied
+to artifacts of type @{:FILE@} or any of its subtypes.
+
+When a manufacturing step is declared to have file arguments that are
+derivations, Odin can apply that step to an artifact only if @/all@/ of the
+file argument derivations can be applied to that artifact.
+Section \ref{raw} declared @{:tex@} to be a subtype of @{:FILE@}, so
+both file argument derivations of the manufacturing step declared above
+can be applied to an artifact of type @{:tex@} or one of its subtypes.
+
+Applying @{:tex@} to a @{:tex@} artifact yields the original artifact;
+applying @{:label@} to any file
+yields a text file containing the name of that file within its directory.
+
+The executable shell script @{oneTex.sh@} manufactures a virtual target
+definition file equivalent to a given @{.tex@} file.
+An invocation of @{sed@} does the trick:
+
+@$@<Build a one-element virtual target definition@>==@{
+# EXEC (oneTex.sh) (:tex) (:label) => (:one_tex_vtd)
+
+sed -e 's;\(.*\)\.[^.]*$;\1;
+s;.*;%&.tex=='"$1;" $2 > one_tex_vtd
+@}
+The comment line reproduces the interface for the script,
+as it is defined above, for ease of reference.
+
+There are two patterns in the script, the first of which removes any suffix
+from the file name and the second of which adds the suffix @{.tex@}.
+This is necessary in order derive documents from files whose types
+may be subtypes of @{:tex@}.
+A file whose type is a subtype of @{:tex@} will have a label with a suffix
+that isn't @{.tex@}, but the name of the file given to the formatter
+@/must@/ have the suffix @{.tex@}.
+
+Suppose that the derivation @{MyFile.tex :ps@}
+were requested in the directory @{/home/examples@}.
+The first manufacturing step of this derivation would be for Odin to apply
+@{oneTex.sh@} to the two strings @{/home/examples/MyFile.tex@} and
+@{/Cache/path/name/FILES/MyFile.tex.3717.label@}.
+(The second string is the name of the file containing the result of the
+@{:label@} derivation.
+It is constructed by Odin, and will have the general form shown here but
+details will vary.)
+File @{/Cache/path/name/FILES/MyFile.tex.3717.label@}
+will contain a single line:
+
+\begin{quote}
+\begin{verbatim}
+MyFile.tex
+\end{verbatim}
+\end{quote}
+
+Given strings
+@{/home/examples/MyFile.tex@} and
+@{/Cache/path/name/FILES/MyFile.tex.3717.label@}
+as arguments @{$1@} and @{$2@}, the @{sed@} command will
+write the following line to file @{one_tex_vtd@}:
+
+\begin{quote}
+\begin{verbatim}
+%MyFile.tex==/home/examples/MyFile.tex
+\end{verbatim}
+\end{quote}
+Note that this line is exactly the virtual target definition for the input
+file.
+
+@C
+\label{parameters}
+
+An Odin derivation can have an arbitrary number of
+@/parameterization expressions@/ like @{+texroot=skeleton@}
+defining values of the same parameter type.
+When a parameter type is used in a file argument beginning with @{(+@},
+a list containing all of the parameter values
+in the derivation that have the specified parameter type is created.
+If the created list is empty, the value is an empty string.
+Otherwise, a derivation specified by the declaration of the parameter type
+is applied to the (non-empty) list, and the value is the resulting artifact.
+
+Parameter type declarations have much the same form as declarations of
+artifacts, but the derivation to be applied to a non-empty list of values
+takes the place of the supertype:
+
+@$@<Critical manufacturing parameters@>==@{
++tex         'Use plain TeX'?                    => :first;
++latex       'Use LaTeX'?                        => :first;
++texroot     'Name of the TeX document root'?    => :first;
++texsearch   'Directories to be searched first'? => :ls;
++dvips_flags 'Options for dvips'?                => :ls;
++index_flags 'Options for makeindex'?            => :ls;
+@}
+Here @{:first@} is a built-in derivation that selects the first element
+of the list to which it is applied,
+@{:cat@} is a built-in derivation that creates a text file containing
+the concatenation of the elements of the list to which it is applied,
+and @{:ls@} is a built-in derivation that creates a text file with each
+line containing the name of one of the elements of the list to which it is
+applied.
+
+A parameter type declaration does not specify what sort of artifacts are
+appropriate parameter values of that type.
+In fact, the @{+tex@} and @{+latex@} parameters are
+either present or absent; their values aren't interesting.
+Because the value isn't interesting, there should be no parameter values
+provided with an occurrence of any of these parameter types.
+When parameter values are omitted,
+a single string-valued expression @{' '@} (one space character)
+is assumed regardless of the parameter type.
+
+A value of the parameter type @{texroot@} should be a string,
+the name of the root file.
+Values of the parameter type @{texsearch@} should be directory names, and
+would normally be parenthesized:
+
+\begin{quote}
+\begin{verbatim}
+MyFile.tex +texroot=skeleton +texsearch=(Boilerplate) (/usr/local/refs) :ps
+\end{verbatim}
+\end{quote}
+The value of a parenthesized expression in a parameterization expression is
+an absolute path name.
+Thus @{(Boilerplate)@} will have the absolute path name of the @{Boilerplate@}
+subdirectory of the current directory as its value.
+
+Values of the parameter types @{dvips_flags@} and @{index_flags@}
+should be strings or combinations of strings and file names,
+each specifying one or more options to the corresponding
+processor exactly as they would be specified on the command line.
+File names would normally be parenthesized.
+
+@B@<Determining the Formatter, makeindex, and BibTeX Inputs@>
+\label{inputs}
+
+The mechanisms outlined in Section \ref{basis} are designed to make it
+convenient for the document owner to specify raw material and maintain
+control over critical manufacturing parameters; they do not necessarily
+make information available in precisely the form required by the
+formatting (Section \ref{format}),
+indexing (Section \ref{index}), and
+bibliography construction (Section \ref{bib}) operations.
+This situation arises frequently in automating software manufacturing
+processes.
+It is addressed by a collection of manufacturing steps that extract
+information from the artifacts specifying the problem and create artifacts
+reflecting the inputs to the basic operations.
+
+For example, Section \ref{root} declares a manufacturing step
+that constructs an artifact giving the basename of the document's root.
+This @/root name@/ is required explicitly by the formatting, indexing, and
+bibliography construction operations, but it might not appear explicitly in
+the request made by the document owner.
+
+The explicit search path for basis files is constructed by the
+manufacturing step declared in Section \ref{search}.
+It is used whenever a simple file name must be converted into a absolute path
+name.
+Section \ref{view} describes this conversion, which is a common design
+pattern in software manufacture.
+
+Section \ref{dynamic} shows how to determine the document's basis:
+A change in any file belonging to this set can trigger execution of the
+formatting or bibliography construction operation.
+
+@C@<Determine the document's root name@>
+\label{root}
+
+Section \ref{basis} introduced the convention that the virtual target
+given by the first line of the virtual target definition file
+is the document root.
+Both the formatting and the bibliography creation operations need the name
+of the document root as a separate entity for use in the @{tex@},
+@{latex@}, @{makeindex@}, and @{bibtex@} commands.
+The name of the root file (the root name with the @{.tex@} suffix) is
+needed for the basis construction in Section \ref{dynamic}.
+It is therefore useful to create separate artifacts to hold the root name
+and the root file name (@{:texnames@} is defined in Section \ref{view}):
+
+@$@<Declare the document root and root file names@>==@{
+:rootName 'Base name (no .tex suffix) of the root file' => :FILE;
+:rootFileName 'Simple name of the TeX file to be used as the root' => :texnames;
+@}
+Each of these artifacts is simply a one-line text file containing
+the specified name.
+The only difference between them is that the root file name has the
+@{.tex@} suffix and the root name does not.
+
+The root name is clearly a critical parameter of the manufacturing process,
+so Section \ref{parameters} defined the @{texroot@} parameter type to allow
+control by the document owner:
+
+@$@<Find the root@>==@{
+EXEC (root.sh) (:tex.vtd) (+texroot)
+  NEEDS (:tex.vtd :vir_tgt.list)
+  => (:rootName) (:rootFileName);
+@}
+
+File arguments beginning with @{(+@} are derivations applied to the
+parameterization expressions of the manufacturing step being implemented.
+They do not affect the applicability of the step.
+Thus the manufacturing step declared here can be applied to any artifact of
+type @{:tex.vtd@} or one of its subtypes.
+
+The purpose of a @{NEEDS@} clause is to describe artifacts, beyond the
+explicit inputs to the step, on which the step depends.
+It informs Odin that the step must be re-run if the contents of any of
+these files changes.
+In this case, it ensures that all of the files described in the general
+document specification are up-to-date (@{:vir_tgt.list@} is a built-in
+derivation yielding the files defined by a virtual target definition file).
+
+The arguments provided to @{root.sh@} are the values of the input expressions
+@{(:tex.vtd)@} and @{(+texroot)@} respectively.
+The first value is the absolute path name of a virtual target definition
+text file.
+As discussed in Section \ref{parameters}, the second value may be either
+an empty string
+(if there is no parameterization expression of type @{texroot@}) or
+a string giving the root name explicitly.
+
+@$@<Make the document root explicit@>+=@{
+# EXEC (root.sh) (:tex.vtd) (+texroot)
+#   NEEDS (:tex.vtd :vir_tgt.list)
+#   => (:rootName) (:rootFileName);
+
+ODIN_vtd=$1;shift; ODIN_root=$1;shift;
+@}
+(The first line effectively turns the shell's positional parameters into
+keyword parameters to simplify the description of the script.
+This is a common strategy when the scripts are complex.)
+
+Section \ref{tools} pointed out that while the @{tex@} and @{latex@}
+commands accept the root file name with or without the trailing @{.tex@},
+the @{bibtex@} command requires that the trailing @{.tex@} be omitted.
+Thus it seems reasonable to allow the parameterization expression to have a
+trailing @{.tex@}, but to remove it if it is given.
+
+If the document owner has given a parameterization expression of type
+@{texroot@} then the value of the file argument @{(+texroot)@} is the
+document root;
+otherwise the base name of the first virtual target will be used,
+as discussed in Section \ref{basis}.
+The first task of @{root.sh@} is therefore to implement this choice:
+
+@$@<Make the document root explicit@>+=@{
+if [ "$ODIN_root" != '' -a "$ODIN_root" != ' ' ]
+then echo $ODIN_root > temp
+else
+  tr -d ' \011' < $ODIN_vtd \
+    | sed -n -e '1s/^%\(.*\)==.*/\1/p' \
+    > temp
+fi
+@}
+(The @{tr@} command removes spaces and horizontal tab characters.)
+
+Because there may be no parameterization expression
+or the parameterization expression may have provided no value,
+the script should check that a root name is actually present before
+stripping off any @{.tex@} suffix:
+
+@$@<Make the document root explicit@>+=@{
+if [ -s temp ]
+then
+  sed -e 's/.tex$//' temp > rootName
+  sed -e 's/$/.tex/' rootName > rootFileName
+else @<Report that there is no root name@>
+fi
+@}
+
+If Odin finds a non-empty file called @{ERRORS@} in the working directory
+after the @{exec@} system call terminates with zero status,
+it assumes that the action failed and that file @{ERRORS@}
+contains text describing the failure.
+Thus reporting an error involves simply creating a file @{ERRORS@} with the
+appropriate content:
+
+@$@<Report that there is no root name@>==@{
+echo 'No document root found' > ERRORS
+@}
+
+@{ERRORS@} is an implicit result artifact of every manufacturing step.
+@{ERRORS@} is given @{ABORT@} status if the script terminates with nonzero
+status.
+An artifact with @{ABORT@} status cannot be examined, so it is important to
+guarantee that scripts terminate with zero status except when an internal
+failure has occurred.
+If a script must terminate with nonzero status, an appropriate error report
+must be written to the standard output stream rather than to file @{ERRORS@}.
+
+If Odin finds a non-empty file called @{ERRORS@} in the working directory
+after the @{exec@} system call terminates with zero status, then the status
+of each of the result artifacts of the current step is set to @{ERROR@}.
+Normally, a step will not run when any of its input artifacts
+has @{ERROR@} status.
+Thus if an error is reported here subsequent steps will not run because
+the @{:rootName@} and @{rootFileName@} artifacts input to those steps
+would have @{ERROR@} status.
+This means that the process implementor need not make any special
+provisions to terminate the manufacturing process when errors occur.
+Merely reporting those errors will have the desired effect.
+
+@C@<Determine the search path for basis components@>
+\label{search}
+
+Recall from Section \ref{tools} that TeX, LaTeX and BibTeX seek the files
+defining the document via search paths specified by environment variables.
+Thus the files that define the document must appear with the appropriate
+names in some directory on the proper search path.
+Unfortunately, files specified by virtual file definitions
+do not have any independent existence in the file system unless a
+directory artifact containing them is created explicitly.
+The name of that directory must be added to the search path.
+
+Section \ref{basis} noted that all of the files in the document basis could
+be listed explicitly in a virtual target definition file, but that building
+such a file by hand was annoying for simple cases.
+When a single LaTeX file is specified as the key, the manufacturing step
+declared in Section \ref{texinput} creates a virtual target definition file
+defining exactly that file.
+If the LaTeX file contains commands referencing other files, those files
+will @/not@/ be listed in the generated virtual target definition file.
+They will often be in the directory containing the LaTeX file,
+but a manufacturing step is carried out in a working directory
+created by Odin that bears no relationship whatsoever to the directory in
+which the original request for manufacture was made.
+The name of the directory containing the LaTeX file must therefore be
+explicitly added to the search path.
+
+@$@<Declare a search path artifact@>==@{
+:texsp 'Search path for the document basis' => :FILE;
+@}
+A @{:texsp@} artifact is a text file containing the absolute path names of
+the directories making up the search path, one per line, in the order
+in which they are to be examined.
+
+Section \ref{parameters} defined the @{texsearch@} parameter type to
+give the document owner control over the actual search path.
+The search path artifact is therefore based on the generated directory
+containing the virtual target definitions, the directory in which the
+original request for manufacture was made, and the set of parameterization
+expressions of type @{texsearch@}:
+
+@$@<Determine the search path@>==@{
+EXEC (texsp.sh) (:tex.vtd :vir_dir)@@ (:dir)@@ (+texsearch)
+  => (:texsp);
+@}
+Both @{:vir_dir@} and @{:dir@} are built-in Odin derivations.
+The first produces a derived directory containing the files defined by the
+virtual target definition file to which it is applied, and the second
+produces a reference to the directory in which the original request for
+manufacture was made.
+In both cases the representation is the absolute path name of the directory.
+The trailing @{@@@} characters indicate that this manufacturing step
+depends only on the @/name@/ of each directory, not its @/content@/.
+
+@$@<Construct the search path@>+=@{
+# EXEC (texsp.sh) (:tex.vtd :vir_dir)@@ (:dir)@@ (+texsearch)
+#   => (:texsp);
+
+ODIN_vir_dir=$1;shift; ODIN_dir=$1;shift; ODIN_texsearch=$1;shift;
+@}
+
+The created search path @/must@/ specify the directory containing the virtual
+targets, because that directory is invisible to the document owner.
+If no parameterization expressions of type @{texsearch@} have been given,
+then the directory in which the original request for manufacture was made
+should be added to the search path.
+When the document owner takes control of the search path by including
+parameterization expressions, however, no directory that they @/could@/
+specify should be used by default.
+Thus the directory in which the original request for manufacture was made
+should be omitted in that case:
+
+@$@<Construct the search path@>+=@{
+echo $ODIN_vir_dir > texsp
+if [ "$ODIN_texsearch" = '' ]
+then echo $ODIN_dir >> texsp
+elif [ "$ODIN_texsearch" != ' ' ]
+then
+  for d in `cat $ODIN_texsearch`
+  do
+    case $d in
+    /*) echo $d >> texsp ;;
+    *)  echo "$d must be an absolute path name" >> ERRORS ;;
+    esac
+  done
+else :
+fi
+@}
+The @{else :@} line is included to ensure that the conditional terminates
+with zero status.
+Since the conditional is the last statement of the script, its termination
+status will be the termination status of the script.
+
+All directories listed in the @{:texsp@} must be represented by absolute path
+names, because they will be used in arbitrary contexts.
+Odin guarantees that @{$ODIN_vir_dir@} and @{$ODIN_dir@} are absolute path
+names.
+Unparenthesized parameterization expressions of type @{+texsearch@}
+(Section \ref{parameters})
+provided as part of the document owner's request, however,
+may have values that are relative path names.
+Such specification errors are reported by this step.
+
+@C@<Determine complete path names for files@>
+\label{view}
+
+Given a list of simple file names and a search path,
+the complete path names are determined by seeking each of the simple
+file names in turn in each of the directories of the search path.
+Odin provides a mechanism called a @/view descriptor@/ to aid in this
+common task.
+
+A view descriptor is simply a collection of sequences of possible complete
+file names.
+The @{:view@} derivation scans each sequence in the collection, selecting
+the first name of that sequence corresponding to an extant file.
+The result of the derivation is the list of all of the selected names.
+
+Here's an example of a view descriptor:
+
+\begin{quote}
+\begin{verbatim}
+directory1/localName1
+directory2/localName1
+=''
+directory1/localName2
+directory2/localName2
+=''
+directory1/localName3
+directory2/localName3
+=''
+\end{verbatim}
+\end{quote}
+The characters @{=''@} terminate a sequence, so this view descriptor
+consists of three sequences.
+Suppose that files
+@{directory2/localName1@},
+@{directory1/localName2@} and
+@{directory2/localName2@}
+exist.
+In that case the @{:view@} derivation will yield the list
+(@{directory2/localName1@},
+@{directory1/localName2@}).
+
+A manufacturing step creates a view descriptor from a list of local file names
+and a search path by simply producing all possible combinations.
+The view descriptor above was created from the list of three files
+(@{localName1@}, @{localName2@}, @{localName3@}) and
+the two-directory search path \{@{directory1@} @{directory2@}\}.
+
+Remember that a manufacturing step is always applied to a single artifact.
+The file arguments beginning with @{(:@} determine the acceptable types of
+artifact (Section \ref{texinput}).
+A view descriptor manufacturing step is applied to an artifact specifying
+the list of file names:
+
+@$@<Declare a list of file names@>==@{
+:texnames 'Text file containing local file names' => :FILE;
+@}
+This artifact is a text file, each of whose lines is a simple file name.
+
+Two artifacts are required to manufacture a view descriptor: the list of
+files and the search path.
+The @{:texsp@} artifact of Section \ref{search} defines the search path to
+be used for files in the document basis.
+That search path is derived from the original input provided by the
+document owner, and not from the artifact to which the view descriptor
+manufacturing step is applied.
+
+A manufacturing step can have an arbitrary number of input arguments
+derived from the artifact to which it is applied, but input arguments
+derived from other sources must be supplied as parameters (i.e. file
+arguments beginning with @{(+@}).
+Thus the process implementor must declare a parameter type to convey the
+search path information to the view descriptor manufacturing step:
+
+@$@<Declare a parameter type for search path information@>==@{
++texsppt 'Parameter type for search path information' => :first;
+@}
+
+It is important to distinguish the @{texsearch@} and @{texsppt@} parameter
+types.
+The former is provided by the process implementor to allow the user to
+control a critical manufacturing parameter --- the set of directories
+containing files in the document basis.
+Values of type @{texsearch@} are absolute path names of directories.
+
+The @{texsppt@} parameter type is a text file listing the names of the
+directories, including the virtual directory hidden from the user, that
+must be searched for basis files.
+It is a strictly intermediate artifact, and is not supplied by the user.
+(Of course the user @/might@/ supply @{+texsppt@} values, but they will
+be ignored because @{:first@} will be applied to the parameter values and
+parameter values defined in manufacturing steps always precede those
+supplied by the user.)
+
+The result of the view descriptor manufacturing step is a text file
+containing the view descriptor:
+
+@$@<Determine the view descriptor@>==@{
+EXEC (tex_view.sh) (:texnames) (+texsppt) => (:tex.view_desc);
+:tex.view_desc 'View descriptor for basis files' => :FILE;
+@}
+
+Construction of the view descriptor is handled by the @{tex_view.sh@}
+script, which first creates an empty result file,
+and then checks whether the input file or the search path is empty.
+If the input file is empty, then there are no local file names to look up;
+if the search path is empty there is no place any files could be found.
+In either case the result is an empty view descriptor, so the script exits
+immediately:
+
+@$@<Build a view descriptor@>+=@{
+# EXEC (tex_view.sh) (:texnames) (+texsppt) => (:tex.view_desc);
+
+ODIN_files=$1;shift; ODIN_search=$1;shift;
+touch tex.view_desc
+if [ ! -s $ODIN_files -o "$ODIN_search" = '' -o "$ODIN_search" = ' ' ]
+then exit 0
+fi
+@}
+
+When neither the input file nor the search path is empty,
+a pair of nested loops constructs the view descriptor:
+
+@$@<Build a view descriptor@>+=@{
+for f in `cat $ODIN_files`
+do
+  for d in `cat $ODIN_search`
+  do echo "$d/$f" >> tex.view_desc
+  done
+  echo "=''" >> tex.view_desc
+done
+@}
+
+A view descriptor is used by the built-in Odin @{:view@} derivation to
+construct a list of files:
+
+@$@<Find the actual file names@>==@{
+COLLECT (:tex.view_desc :view) => (:texfiles);
+:texfiles 'Accessible files referenced' => :LIST;
+@}
+The Odin @{COLLECT@} operation forms a list from the values of its operands.
+@{LIST@} artifacts are ordered collections of other artifacts, and may be
+empty.
+Although @{COLLECT@} can be used to build lists of lists, that structure
+can be ignored and all lists treated as though they consisted of a single
+level.
+
+@C@<Determine the basis@>
+\label{dynamic}
+
+Section \ref{raw} defined the basis of a document as the files making up the
+variable part of the definition of that document.
+The total set of raw material for the document, which includes the basis,
+consists of all of the files that are transitively referenced from the
+document's root.
+Clearly the document basis is a critical manufacturing parameter that must
+be under control of the document owner.
+That control is afforded by the ability of the document owner to determine
+the search path:
+A file is a part of the document basis if and only if it and all of the
+transitive references to it appear in files on the specified search path.
+(If the document's root is not in a directory appearing on the specified
+search path then the document has no basis.)
+
+The document's basis is therefore a list of files:
+
+@$@<Compute the document basis@>==@{
+COLLECT (:rootFileName +texsppt=(:texsp) :texclose) => (:texbasis);
+:texbasis 'Document basis' => :LIST;
+@}
+Section \ref{search} explained how the search path @{:texsp@} was computed,
+and Section \ref{view} defined the @{+texsppt@} parameter type.
+Remember that the search path always begins with the generated directory
+containing the virtual target definitions.
+If the document owner does not provide any parameterization expressions of
+type @{texsearch@}, then the directory from which the request for the
+document was made is the only other element of the search path.
+The document owner must specify any other directories explicitly.
+
+Determining the transitive closure of a set of references is a common 
+problem in software manufacture.
+The design pattern that the process implementor uses to solve it involves
+two subtypes of @{LIST@}, one representing a set of files (@{:texfiles@} in
+this case) and the other representing the closure of that set
+(@{:texclose@} in this case):
+
+@$@<Compute a transitive closure@>==@{
+COLLECT (:texfiles) (:texfiles :extract=:tex :map=:texclose) => (:texclose);
+:texclose 'Names of all files transitively referenced' => :LIST;
+@}
+The built-in @/second-order derivation@/ @{:extract=@}@/type@/ takes a list
+as input and produces a list containing each element of the input list that
+is a subtype of @/type@/ (@{:tex@} in this case).
+The built-in second-order derivation @{:map=@}@/derivation@/ takes a list
+as input and produces a list containing the application of @/derivation@/
+(@{:texclose@}, in this case) to each element of the input list.
+Thus, one of the steps in deriving @{(:texfiles :extract=:tex
+:map=:texclose)@} must derive @{:texclose@} from @{:tex@}.
+
+The transitive closure rule shows how to derive @{:texclose@} from
+@{:texfiles@}, and Section \ref{view} shows how to derive @{:texfiles@} from
+@{:texnames@}; the only gap therefore is a derivation from @{:tex@} to
+@{:texnames@}.
+Section \ref{view} defined @{:texnames@} as a text file,
+each of whose lines was a simple file name.
+
+A C program to read a TeX file, recognize the formatter commands
+that reference files, and output the names of the files they reference,
+is given in Appendix \ref{texscan}.
+That program expects its standard input to be a TeX file, and it writes a
+sequence of referenced file names (one per line) to its standard output.
+The name consists of the identifier specified in the referencing command,
+with a suffix based on the kind of command.
+For example, the command @{\input(ch1)@} would result in the line
+@{ch1.tex@}.
+
+Here is a manufacturing step that uses @{texscan.c@}, the C program of
+Appendix \ref{texscan}, to find the files referenced by a given TeX file:
+
+@$@<Obtain the names of files referenced by a given file@>==@{
+EXEC (texscan.sh) (texscan.c :exe) (:tex) => (:texnames);
+@}
+The file argument @{(texscan.c :exe)@} is the full path name of an
+executable program obtained by compiling the file @{texscan.c@} found in
+the current package.
+This compilation will take place the first time any document is manufactured;
+the executable program will then remain available for re-use until the
+cache is reset.
+
+The script that runs the program must supply the correct argument file
+and direct the program's output to the proper output file, ensuring that 
+the output file always exists:
+
+@$@<Extract referenced files@>==@{
+touch texnames; $1 <$2 >texnames
+@}
+
+Finally, Odin needs to be able to derive a @{:texnames@} artifact from the
+document root in order to start the transitive referencing process.
+This is trivial because @{:rootFileName@} was defined in Section \ref{root}
+as a subtype of @{:texnames@}.
+(Recall that @{:rootFileName@} was defined as a text
+file whose only line was the simple file name of the root.
+Thus @{:rootFileName@} satisfies the definition of a @{:texnames@} artifact
+given above.)
+
+The result of @{(:rootFileName +texsppt=(:texsp) :texclose)@} is a list
+consisting of the name of the root file and the names of all files found on
+the search path that are transitively referenced by TeX files found on the
+search path.
+Since the basis is a tree, this recursion will terminate.
+(Odin is clever enough not to start a new derivation for an artifact that it
+is currently deriving, however, so termination is actually guaranteed in
+any case.)
+
+@B@<Format the Text@>
+\label{format}
+
+The input to the text formatting action (Section \ref{tools}) is
+the root name,
+the set of files transitively referenced from the document's root,
+and a set of auxiliary files.
+A file representing the formatted document results from formatting,
+and some auxiliary files may be created or modified as well.
+There is also a log file that may useful in case of errors.
+
+Section \ref{basis} noted that Odin can normally decide whether to use the
+@{latex@} formatting command by checking the root file for certain
+commands.
+This check depends only on the root file, and must be carried out whenever
+the root file changes.
+Clearly the formatter must be run whenever the root file changes, but it
+must @/also@/ be run when an auxiliary file changes.
+The different dependence relations exhibited by command selection and
+formatting indicate that these tasks should constitute separate manufacturing
+steps.
+Section \ref{command} discusses the command selection.
+
+The need for precise dependence information also influences the choice of
+artifacts used to represent the data and results of the formatting step.
+These issues are explored in Section \ref{relateformat}, where the
+artifacts and the manufacturing step are declared.
+
+Section \ref{implementformat} covers the implementation of the
+formatting step as a shell script.
+
+@C@<Determine the formatting command@>
+\label{command}
+
+The formatting command is a critical manufacturing parameter, and therefore
+Section \ref{parameters} defined the @{tex@} and @{latex@} parameter types.
+In many cases, however, the proper command can be determined during the
+manufacturing process by examining the root file.
+Once the formatting command has been determined, it can change only if the
+user changes one of the parameters or the root file.
+A text file containing the desired command on a single line is an
+appropriate result artifact:
+
+@$@<Determine the formatting command@>==@{
+EXEC (fmtcmd.sh) (:rootFileName +texsppt=(:texsp) :texfiles :ls) (+tex) (+latex)
+     (+usepdf)
+   => (:fmtcmd);
+:fmtcmd 'Formatting command' => :FILE;
+@}
+The first argument of @{fmtcmd.sh@} is computed by looking the
+simple root file name up in the directories of the search path.
+That process, described in Section \ref{view}, results in the @{:texfiles@}
+artifact.
+Because there is only one file name, @{:texfiles@} will be a singleton
+list.
+The built-in @{:ls@} derivation (Section \ref{parameters}) will therefore
+result in a text file with a single line that is the absolute path name of
+the root file.
+
+This manufacturing step is a good point to verify that the root file exists
+and is not empty:
+
+@$@<Set the formatting command@>+=@{
+# EXEC (fmtcmd.sh) (:rootFileName +texsppt=(:texsp) :texfiles :ls) (+tex) (+latex)
+#      (+usepdf)
+#    => (:fmtcmd);
+
+ODIN_rootFile=$1;shift; ODIN_tex=$1;shift; ODIN_latex=$1;shift;
+ODIN_pdf=$1;shift;
+
+rootFile=`cat $ODIN_rootFile`
+if [ "$rootFile" = '' ]
+then echo 'The specified root file is not on the search path' > ERRORS
+elif [ ! -s $rootFile ]
+then echo 'The root file is empty' > ERRORS
+@}
+
+If the file passes these tests, then the formatting command can be
+determined:
+
+@$@<Set the formatting command@>+=@{
+elif [ "$ODIN_latex" != '' ]
+then echo latex > fmtcmd
+elif [ "$ODIN_tex" != '' ]
+then echo tex > fmtcmd
+elif egrep -e '^\\documentstyle' -e '^\\documentclass' $rootFile > /dev/null
+then echo latex > fmtcmd
+else echo tex > fmtcmd
+fi
+@}
+Note that the @{fgrep@} test is quite rough:
+A plain TeX file might have the string @{\documentstyle@} hidden in a comment,
+or defined as a command with some other meaning.
+In either case, Odin would incorrectly deduce that the formatting command
+should be @{latex@}.
+Such errors are not critical, however, since the user can always specify
+the proper command explicitly.
+
+If the document is to be rendered into PDF,
+the formatting command is derived by simply adding the prefix @{pdf@}:
+
+@$@<Set the formatting command@>+=@{
+if [ "$ODIN_pdf" != '' ]
+then
+  sed -e 's/.*/pdf&/' fmtcmd > pdfcmd
+  mv pdfcmd fmtcmd
+else :
+fi
+@}
+
+@C@<Format the document@>
+\label{relateformat}
+
+Running the formatter creates either the device-independent format file
+or the PDF file and a log file, and may modify auxiliary files.
+The auxiliary files whose names carry the suffix @{.aux@} are used to
+hold cross-reference information as well as
+citations and specifications of bibliographic data files.
+As a document is being revised, cross-reference information usually changes
+more frequently than citations and specifications of bibliographic data
+files.
+This means that BibTeX shouldn't run every time there is any change
+to the primary auxiliary file, but only when the change is to a citation or
+specification of a bibliographic data file.
+This can be done by extracting the citations and specifications of
+bibliographic data into a separate file, @{citations@}.
+The auxiliary file whose name ends in @{.idx@} is also copied into a
+separate file, @{indexntry@} that is passed to the @{makeindex@} program:
+
+@$@<Declare artifacts created by the formatter@>==@{
+:dvi       'Device independent format file'           => :FILE;
+:texpdf    'PDF created from TeX or LaTeX'            => :FILE;
+:tex.log   'TeX log file'?                            => :FILE;
+:citations 'Citation and bibliographic data commands' => :FILE;
+:indexntry '\indexentry commands with page numbers'   => :FILE;
+@}
+
+The text formatting action creates an arbitrary number of auxiliary files
+in the directory in which it is run.
+This is a common situation in software manufacture, and Odin supports it
+with the @{DERIVED-DIRECTORY@} subtype of @{FILE@}:
+An artifact whose type is a subtype of @{DERIVED-DIRECTORY@} is a directory
+produced by a tool.
+
+@$@<Declare auxiliary file artifacts@>+=@{
+:texauxout 'Auxiliary files potentially modified by TeX' => :DERIVED-DIRECTORY;
+@}
+
+Before running the formatter in the directory that will ultimately become
+the @{:texauxout@} artifact, any auxiliary files that are already available
+should be copied in.
+Copying all of the files from one directory to another is a simple
+operation, so representing the set of auxiliary files input to the
+formatting step by a directory is a reasonable implementation choice.
+There is a significant difference between the input and output sets,
+however:
+The files in the output set are all created (or modified) at the same time
+by the same tool, whereas the files in the input set could have originated
+from a number of different manufacturing steps.
+(For example, Section \ref{tools} explains that one of the auxiliary files
+used by the formatter is created by BibTeX and is not modified by the
+formatter; a similar situation exists with @{makeindex@}.)
+
+Odin's mechanism for describing directories whose components have many
+different origins is the virtual target definition file described in
+Section \ref{basis}.
+Section \ref{search} showed how to use the built-in @{:vir_dir@} derivation
+to obtain a directory from a virtual target definition file.
+That directory contains one symbolic link for each virtual target definition
+in the virtual target definition file.
+The symbolic link has the @{VirtualFileName@} (without the leading @{%@})
+as its name, and it points to the file defined by the @{OdinExpression@}.
+No copy of the file itself is made.
+These properties make the virtual target definition file a good
+implementation choice for the set of auxiliary files input to the
+formatting step:
+
+@$@<Declare auxiliary file artifacts@>+=@{
+:texauxin.vtd 'Auxiliary files input to the formatting step' => :vtd;
+@}
+
+Here is the declaration of the formatting action, which shows its
+relationship to the shared artifacts:
+
+@$@<Format the document@>==@{
+EXEC (tex.sh) (:fmtcmd) (:rootName) (:texsp) (:tex.vtd :texauxin.vtd :vir_dir)&
+   NEEDS (:texbasis :extract=:tex) (:texbasis :extract=:sty)
+     (:texbasis :extract=:cls)
+     (:tex.vtd :texauxin.vtd :vir_tgt.list)&
+   => (:dvi) (:texpdf) (:tex.log) (:citations) (:indexntry) (:texauxout);
+@}
+File arguments @{(:fmtcmd)@} (Section \ref{command}), @{(:rootName)@}
+(Section \ref{root}) and @{(:texsp)@} (Section \ref{search}) are
+straightforward.
+
+As discussed in Section \ref{tools}, the set of auxiliary files input to
+the formatting step is normally obtained by combining files created by
+BibTeX and @{makeindex@} with the auxiliary files created by a previous
+formatting step.
+Thus there is a cyclic dependence involving more than one manufacturing
+step.
+(In this step, @{:texauxin.vtd@} is used as one of the inputs and
+@{:texauxout@} is one of the outputs; Section \ref{merge} describes a step
+that produces @{:texauxin.vtd@} from @{:texauxout@}.)
+When such a cycle occurs, Odin has no way to know which of the steps should
+be performed first.
+The process implementor must provide this information by using a derivation
+from outside the cycle as the input to one of the steps.
+Odin executes the step using the derivation from outside the cycle first.
+
+Here the formatting step must be carried out first, in order to provide
+citation information for BibTeX and index entries for @{makeindex@}.
+Thus the process implementor declares the cyclic input @{:texauxin.vtd@} to
+be derived from @{:tex.vtd@}, an artifact outside the cycle.
+
+The @{&@} marker indicates that the set of auxiliary files may be absent
+(because the formatting step has never run before),
+and that the step should run anyway.
+If there is no directory, the value of the file argument names a directory
+that does not yet exist.
+
+Odin will schedule an action for execution if and only if some input to
+that action has changed since the last execution.
+Suppose that the document owner had previously requested a formatted
+version of the document, thus establishing values for all of the input
+expressions to the formatting step.
+The document owner then discovered some spelling mistakes in the text of
+the document, corrected them, and requested an updated formatted version.
+Spelling changes would not normally change the value of @{(:fmtcmd)@},
+nor would they affect the root name, the search path for document
+components, or the name of the directory containing the auxiliary files.
+But those spelling changes probably @/do@/ require that the document be
+reformatted, and thus the @{NEEDS@} clause specifies three lists of files:
+the TeX and formatting style files in the document's basis,
+and the auxiliary files.
+Since the content of some TeX file in the basis will be changed by the
+spelling corrections, the formatting step will be re-run.
+
+@C@<Implementing the formatting step@>
+\label{implementformat}
+
+The script @{tex.sh@} will be executed in an empty directory and given four
+string-valued arguments.
+(Note that no arguments corresponding to the @{NEEDS@} clause
+are provided.)
+It creates four files (either @{dvi@} or @{texpdf@} is created, depending
+on the formatter) and a directory:
+
+@$@<Run the formatter@>+=@{
+# EXEC (tex.sh) (:fmtcmd) (:rootName) (:texsp) (:tex.vtd :texauxin.vtd :vir_dir)&
+#    NEEDS (:texbasis :extract=:tex) (:texbasis :extract=:sty)
+#      (:texbasis :extract=:cls)
+#      (:tex.vtd :texauxin.vtd :vir_tgt.list)&
+#    => (:dvi) (:texpdf) (:tex.log) (:citations) (:indexntry) (:texauxout);
+
+ODIN_fmtcmd=$1;shift; ODIN_root=$1;shift; ODIN_search=$1;shift; ODIN_aux=$1;shift;
+mkdir texauxout
+@}
+A @{DERIVED-DIRECTORY@} artifact is usually constructed by having the shell
+script create an empty directory and then running the tool in that directory.
+The tool creates an arbitrary number of output files in the directory in which
+it runs, and these files become the elements of the @{DERIVED-DIRECTORY@}
+artifact.
+That strategy is followed here.
+
+The colon-separated list of directories making up the formatter's search
+path must be constructed.
+If there is already a search path specified by the @{TEXINPUTS@}
+environment variable, that search path should be appended to the
+constructed one:
+
+@$@<Run the formatter@>+=@{
+for d in `cat $ODIN_search`; do sp=$sp"$d":; done
+TEXINPUTS=.:$sp"$TEXINPUTS"; export TEXINPUTS;
+@}
+Note that the search path specified by the @{TEXINPUTS@} environment
+variable may provide access to files that are not part of the basis as
+defined in Section \ref{dynamic} and determined dynamically by Odin.
+The formatting step will @/not@/ be re-run when changes occur in such
+files.
+It is up to the user to specify, via the @{+texsearch@} parameter (Section
+\ref{basis}), the files constituting the ``variable'' part of the document
+specification.
+The formatting step will be re-run if and only if one of those files
+changes.
+
+There will be no auxiliary file directory present at the beginning of the
+first cycle of a request for a given document.
+A directory will be present for all later cycles, but that directory might
+be empty.
+If the directory is present and not empty, the files it contains
+become the initial values of the corresponding output files.
+Thus the script copies them into the @{texauxout@} directory
+and makes certain that those copies are writable:
+
+@$@<Run the formatter@>+=@{
+if [ -d "$ODIN_aux" ]
+then
+  if [ "`ls $ODIN_aux`" != '' ]
+  then cp $ODIN_aux/* texauxout; chmod 666 texauxout/*
+  fi
+fi
+@}
+
+The script then executes the formatting command in the @{texauxout@}
+directory, giving it the simple name of the root file and preventing it from
+trying to read additional material from its standard input:
+
+@$@<Run the formatter@>+=@{
+cd texauxout
+`cat $ODIN_fmtcmd` `cat $ODIN_root`.tex </dev/null 1>../MSGS 2>&1 \
+  || ( mv ../MSGS ../ERRORS; echo 'formatter failed.' >>../ERRORS )
+cd ..
+@}
+The standard output and standard error streams are directed to file
+@{MSGS@} in the original working directory.
+If the command terminates with a nonzero status,
+@{MSGS@} is renamed to provide the error report.
+This is a common design pattern for executing off-the-shelf tools:
+irrelevant output is suppressed when the tool executes successfully,
+yet everything is captured when the tool fails.
+
+After the formatter has run, the formatted text file
+and the log file are moved to the original working directory.
+Their names are also changed to the generic ones specified in the
+declaration of the formatting step (Section \ref{relateformat}):
+
+@$@<Run the formatter@>+=@{
+if [ -f texauxout/*.dvi ] ; then mv texauxout/*.dvi dvi; fi
+if [ -f texauxout/*.pdf ] ; then mv texauxout/*.pdf texpdf; fi
+if [ -f texauxout/*.log ]
+then mv texauxout/*.log tex.log
+else touch tex.log
+fi
+@}
+Subsequent steps that depend on the formatted text should not run
+if the formatter does not produce a formatted text file.
+In contrast, subsequent steps should @/always@/ be able to examine the
+@{tex.log@} output artifact.
+Thus the @{touch@} command is used to guarantee that a log file exists
+when the formatter didn't produce one.
+
+Citations and bibliographic data are specified by three commands in the
+auxiliary files.
+These commands are extracted from the auxiliary files to make up
+the citation file for BibTeX; if no auxiliary files exist,
+an empty citation file is created:
+
+@$@<Run the formatter@>+=@{
+touch citations
+for f in `ls texauxout/*.aux 2>/dev/null`
+do
+  grep -e '\\citation' $f >> citations
+  grep -e '\\bibstyle' $f >> citations
+  grep -e '\\bibdata'  $f >> citations
+done
+@}
+Three calls to grep are needed because various grep implementations handle
+alternation differently.
+
+Unfortunately, @{ls@} complains if there are no auxiliary files (although
+it yields an empy list on its standard output stream).
+To avoid a spurious report to the console, the standard error stream must
+be discarded.
+
+Index entries are specified in an auxiliary file whose name ends in
+@{.idx@}.
+A copy of this information must be passed to @{makeindex@}.
+An empty file is passed if there are no index entries:
+
+@$@<Run the formatter@>+=@{
+if [ -f texauxout/*.idx ]
+then cp texauxout/*.idx indexntry
+else touch indexntry
+fi
+@}
+
+Because the formatting step depends on a set of auxiliary files and also
+modifies those files, it must generally be carried out more than once.
+Assuming that there are no errors detected, each execution of the step
+creates a device-independent document layout file.
+As discussed in Section \ref{tools}, PostScript is obtained by applying the
+converter @{dvips@} to a device-independent document layout file.
+While it is not incorrect to apply @{dvips@} to each of the files created
+by successive repetitions of the formatting step, it is unnecessary to do
+so; only the file created by the last repetition is complete.
+A similar argument can be made for manufacturing steps applied to a PDF
+file.
+
+This is a common problem when a manufacturing process contains a cycle and
+some artifact produced by that cycle is not actually involved in the cycle
+itself: further derivations should be applied only to the artifact produced
+by the last repetition of the cycle.
+Since the artifact is not actually involved in the cycle, the obvious
+strategy is to simply not make it available to Odin if the step that
+produces it must run again.
+An artifact is made available to Odin by leaving the corresponding file or
+directory in the working directory when the @{exec@} system call terminates
+with zero status.
+Thus applications of further manufacturing steps to intermediate
+document layout files can be prevented by deleting those files from
+the working directory if the formatting step must run again.
+
+The formatting step must run again if any of the auxiliary files have
+changed, or if new auxiliary files are added, or if there are citations but
+no bibliographic data.
+If there was no directory of auxiliary files provided to the formatter,
+then clearly another run is needed.
+
+Since the script has already moved everything except auxiliary
+files out of the @{texauxout@} subdirectory, a simple directory comparison
+allows the script to decide whether auxiliary files have changed:
+
+@$@<Run the formatter@>+=@{
+if [ -d "$ODIN_aux" ] && ( diff $ODIN_aux texauxout > /dev/null )
+then :
+else rm -f dvi texpdf
+fi
+@}
+(The @{diff@} command is defined to exit with 0 status if no differences
+were found and nonzero status otherwise.)
+
+@B
+\label{bib}
+
+The input to the bibliography formatting action (Section \ref{tools}) is
+the citation information extracted from the document and the search path to
+be used by BibTeX to find bibliography style and data files.
+A file containing a sequence of commands to create the bibliography results
+from the bibliography formatting action.
+
+It is possible that a document owner will change one of the bibliographic
+data files in the document's basis without making any change in any text file.
+(For example, it might be necessary to correct an error in the title of a
+referenced paper.)
+Since the bibliographic data files are only @/specified@/ in the citation
+file, such a change would not result in any change in the contents of the
+citation file or the search path.
+Nevertheless, BibTeX must be re-run to correct the formatted bibliography.
+Thus the bibliography formatting step must depend on the contents of the
+bibliographic data files although they are not explicitly input:
+
+@$@<Format the Bibliography@>==@{
+EXEC (bibtex.sh) (:citations)& (:texsp)
+   NEEDS (:texbasis :extract=:bib) (:texbasis :extract=:bst)
+   => (:tex.bbl);
+:tex.bbl 'TeX bibliographic reference file' => :FILE;
+@}
+
+Suppose that the bibliographic database defined by the @{bib@} files
+contains information that causes the formatter to fail.
+Since the @{:citations@} artifact is created by the formatting step, it
+will have @{ERROR@} status.
+The @{&@} marker indicates that BibTeX should be run even in this case;
+without this marker, it would be impossible to correct the error!
+
+If there are no citations in a document, then the @{:citations@} artifact
+created by the formatting step will contain no @{\citation@} commands.
+The mere creation of @{:citations@}, whether it's empty or not, implies
+that the bibliography formatting action must be carried out.
+It is an error to run BibTeX if there are no @{\citation@} commands.
+
+When starting a document, it is common to add @{\bibliography@} and
+possibly @{\bibliographystyle@} commands in anticipation of the need for
+citations.
+In that case, the @{:citations@} artifact will exist and contain
+@{\bibstyle@} and @{\bibdata@} commands.
+Thus the @{bibtex.sh@} script must first check for an empty @{:citations@}
+artifact.
+If the @{:citations@} artifact is not empty, then the script must verify
+the presence of @{\citation@} commands:
+
+@$@<Run BibTeX@>+=@{
+# EXEC (bibtex.sh) (:citations)& (:texsp)
+#    NEEDS (:texbasis :extract=:bib) (:texbasis :extract=:bst)
+#    => (:tex.bbl);
+
+ODIN_cite=$1;shift; ODIN_search=$1;shift;
+touch tex.bbl
+
+if [ ! -s $ODIN_cite ] ; then exit 0; fi
+
+grep -e '\\citation' $ODIN_cite > temp
+if [ ! -s temp ] ; then exit 0; fi
+@}
+
+Another problem arises if the user has decided to handle citations via a
+@{thebibliography@} environment.
+In that case, there will be no @{\bibdata@} command giving the location of
+the biliographic database.
+BibTex cannot run under those circumstances:
+
+@$@<Run BibTeX@>+=@{
+grep -e '\\bibdata' $ODIN_cite > temp
+if [ ! -s temp ] ; then exit 0; fi
+@}
+
+As described in Section \ref{tools}, BibTeX uses distinct search paths for
+bibliographic data and bibliographic style files.
+The search path defining the document's basis forms the initial segment of
+each of those paths, with the remainder coming from the appropriate
+environment variable:
+
+@$@<Run BibTeX@>+=@{
+for d in `cat $ODIN_search`; do sp=$sp"$d":; done
+
+BIBINPUTS=$sp"$BIBINPUTS"; export BIBINPUTS;
+
+if [ "$BSTINPUTS" != '' ]
+then BSTINPUTS=$sp"$BSTINPUTS";
+else BSTINPUTS=$sp"$TEXINPUTS";
+fi
+export BSTINPUTS;
+@}
+After this sequence, environment variables @{BIBINPUTS@} and @{BSTINPUTS@}
+contain the complete search paths.
+
+BibTeX requires the basename of the file containing the citation
+information as a parameter, and will create a file whose name is that
+basename with extension @{.bbl@}.
+Since the output file name should be @{tex.bbl@}, the basename @{tex@} is
+appropriate for the file containing the citation data:
+
+@$@<Run BibTeX@>+=@{
+ln -s $ODIN_cite tex.aux
+bibtex tex 1>MSGS 2>&1 \
+  || ( mv MSGS ERRORS; echo 'bibtex failed.' >>ERRORS )
+@}
+
+@B
+\label{index}
+
+The input to the index formatting action (Section \ref{tools}) is
+the @{\indexentry@} commands created from the document and possibly command
+line parameters for @{makeindex@}.
+A file containing a sequence of commands to create the index results 
+from the index formatting action, along with a file containing the log
+output of @{{makeindex@}:
+
+@$@<Format the Index@>==@{
+EXEC (makeindex.sh) (:indexntry)& (+index_flags)
+  => (:tex.ind) (:tex.ilg);
+:tex.ind 'TeX index file' => :FILE;
+:tex.ilg 'Messages from makeindex'? => :FILE;
+@}
+
+Suppose that the information provided by the command line parameters
+defined an output file that caused the formatter to fail.
+Since the @{:indexntry@} artifact is created by the formatting step, it
+would then have @{ERROR@} status.
+Without the @{&@} marker on @{(:indexntry)@}, Odin would not run
+@{makeindex@} again until @{:indexntry@} was re-created with status at
+least @{WARNINGS@}.
+But presumably a change in command line parameter information to
+@{makeindex@} can only affect @{:indexntry@} if this step is re-run.
+Thus, without the @{&@} marker, it would be impossible to correct such
+an error!
+
+The index formatting step links the index command file into its working
+directory with the standard name @{tex.idx@}, in order to
+make the remainder of the script independent of the cache file name:
+
+@$@<Run makeindex@>+=@{
+# EXEC (makeindex.sh) (:indexntry)& (+index_flags)
+#   => (:tex.ind) (:tex.ilg);
+
+ODIN_idx=$1;shift; ODIN_flags=$1;shift
+@}
+
+This script will be run even when the index command file does not exist,
+because of the @{&@} flag on @{(:indexntry)@}.
+We create an empty file in that case, because @{makeindex@} terminates
+with an error if there is no input file:
+
+@$@<Run makeindex@>+=@{
+if [ -f $ODIN_idx ]
+then ln -s $ODIN_idx tex.idx
+else touch tex.idx
+fi
+@}
+
+If the user has specified command line flags for @{makeindex@}, these are
+made the value of the shell variable @{flags@}; otherwise, @{flags@} is set
+empty:
+
+@$@<Run makeindex@>+=@{
+if test "$ODIN_flags" != ''
+then flags=`tr '
+' ' ' < $ODIN_flags`
+else flags=''
+fi
+@}
+
+The @{-p@} flag to @{makeindex@} allows the user to specify the number of
+the first page of the index.
+This is useful only if the index is being formatted separately from the
+material being indexed; if they are printed as a single document, the
+formatter will take care of the page numbering automatically.
+In particular, @{-p odd@} will @/not@/ create the blank even-numbered page 
+required to force the index to begin on an odd-numbered page when a single
+document is being printed.
+When using LaTeX, the @{\cleardoublepage@} command should be inserted into
+the text just before the @{\printindex@} command to obtain this effect.
+Another approach is to use the command line parameters to supply a style
+file implementing the desired behavior.
+
+If the user specifies @{-p odd@} or @{-p even@}, then @{makeindex@} tries
+to determine the largest page number used in the indexed material by
+searching a log file from a formatting run.
+In order to avoid failure, we supply an empty log file.
+A @{-p@} flag to @{makeindex@} specifying either @{odd@} or @{even@} has no
+effect in that case:
+
+@$@<Run makeindex@>+=@{
+touch tex.log
+@}
+
+If @{makeindex@} fails, we need to look at the complete set of messages:
+
+@$@<Run makeindex@>+=@{
+makeindex -q $flags tex.idx 2>ERRORS \
+  || { echo 'makeindex failed' >> ERRORS; exit 0; }
+@}
+Note that the name of any index command file specified as a command line
+parameter to @{makeindex@} via @{+index_flags@} precedes the name of the
+generated index command file.
+@{makeindex@} constructs the name of the log file it searches for page
+numbers from the name of the first index command file, so if the user
+supplies an index command file name then @{makeindex@} will not search the
+empty log file @{tex.log@}.
+In this case, if the command line also specifies @{-p odd@} or @{-p even@},
+@{makeindex@} will fail unless a corresponding log file can be found.
+
+The log file produced by @{makeindex@} may contain error reports and
+warnings.
+These must be collected and reported as results of the manufacturing step:
+
+@$@<Run makeindex@>+=@{
+sed -n -e '/!! Input index error /{
+N
+s/^.*(file = \(.*\), line = \([1-9][0-9]*\)):\
+[^-]*-- \(.*\)$/\1 \2 0 \3/w ERR
+}
+/## Warning /{
+N
+s/^.*(input = \(.*\), line = \([1-9][0-9]*\);.*\
+[^-]*-- \(.*\)$/\1 \2 0 \3/w WARN
+}' tex.ilg
+
+if [ -s ERR ]
+then
+  echo "(|$ODIN_idx|line_err|" > ERRORS
+  cat ERR >> ERRORS
+  echo '|)' >> ERRORS
+fi
+
+if [ -s WARN ]
+then
+  echo "(|$ODIN_idx|line_err|" > WARNINGS
+  cat WARN >> WARNINGS
+  echo '|)' >> WARNINGS
+fi
+
+exit 0
+@}
+
+@B
+\label{merge}
+
+The auxiliary files input to the formatting step are
+the auxiliary files output by the previous execution of the formatting step
+(@{:texauxout@}, Section \ref{format}),
+plus the bibliography commands (Section \ref{bib}) and index commands
+(Section \ref{index}) if they exist.
+If the bibliography and index commands do exist, then their file names must
+consist of the root name of the document with extensions @{.bbl@} and
+@{.ind@} respectively:
+
+@$@<Update the auxiliary files@>==@{
+EXEC (texauxin.sh) (:rootName) (:texauxout)& (:tex.bbl) (:tex.ind)
+  => (:texauxin.vtd);
+@}
+Here @{:rootName@} is needed to construct the name of the formatted
+bibliography file.
+Also, the @{&@} marker is needed to be able to correct formatting errors
+resulting from errors in the bibliographic database or @{makeindex@}
+command-line parameters.
+
+Regardless of the status of the formatted bibliography, all of the
+auxiliary files in @{:texauxout@} must be components of the resulting
+virtual target definition file.
+Their names should be unchanged:
+
+@$@<Assemble the auxiliary inputs@>+=@{
+# EXEC (texauxin.sh) (:rootName) (:texauxout)& (:tex.bbl) (:tex.ind)
+#   => (:texauxin.vtd);
+
+ODIN_root=$1;shift; ODIN_aux=$1;shift; ODIN_bbl=$1;shift; ODIN_ind=$1;shift;
+touch texauxin.vtd
+
+if [ -d $ODIN_aux ]
+then for f in `ls $ODIN_aux`; do echo "%$f==$ODIN_aux/$f" >> texauxin.vtd; done
+fi
+@}
+
+The bibliography and index command files must also appear in the
+virtual target definition file with the appropriate names:
+
+@$@<Assemble the auxiliary inputs@>+=@{
+echo "%`cat $ODIN_root`.bbl==$ODIN_bbl" >> texauxin.vtd
+echo "%`cat $ODIN_root`.ind==$ODIN_ind" >> texauxin.vtd
+@}
+
+Recall from Section \ref{implementformat} that the formatting step
+copies all of the files specified by @{:texauxin.vtd@} into the
+@{texauxout@} directory.
+The bibliography and index command files are read but not
+written by the formatting tool, so they will end up unchanged in
+@{:texauxout@} after the formatting command has completed.
+Because the formatting tool doesn't change them,
+these files do not fit the definition of the @{:texauxout@} artifact given
+in Section \ref{relateformat}.
+For this reason, they should be deleted from the @{texauxout@} directory
+before the formatting step completes:
+
+@$@<Run the formatter@>+=@{
+rm -f texauxout/*.bbl  texauxout/*.ind
+@}
+Note that if these files exist, they will also be in the auxiliary input
+directory.
+Therefore they cannot be deleted before the @{texauxout@} directory
+has been compared with the auxiliary input directory.
+
+@B@<Obtain PostScript Text@>
+\label{ps}
+
+PostScript is a generic document format, which can be produced in many
+different ways.
+Thus we define the result of formatting TeX or LaTeX files as a subtype of
+this generic type:
+
+@$@<Declare the PostScript result file type@>==@{
+:texps 'PostScript created from TeX or LaTeX' => :ps;
+@}
+
+Once the document has been formatted, PostScript text can be generated by
+applying a converter to the device-independent document layout.
+The converter will also incorporate PostScript inserts that may have been
+specified by commands in the document definition.
+These inserts are assumed to exist in the form of PostScript files in the
+directories specified by the search path defined by the @{TEXINPUTS@}
+environment variable.
+One parameter to the process is used to specify an arbitrary set of flags.
+
+The PostScript conversion step needs access to the device-independent
+document layout, the search path, and the flags.
+It creates the PostScript file:
+
+@$@<Obtain PostScript Text@>==@{
+EXEC (dvips.sh) (:dvi) (:texsp) (+dvips_flags)
+   NEEDS (:texbasis :extract=:ps)
+   => (:texps);
+@}
+
+As described in Section \ref{tools}, @{dvips@} uses the search path defined by
+the environment variable @{TEXINPUTS@} to find any PostScript files to be
+included in the document.
+The search path defining the document's basis must be prepended to that
+search path:
+
+@$@<Render the document@>==@{
+# EXEC (dvips.sh) (:dvi) (:texsp) (+dvips_flags)
+#    NEEDS (:texbasis :extract=:ps)
+#    => (:texps);
+
+ODIN_dvi=$1;shift; ODIN_search=$1;shift; ODIN_flags=$1;shift;
+
+if test "$ODIN_flags" != ''
+then flags=`tr '
+' ' ' < $ODIN_flags`
+else flags=''
+fi
+
+for d in `cat $ODIN_search`; do sp=$sp"$d":; done
+TEXINPUTS=$sp"$TEXINPUTS"; export TEXINPUTS;
+
+dvips $flags -o texps $ODIN_dvi 1>MSGS 2>&1 \
+ || ( mv MSGS ERRORS; echo 'dvips failed.' >>ERRORS )
+@}
+
+@B@<Obtain PDF Text@>
+\label{pdf}
+
+PDF is a generic document format, which can be produced in many different
+ways and also input as source..
+Thus we define a generic @{pdf@} type that can be used in any context,
+and source files with a @{.pdf@} suffix to be of that type:
+
+@$@<Declare the PDF result file type@>==@{
+:pdf  'Portable data format file'? => :FILE;
+*.pdf => :pdf;
+@}
+
+A PDF document is produced directly by the formatter, and thus there is no
+need for an extra derivation step.
+However, the user will regard a PDF file as a product, and should not have
+to specify the @{+usepdf@} parameter.
+Thus we add a derivation for a PDF product that supplies the parameter:
+
+@$@<Obtain PDF Text@>==@{
++usepdf 'Produce PDF code' => :first;
+
+COLLECT (:tex.vtd +usepdf :texpdf) => (:refpdf);
+:refpdf 'Reference to a PDF file' => :REFERENCE :pdf;
+@}
+
+This derivation actually produces a @/reference@/ to the result of
+the formatter step, rather than a @/copy@/ of that file.
+Odin will automatically de-reference it in any context in which its value
+is required.
+Since it is also declared as a subtype of @{pdf@}, it can be used wherever
+a PDF file is required.
+
+@A@<The tex Package@>
+\label{package}
+
+All information about manufacturing processes is presented to Odin in the
+form of @/packages@/.
+Each package is implemented by a directory,
+and describes a self-contained subprocess.
+Packages can be combined into @/package libraries@/ describing related
+subprocesses.
+A user can select a particular set of packages and package libraries at any
+time, and this set defines the manufacturing processes that Odin will
+recognize from that time until another set is selected.
+
+The @{tex@} package is a component of the standard package library supplied
+with Odin.
+This library is a @/versioned package library@/, which means that it is
+possible to update individual packages without disturbing users that are
+dependent on previous versions of those packages.
+A package that is an element of a versioned package library must have in
+its directory a text file called @{version@} whose single line specifies
+the version number of this particular incarnation of the package:
+
+@O@<version@>==@{3.0.0
+@}
+
+Any package directory must contain at least one file, a text file defining
+the artifacts and actions of the manufacturing subprocess.
+The name of this file must end in @{.dg@}, and the remainder of the name
+must be the name of the package:
+
+@O@<tex.dg@>==@{
+@<Raw material@>
+@<Critical manufacturing parameters@>
+
+@<Declare the most general key artifact@>
+@<Declare the document root and root file names@>
+@<Declare a search path artifact@>
+@<Declare a parameter type for search path information@>
+@<Declare a list of file names@>
+@<Declare artifacts created by the formatter@>
+@<Declare auxiliary file artifacts@>
+@<Declare the PostScript result file type@>
+@<Declare the PDF result file type@>
+
+@<Allow a single-file key@>
+@<One-element virtual target definition@>
+@<Find the root@>
+@<Determine the search path@>
+@<Compute a transitive closure@>
+@<Compute the document basis@>
+@<Determine the view descriptor@>
+
+@<Obtain the names of files referenced by a given file@>
+@<Find the actual file names@>
+@<Determine the formatting command@>
+@<Format the document@>
+@<Format the Bibliography@>
+@<Format the Index@>
+@<Update the auxiliary files@>
+@<Obtain PostScript Text@>
+@<Obtain PDF Text@>
+@}
+
+The files executed by Odin's @{EXEC@} tool are usually held in the package
+directory, although in principle they could be anywhere.
+In the case of the @{tex@} package, all of the executable files are shell
+scripts that are specific to the formatting subprocess, and therefore the
+package directory is the most logical place for them:
+
+@O@<oneTex.sh@>==@{#! /bin/sh
+@<Build a one-element virtual target definition@>
+@}
+
+@O@<root.sh@>==@{#! /bin/sh
+@<Make the document root explicit@>
+@}
+
+@O@<texsp.sh@>==@{#! /bin/sh
+@<Construct the search path@>
+@}
+
+@O@<texscan.sh@>==@{#! /bin/sh
+@<Extract referenced files@>
+@}
+
+@O@<tex_view.sh@>==@{#! /bin/sh
+@<Build a view descriptor@>
+@}
+
+@O@<fmtcmd.sh@>==@{#! /bin/sh
+@<Set the formatting command@>
+@}
+
+@O@<tex.sh@>==@{#! /bin/sh
+@<Run the formatter@>
+@}
+
+@O@<bibtex.sh@>==@{#! /bin/sh
+@<Run BibTeX@>
+@}
+
+@O@<makeindex.sh@>==@{#! /bin/sh
+@<Run makeindex@>
+@}
+
+@O@<texauxin.sh@>==@{#! /bin/sh
+@<Assemble the auxiliary inputs@>
+@}
+
+@O@<dvips.sh@>==@{#! /bin/sh
+@<Render the document@>
+@}
+
+\appendix
+
+@A@<A Filter for Included File Names@>
+\label{texscan}
+
+This program expects its standard input stream to contain a TeX file.
+It scans that file character-by-character, looking for the @{\@} character
+that begins a TeX command.
+An unprotected @{%@} signals a comment that extends to the end of the
+current line.
+Comments must be skipped:
+
+@$@<Central scanning loop@>==@{
+for (;;) {
+  int c = getchar();
+
+  if (c == '\\') {
+    @<Check for an interesting command@>
+  } else if (c == '%') {
+    while ((c = getchar()) != '\n' && c != '\r') if (c == EOF) return 0;
+    if (c == '\r') { if ((c = getchar()) != '\n') ungetc(c, stdin); }
+  } else if (c == EOF) return 0;
+}
+@}
+
+@B
+\label{commands}
+
+The set of interesting TeX commands includes those from which file names
+must be extracted and also those that introduce verbatim text.
+Verbatim text must be skipped because it might contain sequences of
+characters that look like interesting commands or comments.
+Interesting commands are therefore processed in different ways after being
+recognized.
+
+By defining the set of interesting commands via a table, the coding of the
+filter is simplified and its flexibility is enhanced.
+Flexibility is important in this application, because verbatim text can be
+handled in arbitrary ways by different TeX macro packages.
+The table given here recognizes LaTeX verbatim text:
+
+@$@<Interesting TeX commands@>==@{
+struct {
+  char *repr;
+  int common;
+  void (*routine)(T(char *));
+  char *argument;
+} Commands[] = {
+  { "begin{verbatim*}",   0,  PassStr,  "\\end{verbatim*}" },
+  { "begin{verbatim}",    14, PassStr,  "\\end{verbatim}" },
+  { "bibliographystyle{", 1,  OutNames, ".bst" },
+  { "bibliography{",      12, OutNames, ".bib" },
+  { "documentclass{",     0,  OutNames, ".cls" },
+  { "include{",           0,  OutNames, ".tex" },
+  { "input{",             2,  OutNames, ".tex" },
+  { "usepackage{",        0,  OutNames, ".sty" },
+  { "verb*",              0,  PassChr,  "" },
+  { "verb",               4,  PassChr,  "" },
+  { 0,                    0,  0,        0 }
+};
+@}
+The first two fields of each array element are the character sequence
+representing the command and the number of characters that representation
+has in common with the representation of an earlier command in the array.
+This information is used as described in Section \ref{recognize}
+to recognize commands.
+The third field is the name of a routine used to deal with the command,
+and the fourth is a string to be passed to that routine.
+
+To change the set of interesting commands, change the elements of
+the array and add or delete processing routines as necessary.
+(The last element is a sentinel marking the end of the array,
+and should not be altered.)
+
+Each processing routine assumes that the first unread character of the
+standard input stream is the character following the last character of the
+representation defined by the first component of the array element.
+The routine advances the standard input stream, terminating
+with the first unread character being the first character that does not
+belong to the interesting command or to the verbatim text it
+introduces.
+
+@C
+\label{OutNames}
+
+The file names specified by a command are given by the first argument
+of that command.
+That argument may be a single file name or a list of file names separated
+by commas.
+According to the LaTeX definition, there should be no spaces within the
+argument.
+
+@{OutNames@}'s argument is the modifier that should be attached to each of
+the file names specified by the command:
+
+@$@<OutNames@>==@{
+for (;;) {
+  char *p = argument;
+  int n = 0, c = getchar();
+  while (c != '}' && c != ',') {
+    if (c == EOF) exit(0);
+    if (c == *p) p++; else p = argument;
+    putchar(c); c = getchar(); n++;
+  }
+  if (n && *p != '\0') puts(argument);
+  if (c == '}') return;
+}
+@}
+If @{EOF@} is detected within the command argument, the input file is
+ill-formed.
+The filter is therefore terminated without writing any partial file name.
+Similarly, no modifier is written unless the file name is non-empty.
+These checks guarantee that the filter output is well-formed;
+an appropriate error report will be provided by the formatter.
+
+@C
+\label{PassStr}
+
+LaTeX provides a verbatim environment that can enclose any arbitrary text.
+A specific string terminates that environment.
+@{PassStr@} advances the standard input stream past the specific string
+given by its argument.
+According to the LaTeX definition, that string must appear without embedded
+spaces:
+
+@$@<PassStr@>==@{
+char *p = argument;
+int c;
+
+while (*p) {
+  if ((c = getchar()) != *p) p = argument;
+  if (c == EOF) exit(0);
+  if (c == *p) p++;
+}
+@}
+If @{EOF@} is detected within the verbatim environment, the input file is
+ill-formed.
+The filter is therefore terminated immediately;
+an appropriate error report will be provided by the formatter.
+
+@C
+\label{PassChr}
+
+LaTeX provides a verbatim command that can enclose arbitrary text on a
+single line.
+The character following the command is used as a terminator.
+@{PassChr@} advances the standard input stream past the next occurrence of
+the character following the command:
+
+@$@<PassChr@>==@{
+int c, t = getchar();
+
+while ((c = getchar()) != t)
+  if (c == EOF || c == '\n' || c == '\r') exit(0);
+@}
+If @{EOF@} or newline is detected within the verbatim string, the input
+file is ill-formed.
+The filter is therefore terminated immediately;
+an appropriate error report will be provided by the formatter.
+
+@B
+\label{recognize}
+
+The major problem for the recognizer is to avoid the need to accumulate
+character sequences:
+Different commands may have common prefixes, but the matching process must
+proceed strictly from left to right along the standard input stream.
+The match has a fixed starting point.
+
+Consider the three commands @{bibliographystyle{@}, @{bibliography{@}, and
+@{begin{verbatim}@}.
+Suppose that the command recognizer starts comparing characters from the
+input stream against the representation ``bibliographystyle'', matching the
+first twelve characters before finding a character that does not match.
+Clearly the command could not be @{bibliographystyle{@}, because only the
+first twelve characters were found.
+The command could @/also@/ not be @{begin{verbatim}@}, because twelve
+characters of @{bibliographystyle{@} were matched but @{begin{verbatim}@}
+and @{bibliographystyle{@} have only a one-character common prefix.
+Because @{bibliographystyle{@} and @{bibliography{@} have a
+twelve-character common prefix, however, a match for @{bibliography{@} is
+still possible.
+
+This observation leads to a @{Command@} array
+(described in Section \ref{commands}) that has the following properties:
+
+\begin{itemize}
+\item
+Elements whose representations share a common prefix are adjacent.
+
+\item
+Elements whose representations share a longest common prefix are
+sorted in decreasing order of length, with ties broken arbitrarily.
+
+\item
+Each element specifies the length of the prefix that its representation
+shares with the representation of its predecessor in the array.
+\end{itemize}
+
+If the @{Command@} array has those properties, then when the recognizer
+fails to match one element and moves to the next:
+
+\begin{enumerate}
+\item
+If more characters have been matched than the representation of the new
+command has in common with that of its predecessor, then no match is possible.
+
+\item
+If the representation of the new command has more characters in common with
+that of its predecessor than have been matched, then the new command cannot
+match but a subsequent one might.
+
+\item
+If the representation of the new command has the same number of characters
+in common with that of its predecessor as have been matched, string
+comparison must continue on the new command.
+\end{enumerate}
+
+@$@<Check for an interesting command@>==@{
+int i, n = 0;
+c = getchar();
+for (i = 0; Commands[i].repr; i++) {
+  char *p;
+  if (n > Commands[i].common) break;
+  if (n < Commands[i].common) continue;
+  for (p = Commands[i].repr + n; *p; p++) {
+    if (*p == '{') {	/* Stuff allowed between command and argument */
+      while (c == ' ' || c == '\t' || c == '\n' || c == '\r')
+        c = getchar();
+      if (c == '[') {
+        while (c != ']') c = getchar();
+        c = getchar();
+      }
+    }
+    if (*p != c) break;
+    c = getchar(); n++;
+  }
+  if (*p == '\0') {
+    (void)ungetc(c, stdin); Commands[i].routine(Commands[i].argument);
+    break;
+  }
+}
+@}
+
+The following invariant holds at the first command of the outer @{for@}
+loop:
+
+\begin{itemize}
+\item
+@{c@} = first unmatched character of the standard input stream
+
+\item
+@{n@} = number of characters matched by some previous entry in the
+@{Command@} array
+
+\item
+@{i@} indexes the first unexamined entry in the @{Command@} array
+\end{itemize}
+
+The following invariant holds at the first command of the inner @{for@}
+loop:
+
+\begin{itemize}
+\item
+@{c@} = first unmatched character of the standard input stream
+
+\item
+@{n@} = number of characters matched by the current entry in the
+@{Command@} array
+
+\item
+@{p@} points to the first unmatched character of the current entry in the
+@{Command@} array
+\end{itemize}
+
+@B
+\label{program}
+
+The program contains conditional compilation directives to configure it for
+either an ANSI or a K\&R C compiler:
+
+@O@<texscan.c@>==@{
+#include <stdio.h>
+#include <stdlib.h>
+
+#if defined(__cplusplus) || defined(__STDC__) || defined(__ANSI__) || \
+    defined(__GNUC__) || defined(__STRICT_ANSI__)
+#define T(t) t
+#define D(t,n)
+#else
+#define T(t)
+#define D(t,n) t n;
+#endif
+
+void
+PassChr(T(char *) argument) D(char *, argument)
+{ @<PassChr@> }
+
+void
+PassStr(T(char *) argument) D(char *, argument)
+{ @<PassStr@> }
+
+void
+OutNames(T(char *) argument) D(char *, argument)
+{ @<OutNames@> }
+
+@<Interesting TeX commands@>
+
+int
+main(T(void))
+{ @<Central scanning loop@> }
+@}
+
+\end{document}

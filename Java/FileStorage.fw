@@ -1,0 +1,299 @@
+@A
+
+As an extremely simple example, all the Java packages and source and binary
+code on a system might be stored in a single directory and its
+subdirectories.
+Each immediate subdirectory of this directory would represent a top-level
+package, that is, one whose fully qualified name consists of a single
+simple name.
+Subpackages of a package would be represented by subdirectories of the
+directory representing the package.
+
+Each directory corresponding to a package might also contain
+@{.java@} files and @{.class@} files.
+Each of the @{.java@} files contains the source for a compilation unit
+that contains the definition of a class or interface
+whose binary compiled form is contained in the corresponding @{.class@} file.
+
+In this example, a @{PackageHandle@} would be a string
+giving the pathname of the directory corresponding to the package;
+@{UnnamedPackage@} would be the pathname of the current directory:
+
+@$@<The Module Interface@>==@{
+typedef char *PackageHandle;
+#define InvalidPackage ((PackageHandle)0)
+#define UnnamedPackage "./"
+
+extern PackageHandle PackageHandleFor ELI_ARGS((char *));
+
+typedef enum {
+  InvalidType,
+  DefinedType,
+  DeferredType
+} TypeDisposition;
+
+extern TypeDisposition
+  TypeDispositionOf ELI_ARGS((DefTableKey, PackageHandle, char *));
+
+extern char *CompileType ELI_ARGS((DefTableKey));
+@}
+
+Similiarly, the @{TypeHandle@} property set by @{TypeDisposition@} and used
+by @{CompileType@} would be the pathname of the deferred file:
+
+@$@<Property used to access deferred files@>==@{
+"Strings.h"
+TypeHandle: CharPtr;
+@}
+
+@A@<Constructing Pacakage and Type Handles@>
+
+This specification transforms a package name into a pathname by
+concatenating the components of the package name, placing the UNIX file
+name separator @{/@} between components and adding one to the end:
+
+@$@<Transform the package name@>==@{
+for (p = pkg; *p; p++) obstack_1grow(Csm_obstk, *p == '.' ? '/' : *p);
+CsmStrPtr = (char *)obstack_strcpy(Csm_obstk,"/");
+@}
+
+The pathname of a file consists of the pathname of the package of which it
+is a member, the type name, and the suffix:
+
+@$@<Construct a type name@>==@{
+static char *
+#if PROTO_OK
+MakeFileName(char *pkg, char *typ, char *suffix)
+#else
+MakeFileName(pkg, typ, suffix) char *pkg, *typ, *suffix;
+#endif
+{ obstack_strgrow(Csm_obstk, pkg);
+  obstack_strgrow(Csm_obstk, typ);
+  return (char *)obstack_strcpy(Csm_obstk, suffix);
+}
+@}
+
+@A
+
+The standard JavaSoft Java Developer's Kit on UNIX stores all the Java
+packages and source and binary code in a set of directories and their
+subdirectories.
+This specification allows a user to provide the names of top-level
+directories via the @{-I@} command line parameter:
+
+@$@<Additional top-level directories@>==@{
+PackageDirectories "-I" strings;
+@}
+
+It also interprets the @{CLASSPATH@} environment variable as a colon-separated
+list of additional directories:
+Those directory names are added to the @{PackageDirectories@} list just as
+though they had been discovered by the command line processor:
+
+@$@<Add a directory to the list of -I directories@>==@{
+{ DefTableKey k = NewKey();
+  ResetClpValue(k, stostr(dirs, rest - dirs));
+  PackageDirectories = AppElDefTableKeyList(PackageDirectories, k);
+}
+@}
+
+@{CLASSPATH@} must be read from the environment and the colon-separated
+directory names extracted:
+
+@$@<Process CLASSPATH@>==@{
+void
+#if PROTO_OK
+InitHostSystem(void)
+#else
+InitHostSystem()
+#endif
+{ char *dirs;
+
+  dirs = getenv("CLASSPATH");
+  if (dirs) {
+    do {
+      register char *rest;
+
+      for (rest = dirs; *rest && *rest != ':'; rest++) ;
+
+      @<Add a directory to the list of -I directories@>
+
+      if (*rest == '\0') break;
+      dirs = rest + 1;
+    } while (*dirs);
+  }
+}
+@}
+
+@A
+
+@{PackageHandleFor@} seeks the directory corresponding to the package
+in each of the directories specified by the given paths:
+
+@$@<Constructing and Verifying a Package Handle@>==@{
+PackageHandle
+#if PROTO_OK
+PackageHandleFor(char *pkg)
+#else
+PackageHandleFor(pkg) char *pkg;
+#endif
+{ DefTableKeyList l;
+
+  for (l = PackageDirectories;
+       l != NULLDefTableKeyList; 
+       l = TailDefTableKeyList(l)) {
+    char *p;
+    struct stat data;
+
+    obstack_strgrow(
+      Csm_obstk,
+      StringTable(GetClpValue(HeadDefTableKeyList(l),0)));
+    obstack_1grow(Csm_obstk,'/');
+    @<Transform the package name@>
+
+    if (stat(CsmStrPtr, &data) == 0 && S_ISDIR(data.st_mode))
+      return (PackageHandle)CsmStrPtr;
+    
+    obstack_free(Csm_obstk, CsmStrPtr);
+  }
+
+  return InvalidPackage;
+}
+@}
+
+@A
+
+If the package of which the type is allegedly a member is invalid, then the
+type is clearly invalid.
+Otherwise, the type is valid if either a @{.class@} file or a @{.java@}
+file exists.
+If there is a @{.class@} file, then the type is a @{DefinedType@} and the
+necessary information must be added to the definition table by processing
+the @{.class@} file.
+Otherwise if there is a @{.java@} file, then the type is a @{DeferredType@}
+and the name of the file must be made the value of the @{TypeHandle@}
+property for later inclusion by the @{CompileType@} operation:
+
+@$@<Determining the Disposition of a Type@>==@{
+TypeDisposition
+#if PROTO_OK
+TypeDispositionOf(DefTableKey key, PackageHandle pkg, char *sym)
+#else
+TypeDispositionOf(key, pkg, sym) DefTableKey key; PackageHandle pkg; char *sym;
+#endif
+{ FILE *fd;
+  struct stat data;
+
+  if (pkg == InvalidPackage) return InvalidType;
+
+  CsmStrPtr = MakeFileName(pkg, sym, ".class");
+  fd = fopen(CsmStrPtr, "r"); obstack_free(Csm_obstk, CsmStrPtr);
+  if (ReadClassFile(fd, key)) return DefinedType;
+
+  CsmStrPtr = MakeFileName(pkg, sym, ".java");
+  if (stat(CsmStrPtr, &data) == 0 && S_ISREG(data.st_mode)) {
+    ResetTypeHandle(key, CsmStrPtr);
+    return DeferredType;
+  }
+  obstack_free(Csm_obstk, CsmStrPtr);
+  return InvalidType;
+}
+@}
+
+@A
+
+When the end of the current compilation unit is reached, @{CompileType@}
+will be invoked if a type definition remains deferred.
+@{CompileType@} must close the current input file and re-invoke the source
+module on the file specified by the @{TypeHandle@} property of the given
+key.
+
+The Java file may be present but not readable, in which case
+@{CompileType@} must issue an error report and return without disturbing
+the source module:
+
+@$@<Compiling Deferred Type Definitions@>==@{
+char *
+#if PROTO_OK
+CompileType(DefTableKey key)
+#else
+CompileType(key) DefTableKey key;
+#endif
+{ int fd;
+
+  CsmStrPtr = GetTypeHandle(key, NoStr);
+  if (!CsmStrPtr) message(DEADLY, "Bad TypeHandle", 0, NoPosition);
+
+  if ((fd = open(CsmStrPtr, 0)) == -1) {
+    message(
+      ERROR,
+      CatStrStr("Could not open file ", CsmStrPtr),
+      0,
+      NoPosition);
+    return NoStr;
+  }
+
+  (void)close(finlBuf());
+  initBuf(CsmStrPtr, fd);
+  AddBreak(CsmStrPtr, 1);
+  return TEXTSTART;
+}
+@}
+
+@A@<Generated Files@>
+
+A type-@{h@} file defines the information exported by the module:
+
+@O@<host.h@>==@{
+#ifndef HOST_H
+#define HOST_H
+
+#include "csm.h"
+#include "err.h"
+#include "deftbl.h"
+#include "envmod.h"
+
+@<The Module Interface@>
+
+#endif
+@}
+
+The implementation of the module is done in C:
+
+@O@<host.c@>==@{
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#include "csm.h"
+#include "source.h"
+#include "Strings.h"
+#include "clp.h"
+#include "Java_gen.h"
+#include "host.h"
+
+@<Construct a type name@>
+@<Constructing and Verifying a Package Handle@>
+@<Determining the Disposition of a Type@>
+@<Compiling Deferred Type Definitions@>
+@<Process CLASSPATH@>
+@}
+
+This module adds properties for its own use:
+
+@O@<host.pdl@>==@{
+@<Property used to access deferred files@>
+@}
+
+The property makes use of the Eli @{Strings@} module:
+
+@O@<host.specs@>==@{
+$/Tech/Strings.specs
+@}
+
+This module adds options to the command line:
+
+@O@<host.clp@>==@{
+@<Additional top-level directories@>
+@}

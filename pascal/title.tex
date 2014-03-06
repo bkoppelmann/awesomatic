@@ -1,0 +1,36 @@
+\title{An Analyzer for Pascal}
+\author{W. M. Waite}
+\maketitle
+
+This document describes an analyzer for Pascal (ANSI/IEEE 770X3.97-1983).
+It was generated from an
+\htmladdnormallinkfoot{Eli}{http://eli-project.sourceforge.net}
+specification of that analyzer.
+
+An abstract syntax tree structure describing the essential semantics
+of Pascal is given in Section \ref{sec:structure},
+along with the Eli specifications necessary to build the AST corresponding
+to any legal program.
+
+The computations specified in Sections \ref{sec:name} and \ref{sec:type}
+decorate the nodes of the tree with information about
+the binding of identifiers and the type of expressions, respectively.
+Section \ref{sec:context} uses these decorations to report semantic errors.
+
+Eli can generate an executable analyzer for Pascal from the
+specifications used to derive this document.
+If these specifications are combined with Eli specifications for
+translation and encoding tasks, Eli can generate a complete compiler for
+Pascal.
+
+The translation specification will need to deal with the following
+important issues:
+
+\begin{itemize}
+\item Overlaid storage
+\item Insertion of type conversion operators
+\end{itemize}
+
+\newpage
+
+\tableofcontents

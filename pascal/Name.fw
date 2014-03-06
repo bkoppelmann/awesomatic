@@ -1,0 +1,239 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Name Analysis@>
+\label{sec:name}
+
+This specification binds all unqualified identifiers according to the
+scope rules of Pascal, defined in Section 6.2.2 of ANSI/IEEE 770X3.97-1983.
+Bindings for qualified identifiers and field identifiers within a @{with@}
+statement depend on the type analysis defined in Section \ref{sec:type}.
+Violations of context conditions involving identifier definition are
+reported by the specification of Section \ref{sec:context}.
+
+Pascal has a single name space.
+Every identifier or label has a defining point within a region.
+The scope of the defining point is the entire region, with the exception of
+nested regions containing a defining point for the same identifier or label.
+Eli's @{AlgScope@} module implements this functionality;
+other modules will be instantiated later in this section as needed:
+
+@O@<Name.specs@>==@{@-
+$/Name/AlgScope.gnrc :inst
+@<Instantiate appropriate modules@>
+@}
+
+A precondition for using @{AlgScope@} is that every identifier occurrence
+have a @{Sym@} attribute:
+
+@O@<Name.lido@>==@{@-
+CLASS SYMBOL IdentOcc COMPUTE SYNT.Sym=TERM; END;
+
+@<Regions@>
+@<Defining occurrences@>
+@<Applied occurrences@>
+@}
+
+@B
+\label{regions}
+
+The abstract syntax tree combines formal parameter lists and routine bodies
+into single trees that do not contain the routine identifier.
+These trees form the regions within which identifiers are declared:
+
+@$@<Regions@>+=@{@-
+SYMBOL program  INHERITS RangeScope END;
+SYMBOL ProcBody INHERITS RangeScope END;
+SYMBOL FuncBody INHERITS RangeScope END;
+SYMBOL     Body INHERITS RangeScope END;
+SYMBOL ProcHead INHERITS RangeScope END;
+SYMBOL FuncHead INHERITS RangeScope END;
+@}
+
+If a function or procedure is declared @{forward@}, then the @{Formals@} at
+the forward declaration combine with the @{block@} at the required
+subsequent identification.
+We use the attribute @{IsForward@} to signal the presence of a forward
+declaration.
+It is set to 0 by a symbol computation that is overridden in exactly the
+case of the forward declaration:
+
+@$@<Regions@>+=@{@-
+ATTR IsForward: int;
+
+SYMBOL block               COMPUTE  SYNT.IsForward=0; END; 
+RULE:  block ::= 'forward' COMPUTE block.IsForward=1; END;
+@}
+
+A void chain can be used to ensure that forward declarations are processed
+in textual order:
+
+@$@<Regions@>+=@{@-
+CHAIN ForwardRoutine: VOID;
+
+SYMBOL program COMPUTE CHAINSTART HEAD.ForwardRoutine="yes"; END;
+@}
+
+The environment of a forward-declared procedure or function must be
+conveyed from the forward declaration to the \emph{identification}
+(non-forward declaration), and that requires a property of the identifier.
+Each procedure or function identifier must also carry a property that
+reflects the state of the forward definition process:
+
+@O@<Name.pdl@>==@{@-
+RtnEnv:   Environment;	"envmod.h"
+FwdState: int;
+@}
+@{FwdState@} is coded as follows:
+\begin{description}
+\item[0] No declaration of this identifer has been seen.
+\item[1] A @{forward@} has been seen, but there has been no identification.
+\item[2] This identifier has been declared.
+\end{description}
+The value of @{FwdState@} when @{ForwardRoutine@} reaches a node is coded
+in the @{.FwdState@} rule attribute, and is updated as follows:
+
+@$@<Regions@>+=@{@-
+ATTR FwdState: int;
+
+RULE: Decl ::= 'procedure' PrcIdDef ProcBody COMPUTE
+  .FwdState=GetFwdState(PrcIdDef.Key,0) <- Decl.ForwardRoutine;
+  Decl.ForwardRoutine=
+    IF(NOT(ProcBody CONSTITUENT block.IsForward SHIELD (Formals,block)),
+      ResetFwdState(PrcIdDef.Key,2),
+    IF(EQ(.FwdState,0),
+      ORDER(
+	ResetFwdState(PrcIdDef.Key,1),
+        ResetRtnEnv(PrcIdDef.Key,ProcBody.Env))));
+END;
+
+RULE: Decl ::= 'function' FncIdDef FuncBody COMPUTE
+  .FwdState=GetFwdState(FncIdDef.Key,0) <- Decl.ForwardRoutine;
+  Decl.ForwardRoutine=
+    IF(NOT(FuncBody CONSTITUENT block.IsForward SHIELD (Formals,block)),
+      ResetFwdState(FncIdDef.Key,2),
+    IF(EQ(.FwdState,0),
+      ORDER(
+	ResetFwdState(FncIdDef.Key,1),
+        ResetRtnEnv(FncIdDef.Key,FuncBody.Env))));
+END;
+
+RULE: Decl ::= 'function' FncIdUse ';' Body COMPUTE
+  .FwdState=GetFwdState(FncIdUse.Key,0) <- Decl.ForwardRoutine;
+  Decl.ForwardRoutine=ResetFwdState(FncIdUse.Key,2);
+END;
+@}
+
+The environment for a procedure or function needs to be set to the saved
+value under appropriate circumstances:
+
+@$@<Regions@>+=@{@-
+RULE: Decl ::= 'procedure' PrcIdDef ProcBody COMPUTE
+  ProcBody.Env=
+    IF(EQ(.FwdState,1),
+      GetRtnEnv(PrcIdDef.Key,NoEnv),
+      NewScope(INCLUDING AnyScope.Env));
+END;
+
+RULE: Decl ::= 'function' FncIdUse ';' Body COMPUTE
+  Body.Env=
+    IF(EQ(.FwdState,1),
+      GetRtnEnv(FncIdUse.Key,NoEnv),
+      NewScope(INCLUDING AnyScope.Env));
+END;
+@}
+
+@B@<Identifiers denoting required entities@>
+\label{predefids}
+
+Identifiers that denote required constants, types, procedures and functions
+are used as though their defining points have a region enclosing the
+program.
+Eli's pre-defined identifier module implements this functionality.
+
+@$@<Instantiate appropriate modules@>+=@{@-
+$/Name/PreDefine.gnrc +referto=identifier :inst
+$/Name/PreDefId.gnrc +referto=(Required.d) :inst
+@}
+
+All of the required identifiers listed in Appendix C of
+ANSI/IEEE 770X3.97-1983 are specified in file @{Required.d@}
+(Figure \ref{fig:reqid}).
+\begin{figure}
+@O@<Required.d@>==@{@-
+PreDefKey("abs", absKey)
+PreDefKey("arctan", arctanKey)
+PreDefKey("Boolean", boolKey)
+PreDefKey("char", charKey)
+PreDefKey("chr", chrKey)
+PreDefKey("cos", cosKey)
+PreDefKey("dispose", disposeKey)
+PreDefKey("eof", eofKey)
+PreDefKey("eoln", eolnKey)
+PreDefKey("exp", expKey)
+PreDefKey("false", falseKey)
+PreDefKey("get", getKey)
+PreDefKey("input", inputKey)
+PreDefKey("integer", intKey)
+PreDefKey("ln", lnKey)
+PreDefKey("maxint", maxintKey)
+PreDefKey("new", newKey)
+PreDefKey("odd", oddKey)
+PreDefKey("ord", ordKey)
+PreDefKey("output", outputKey)
+PreDefKey("pack", packKey)
+PreDefKey("page", pageKey)
+PreDefKey("pred", predKey)
+PreDefKey("put", putKey)
+PreDefKey("read", readKey)
+PreDefKey("readln", readlnKey)
+PreDefKey("real", realKey)
+PreDefKey("reset", resetKey)
+PreDefKey("rewrite", rewriteKey)
+PreDefKey("round", roundKey)
+PreDefKey("sin", sinKey)
+PreDefKey("sqr", sqrKey)
+PreDefKey("sqrt", sqrtKey)
+PreDefKey("succ", succKey)
+PreDefKey("text", textKey)
+PreDefKey("true", trueKey)
+PreDefKey("trunc", truncKey)
+PreDefKey("unpack", unpackKey)
+PreDefKey("write", writeKey)
+PreDefKey("writeln", writelnKey)
+@}
+\caption{Required identifiers}
+\label{fig:reqid}
+\end{figure}
+
+@B
+\label{defining}
+
+This specification distinguishes defining occurrences syntactically, so
+that the necessary computations can be inherited from the library:
+
+@$@<Defining occurrences@>+=@{@-
+TREE SYMBOL LblIdDef INHERITS IdentOcc, IdDefScope END;
+TREE SYMBOL ConIdDef INHERITS IdentOcc, IdDefScope END;
+TREE SYMBOL TypIdDef INHERITS IdentOcc, IdDefScope END;
+TREE SYMBOL TagIdDef INHERITS IdentOcc, IdDefScope END;
+TREE SYMBOL VblIdDef INHERITS IdentOcc, IdDefScope END;
+TREE SYMBOL FmlIdDef INHERITS IdentOcc, IdDefScope END;
+TREE SYMBOL PrcIdDef INHERITS IdentOcc, IdDefScope END;
+TREE SYMBOL FncIdDef INHERITS IdentOcc, IdDefScope END;
+@}
+
+@B
+\label{applied}
+
+This specification distinguishes applied occurrences syntactically, so
+that the necessary computations can be inherited from the library:
+
+@$@<Applied occurrences@>+=@{@-
+TREE SYMBOL LblIdUse INHERITS IdentOcc, IdUseEnv END;
+TREE SYMBOL ConIdUse INHERITS IdentOcc, IdUseEnv END;
+TREE SYMBOL TypIdUse INHERITS IdentOcc, IdUseEnv END;
+TREE SYMBOL PrcIdUse INHERITS IdentOcc, IdUseEnv END;
+TREE SYMBOL FncIdUse INHERITS IdentOcc, IdUseEnv END;
+TREE SYMBOL ExpIdUse INHERITS IdentOcc, IdUseEnv END;
+@}

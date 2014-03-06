@@ -1,0 +1,21 @@
+/* $Id: input,v 1.2 1996/04/16 19:09:00 waite Exp $ */
+/* Test grammar */
+
+Program: Block .
+Block: 'declare' Declarations 'begin' Statements 'end' .
+Declarations: Declaration / Declarations ';' Declaration .
+Declaration: Identifier ':' Type .
+Type: 'integer' / 'real' .
+Statements: Statement / Statements ';' Statement .
+Statement:
+  Identifier ':=' Expression /
+  'while' Expression 'do' Statements 'end' /
+  Block .
+Expression: Expression Addop Term / Term .
+Addop: '+'/ '-' .
+Term: Term Mulop Factor / Factor .
+Mulop: '*' / '/' .
+Factor: Sign Factor / Primary .
+Sign: '+' / '-' .
+Primary:
+  Identifier / Integer / '(' Expression ')' .

@@ -1,0 +1,7 @@
+/* $Id: phrase.specs,v 1.2 1993/09/22 17:52:05 kadhim Exp $ */
+/* Property Definition Language scanning and parsing */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+pdl.gla		/* Basic symbols and comments */
+pdl.con		/* Phrase structure */
+Ctext.c		/* Module for reading text delimited by {} */

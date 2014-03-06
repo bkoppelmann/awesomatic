@@ -1,0 +1,5 @@
+begin comment $Id: 3.4.5-3.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+Equal is an arithmetic operation;
+
+  Boolean x; x := x = 0;
+end

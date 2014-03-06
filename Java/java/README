@@ -1,0 +1,36 @@
+A specification for an analyzer for Java.
+The contents of this directory are:
+
+Phrase.fw	Specification of scanning and parsing
+Tree.fw		Specification of abstract syntax tree construction
+FileStorage.fw	Specification of file system interaction
+Name.fw		Specification of name analysis
+Type.fw		Specification of type analysis
+Context.fw	Specification of context condition verification
+Math.fw		Specification of string-based mathematics
+DebugName.fw	Specification of printable names to aid Noosa debugging
+
+wrapper.tex	Files needed for creating a printed specification
+title.tex
+toc.tex
+
+Odinfile	Commands that build some useful products
+
+pkg		Directory containing important Java library interfaces
+
+You can request any of the following products by invoking "eli" with the
+name of the product as its argument (e.g. "eli elijava"):
+
+elijava		Executable version of the complete analyzer
+%source>dir	Source code stored in an existing directory dir
+Java.pdf	PDF version of the complete specification
+
+File wrapper.tex contains directives for setting layout parameters for
+either US Letter or A4 paper.  Before generating a PDF version of the
+document, verify that wrapper.tex specifies the appropriate geometry.
+
+You can use elijava to analyze foo.java via the following command:
+
+  elijava -I pkg foo.java
+
+$Id: README,v 1.1.1.1 2008/09/12 17:32:11 profw Exp $

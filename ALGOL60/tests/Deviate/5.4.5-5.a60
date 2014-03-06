@@ -1,0 +1,6 @@
+begin comment $Id: 5.4.5-5.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+There must be the same number of formals as specifications;
+
+procedure p(x); integer x,y; ;
+
+end

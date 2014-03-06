@@ -1,0 +1,13 @@
+# $Id: Odinfile,v 1.1 1996/04/17 03:33:03 waite Exp $
+
+%try77 ! == . +cmd=(F77Tests/try77) (F77Tests/f77) \
+  (Specifications/f77.exe) :run
+
+%try90f ! == . +cmd=(F90Tests/try90fix) (F90Tests/f90fixed) \
+  (Specifications/f90.exe) :run
+
+%try90v ! == . +cmd=(F90Tests/try90var) (F90Tests/f90variable) \
+  (Specifications/f90.exe) :run
+
+%try90i ! == . +cmd=(F90Tests/try90var) (F90Tests/f90include) \
+  (Specifications/f90.exe) :run

@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?NLS TYPE="org.eclipse.help.toc"?>
+<toc label="Eli Documentation" href="html/index.html">
+  <topic label="Libraries" href="html/lib.html">
+    <topic label="Library Reference" href="html/lib_toc.html">
+      <topic label="The Eli Library" href="html/lib_1.html#SEC1">
+        <topic label="Using Frame Modules" href="html/lib_1.html#SEC2"/>
+        <topic label="Text Input" href="html/lib_1.html#SEC3"/>
+        <topic label="Source Text Coordinates and Error Reporting" href="html/lib_1.html#SEC4"/>
+        <topic label="Memory Object Management" href="html/lib_1.html#SEC5"/>
+        <topic label="Character String Storage" href="html/lib_1.html#SEC6"/>
+        <topic label="Character String Arithmetic" href="html/lib_1.html#SEC7"/>
+        <topic label="Unique Identifier Management" href="html/lib_1.html#SEC8"/>
+        <topic label="Contour-Model Environment" href="html/lib_1.html#SEC9"/>
+        <topic label="Storage Layout" href="html/lib_1.html#SEC10"/>
+      </topic>
+      <topic label="Index" href="html/lib_2.html#SEC11"/>
+    </topic>
+    <topic label="Introduction of specification modules" href="html/modlib_toc.html">
+      <topic label="Running Example" href="html/modlib_1.html#SEC1"/>
+      <topic label="Instantiation and Use of Modules" href="html/modlib_2.html#SEC2"/>
+    </topic>
+    <topic label="Name analysis according to scope rules" href="html/name_toc.html">
+      <topic label="Tree Grammar Preconditions" href="html/name_1.html#SEC1"/>
+      <topic label="Basic Scope Rules" href="html/name_2.html#SEC2">
+        <topic label="Algol-like Basic Scope Rules" href="html/name_2.html#SEC3"/>
+        <topic label="C-like Basic Scope Rules" href="html/name_2.html#SEC4"/>
+        <topic label="C-like Basic Scope Rules Computed Bottom-Up" href="html/name_2.html#SEC5"/>
+      </topic>
+      <topic label="Predefined Identifiers" href="html/name_3.html#SEC6"/>
+      <topic label="Joined Ranges" href="html/name_4.html#SEC7">
+        <topic label="Joined Ranges Algol-like" href="html/name_4.html#SEC8"/>
+        <topic label="Joined Ranges C-like" href="html/name_4.html#SEC9"/>
+        <topic label="Joined Ranges C-like Bottom-up" href="html/name_4.html#SEC10"/>
+      </topic>
+      <topic label="Scopes Being Properties of Objects" href="html/name_5.html#SEC11">
+        <topic label="Scope Properties without Ordering Restrictions" href="html/name_5.html#SEC12"/>
+        <topic label="Scope Properties Algol-like" href="html/name_5.html#SEC13"/>
+        <topic label="Scope Properties C-like" href="html/name_5.html#SEC14"/>
+        <topic label="Scope Properties C-like Bottom-Up" href="html/name_5.html#SEC15"/>
+      </topic>
+      <topic label="Inheritance of Scopes" href="html/name_6.html#SEC16">
+        <topic label="Inheritance with Algol-like Scope Rules" href="html/name_6.html#SEC17"/>
+        <topic label="Inheritance with C-like Scope Rules" href="html/name_6.html#SEC18"/>
+        <topic label="C-like Inheritance Bottom-Up" href="html/name_6.html#SEC19"/>
+      </topic>
+      <topic label="Name Analysis Test" href="html/name_7.html#SEC20"/>
+      <topic label="Environment Module" href="html/name_8.html#SEC21"/>
+      <topic label="Index" href="html/name_9.html#SEC22"/>
+    </topic>
+    <topic label="Association of properties to definitions" href="html/prop_toc.html">
+      <topic label="Common Aspects of Property Modules" href="html/prop_1.html#SEC1"/>
+      <topic label="Count Occurrences of Objects" href="html/prop_2.html#SEC2"/>
+      <topic label="Set a Property at the First Object Occurrence" href="html/prop_3.html#SEC3"/>
+      <topic label="Check for Unique Object Occurrences" href="html/prop_4.html#SEC4"/>
+      <topic label="Determine First Object Occurrence" href="html/prop_5.html#SEC5"/>
+      <topic label="Map Objects to Integers" href="html/prop_6.html#SEC6"/>
+      <topic label="Associate Kinds to Objects" href="html/prop_7.html#SEC7"/>
+      <topic label="Associate Sets of Kinds to Objects" href="html/prop_8.html#SEC8"/>
+      <topic label="Reflexive Relations Between Objects" href="html/prop_9.html#SEC9"/>
+      <topic label="Some Useful PDL Specifications" href="html/prop_10.html#SEC10"/>
+      <topic label="Index" href="html/prop_11.html#SEC11"/>
+    </topic>
+    <topic label="Type analysis tasks" href="html/type_toc.html">
+      <topic label="Basic Type Analysis" href="html/type_1.html#SEC1">
+        <topic label="Example for Basic Type Analysis" href="html/type_1.html#SEC2"/>
+      </topic>
+      <topic label="Properties of Types" href="html/type_2.html#SEC3">
+        <topic label="Array Types" href="html/type_2.html#SEC4"/>
+        <topic label="Pointer Types" href="html/type_2.html#SEC5"/>
+        <topic label="Function Types" href="html/type_2.html#SEC6"/>
+        <topic label="Types Having Scope Properties" href="html/type_2.html#SEC7"/>
+      </topic>
+      <topic label="Operator Identification" href="html/type_3.html#SEC8"/>
+      <topic label="Deferred Property Association" href="html/type_4.html#SEC9"/>
+      <topic label="Index" href="html/type_5.html#SEC10"/>
+    </topic>
+    <topic label="Tasks related to input processing" href="html/input_toc.html">
+      <topic label="Insert a File into the Input Stream" href="html/input_1.html#SEC1"/>
+      <topic label="Accessing the Current Token" href="html/input_2.html#SEC2"/>
+      <topic label="Command Line Arguments for Included Files" href="html/input_3.html#SEC3"/>
+      <topic label="Index" href="html/input_4.html#SEC4"/>
+    </topic>
+    <topic label="Tasks related to generating output" href="html/output_toc.html">
+      <topic label="PTG Output for Leaf Nodes" href="html/output_1.html#SEC1"/>
+      <topic label="Commonly used Output patterns for PTG" href="html/output_2.html#SEC2"/>
+      <topic label="Indentation" href="html/output_3.html#SEC3"/>
+      <topic label="Output String Conversion" href="html/output_4.html#SEC4"/>
+      <topic label="Pretty Printing" href="html/output_5.html#SEC5"/>
+      <topic label="Typesetting for Block Structured Output" href="html/output_6.html#SEC6"/>
+      <topic label="Processing Ptg-Output into String Buffers" href="html/output_7.html#SEC7"/>
+      <topic label="Introducing Separators in PTG Output" href="html/output_8.html#SEC8"/>
+      <topic label="Index" href="html/output_9.html#SEC9"/>
+    </topic>
+    <topic label="Abstract data types to be used in specifications" href="html/adt_toc.html">
+      <topic label="Lists in LIDO Specifications" href="html/adt_1.html#SEC1"/>
+      <topic label="Linear Lists of Any Type" href="html/adt_2.html#SEC2"/>
+      <topic label="Bit Sets of Arbitrary Length" href="html/adt_3.html#SEC3"/>
+      <topic label="Bit Sets of Integer Size" href="html/adt_4.html#SEC4"/>
+      <topic label="Stacks of Any Type" href="html/adt_5.html#SEC5"/>
+      <topic label="Mapping Integral Values To Other Types" href="html/adt_6.html#SEC6"/>
+      <topic label="Dynamic Storage Allocation" href="html/adt_7.html#SEC7"/>
+      <topic label="Index" href="html/adt_8.html#SEC8"/>
+    </topic>
+    <topic label="Solutions of common problems" href="html/problems_toc.html">
+      <topic label="Error Reports" href="html/problems_1.html#SEC1"/>
+      <topic label="String Concatenation" href="html/problems_2.html#SEC2"/>
+      <topic label="Counting Symbol Occurrences" href="html/problems_3.html#SEC3"/>
+      <topic label="Generating Optional Identifiers" href="html/problems_4.html#SEC4"/>
+      <topic label="Sorting Elements of an Array" href="html/problems_5.html#SEC5"/>
+      <topic label="Index" href="html/problems_6.html#SEC6"/>
+    </topic>
+    <topic label="Migration of Old Library Module Usage" href="html/oldmod_toc.html">
+      <topic label="Migration of Eli Version 3.8 modules" href="html/oldmod_1.html#SEC1"/>
+      <topic label="Migration of Eli Version 3.6 modules" href="html/oldmod_2.html#SEC2"/>
+      <topic label="Index" href="html/oldmod_3.html#SEC3"/>
+    </topic>
+  </topic>
+</toc>

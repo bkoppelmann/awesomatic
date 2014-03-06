@@ -1,0 +1,5 @@
+Use the buildtocs script to make main_toc.xml from the documentation
+in html/edtdoc.html.  The script assumes that the level 2-4 headings
+in the documentation are of the following form:
+
+<h2><a name="EliProjects"></a>Eli Projects</h2>

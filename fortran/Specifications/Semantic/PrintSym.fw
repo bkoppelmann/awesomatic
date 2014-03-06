@@ -1,0 +1,42 @@
+@O@<printsym.lido@>==@{
+ATTR Ptg: PTGNode;
+
+SYMBOL xProgramUnit COMPUTE
+  PTGOut(
+    CONSTITUENTS Reference.Ptg WITH (PTGNode, PTGSeq, IDENTICAL, PTGNull));
+END;
+
+SYMBOL Reference INHERITS FirstOcc COMPUTE
+  SYNT.Ptg=
+    IF(THIS.IsFirstOcc,
+      PTGSymbol(
+        PTGId(THIS.Sym),
+        PTGType(GetPname(THIS.Type,"")),
+        PTGLength(StringTable(THIS.Length))
+      ),
+      PTGNULL);
+END;
+@}
+
+@O@<printsym.ptg@>==@{
+Symbol: $ "," $ "," $ "\n"
+Type: " Type=" $ string
+Length: " Length=" $ string
+@}
+
+@O@<printsym.pdl@>==@{
+Pname: CharPtr;		"Strings.h"
+
+ErrorType -> Pname={"ErrorType"};
+IntegerType -> Pname={"IntegerType"};
+RealType -> Pname={"RealType"};
+DoublePrecisionType -> Pname={"DoublePrecisionType"};
+ComplexType -> Pname={"ComplexType"};
+LogicalType -> Pname={"LogicalType"};
+CharacterType -> Pname={"CharacterType"};
+@}
+
+@O@<printsym.specs@>==@{
+$/Prop/FirstOcc.gnrc +referto=Unit :inst
+$/Output/PtgCommon.fw
+@}

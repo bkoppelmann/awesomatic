@@ -1,0 +1,20 @@
+# $Id: Odinfile,v 1.2 2009/04/19 20:57:43 profw Exp $
+# Odinfile for pdl
+
+%current == pdl.specs+monitor+debug+cc=gcc
+%data == sample.pdl
+
+%a    == %current:abstree
+%c    == %current:consyntax
+%d  ! == %current:gdb
+%g  ! == %current:gencode:viewlist
+%h  ! == %current:exe:help
+%m  ! == %current+arg=(%data):mon
+%tm ! == %current+arg=(input):mon
+%p    == %current:parsable
+%r  ! == .+cmd=(%current:exe) (%data)                            :run
+%t  ! == .+cmd=(%current:exe) (input)                            :run
+%tc ! == .+cmd=(tests/try)    (%current:exe) (tests/conformance) :run
+%td ! == .+cmd=(tests/try) -d -n (%current:exe) (tests/deviance)    :run
+
+%source == pdl.specs :source :dir_of :vir_dir +copy_dest=(derivedSrcs) :copy

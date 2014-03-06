@@ -1,0 +1,381 @@
+@t title titlefont centre "Translator from EBNF to Strict BNF"
+
+@t vskip 50 mm
+
+Eli uses a concrete grammar to define the phrase structure of an input text
+and an attribute grammar to define the structure of the tree and the
+computations over that tree.
+The context-free component of the attribute grammar is strict BNF:
+Each attribute grammar rule defines a single kind of tree node, which can
+be used in contexts named by its left-hand side and can have a fixed number
+of children as indicated by its right-hand side.  
+(A @{LISTOF@} rule in the attribute grammar has no context-free component.)
+
+The concrete grammar and the context-free component of the attribute
+grammar are related, and that relationship defines the parser actions
+needed to build the tree.
+When parser generators and attribute grammar tools are used independently,
+the user must supply @/parser actions@/ to build the tree.
+Because Eli is an integrated system, it can compare the concrete grammar
+and the attribute grammar to determine the appropriate parser actions
+without user input.
+
+In order to effectively compare the two grammars, however, the concrete
+grammar must be in strict BNF.
+The purpose of this translator is to accept a common extended BNF notation,
+and output a strict BNF grammar accepting the same language.
+
+@O@<ebnf.lido@>==@{
+@<The EBNF Tree@>
+@<Atomic values@>
+@<Strict BNF Output@>
+@<Right-hand sides@>
+@<Rule output@>
+@}
+
+@O@<ebnf.ptg@>==@{
+@<Patterns@>
+@}
+
+@O@<ebnf.specs@>==@{
+@<Instantiate library modules@>
+@}
+
+@A@<The Structure of EBNF@>
+
+An EBNF grammar consists of a collection of rules.
+The right-hand side of a rule is an expression describing a collection of
+sequences of atomic values that can be derived from the left-hand side.
+Each of these sequences forms the right-hand side of a strict BNF rule.
+
+An atomic value is a terminal, non-terminal, modification, or connection.
+Terminals may be literal or non-literal.
+Atomic values appear unchanged in the strict BNF grammar.
+
+Each of the three kinds of expression describing repetition must be
+converted into a recursive definition in strict BNF.
+Because of their relation to the LIDO @{LISTOF@} construct, a new symbol
+must be introduced for use in the recursion.
+(LIDO does not allow the left-hand side of a @{LISTOF@} rule to appear in
+any other left context.)
+
+@B
+
+Here is the definition of the abstract syntax tree structure defining EBNF
+text:
+
+@$@<The EBNF Tree@>==@{
+RULE: EBNF       LISTOF Rule                         END;
+RULE: Rule       ::=    Identifier Is Expression '.' END; 
+
+RULE: Expression ::=    Expression Or Expression     END;
+RULE: Expression ::=    '[' Expression ']'           END;
+RULE: Expression ::=    Expression Expression        END;
+RULE: Expression ::=    Expression '*'               END;
+RULE: Expression ::=    Expression '+'               END;
+RULE: Expression ::=    Expression Sep Symbol        END;
+RULE: Expression ::=                                 END;
+RULE: Expression ::=    Atomic                       END;
+
+RULE: Atomic     ::=    Symbol                       END;
+RULE: Atomic     ::=    '@@' Symbol                   END;
+RULE: Atomic     ::=    '$' Symbol                   END;
+RULE: Atomic     ::=    '&' Symbol                   END;
+
+RULE: Symbol     ::=    Identifier                   END;
+RULE: Symbol     ::=    Literal                      END;
+@}
+
+The abstract syntax tree does not define the precedence and association of
+the EBNF operators.
+Here is a concrete grammar performing that function:
+
+@O@<ebnf.con@>==@{
+Expression:  Alternative / Expression Or Alternative .
+Alternative: Elements    / Elements Sep Symbol / .
+Elements:    Element     / Elements Element .
+Element:     Item        / Item '*' / Item '+' .
+Item:        Atomic      / '[' Expression ']' / '(' Expression ')' .
+@}
+
+All of the symbols introduced by this grammar are semantically equivalent
+to @{Expression@}:
+
+@O@<ebnf.map@>==@{
+MAPSYM
+Expression ::= Alternative Elements Element Item .
+@}
+
+Here are the definitions of the terminals of the EBNF grammar:
+
+@O@<ebnf.gla@>==@{
+Identifier:	C_IDENTIFIER_ISO
+Literal:	PASCAL_STRING	[mkidn]
+Is:		$:(:=)?
+Or:		$"/"|"|"
+Sep:		$"//"|"||"
+		$% (auxEOL)
+		AWK_COMMENT
+@}
+
+@B
+
+The atomic values are taken from the input text and rendered into
+@{PTGNode@}s in a standard form.
+Each symbol and literal is represented as-is, while modifications and
+connections are rendered as the flag immediately followed by the value:
+
+@$@<Atomic values@>==@{
+ATTR Sym: int;
+ATTR Ptg: PTGNode;
+
+CLASS SYMBOL IdPtg            COMPUTE SYNT.Ptg=PTGId(THIS.Sym); END;
+
+SYMBOL Symbol  INHERITS IdPtg COMPUTE SYNT.Sym=TERM;            END;
+SYMBOL Rule    INHERITS IdPtg COMPUTE SYNT.Sym=TERM;            END;
+
+RULE: Atomic ::= Symbol
+COMPUTE Atomic.Ptg=Symbol.Ptg;
+END;
+
+RULE: Atomic ::= '@@' Symbol
+COMPUTE Atomic.Ptg=PTGAtMod(Symbol.Ptg);
+END;
+
+RULE: Atomic ::= '$' Symbol
+COMPUTE Atomic.Ptg=PTGDolMod(Symbol.Ptg);
+END;
+
+RULE: Atomic ::= '&' Symbol
+COMPUTE Atomic.Ptg=PTGConn(Symbol.Ptg);
+END;
+@}
+
+@$@<Patterns@>+=@{
+AtMod: "@@" $
+DolMod: "$" $
+Conn:   "&" $
+@}
+
+@{PTGId@} is taken from the library of common PTG facilities:
+
+@$@<Instantiate library modules@>+=@{
+$/Output/PtgCommon.fw
+@}
+
+@A
+
+A chain named @{Bnf@} collects the rules from all of the @{dist@} contexts,
+and the result is output at the root of the tree.
+
+@$@<Strict BNF Output@>==@{
+CHAIN Bnf: PTGNode;
+
+SYMBOL EBNF COMPUTE
+  CHAINSTART HEAD.Bnf=PTGNULL;
+  PTGOut(TAIL.Bnf);
+END;
+
+@}
+
+@B
+
+The @{Rhs@} attribute of an @{Expression@} node is a list
+of @{PTGNode@} values representing all of the possible fragments of strict
+BNF rules described by the expression rooted in that node.
+
+@$@<Right-hand sides@>==@{
+ATTR Rhs: PTGNodeList;
+
+RULE: Expression ::=
+COMPUTE Expression.Rhs=SinglePTGNodeList(PTGNULL);
+END;
+
+RULE: Expression ::= Atomic
+COMPUTE Expression.Rhs=SinglePTGNodeList(Atomic.Ptg);
+END;
+
+RULE: Expression ::= '[' Expression ']'
+COMPUTE Expression[1].Rhs=ConsPTGNodeList(PTGNULL,Expression[2].Rhs);
+END;
+
+RULE: Expression ::= Expression Or Expression
+COMPUTE Expression[1].Rhs=AppPTGNodeList(Expression[2].Rhs,Expression[3].Rhs);
+END;
+
+RULE: Expression ::= Expression Expression
+COMPUTE Expression[1].Rhs=Concatenate(Expression[2].Rhs,Expression[3].Rhs);
+END;
+@}
+
+@$@<Instantiate library modules@>+=@{
+$/Adt/PtrList.gnrc +instance=PTGNode +referto=ptg_gen :inst
+@}
+
+@$@<PTGNodeList Concatenate(PTGNodeList left, PTGNodeList right)@>==@{
+/* Create the ordered pairs of elements from two lists
+ *   On entry-
+ *     left=[l1, l2, ..., lm]
+ *     right=[r1, r2, ..., rn]
+ *   On exit-
+ *     Concatenate=[l1 r1, l1 r2, ..., l2 r1, ..., lm rn]
+ ***/
+{ PTGNodeList l, r, result = NULLPTGNodeList;
+
+  for (l = left; l != NULLPTGNodeList; l = TailPTGNodeList(l))
+    for (r = right; r != NULLPTGNodeList; r = TailPTGNodeList(r))
+      result=
+        ConsPTGNodeList(PTGSpSeq(HeadPTGNodeList(l),HeadPTGNodeList(r)),result);
+
+  return result;
+}
+@}
+
+@$@<Patterns@>+=@{
+SpSeq:  $ { " " } $
+@}
+
+@B
+
+Left- and right-hand sides are combined in a rule and in every context
+that represents an iteration.
+The form of the combination depends on the particular context.
+In each case, the computation builds an appropriate list of right-hand
+sides and then applies a function called @{Combine@} to actually carry out
+the combination.
+
+@$@<Rule output@>==@{
+RULE: Rule ::= Identifier Is Expression '.'
+COMPUTE
+  Rule.Bnf=Combine(Expression.Bnf,PTGId(Identifier),Expression.Rhs);
+END;
+
+RULE: Expression ::= Expression '*'
+COMPUTE
+  .Ptg=PTGId(GenerateName("G"));
+  Expression[1].Rhs=SinglePTGNodeList(.Ptg);
+  Expression[1].Bnf=
+    Combine(
+      Expression[2].Bnf,
+      .Ptg,
+      ConsPTGNodeList(
+        PTGNULL,
+	Concatenate(Expression[1].Rhs,Expression[2].Rhs)));
+END;
+
+RULE: Expression ::= Expression '+'
+COMPUTE
+  .Ptg=PTGId(GenerateName("G"));
+  Expression[1].Rhs=SinglePTGNodeList(.Ptg);
+  Expression[1].Bnf=
+    Combine(
+      Expression[2].Bnf,
+      .Ptg,
+      AppPTGNodeList(
+        Expression[2].Rhs,
+	Concatenate(Expression[1].Rhs,Expression[2].Rhs)));
+END;
+
+RULE: Expression ::= Expression Sep Symbol
+COMPUTE
+  .Ptg=PTGId(GenerateName("G"));
+  Expression[1].Rhs=SinglePTGNodeList(.Ptg);
+  Expression[1].Bnf=
+    Combine(
+      Expression[2].Bnf,
+      .Ptg,
+      AppPTGNodeList(
+        Expression[2].Rhs,
+	Concatenate(
+	  SinglePTGNodeList(PTGSpSeq(.Ptg,Symbol.Ptg)),
+	  Expression[2].Rhs)));
+END;
+@}
+
+@{Combine@} must build a distinct rule from the given left-hand and each of
+the right-hand sides on the list.
+Each rule terminates with a newline, and is added to the end of the
+sequence implemented by the @{Bnf@} chain.
+
+@$@<PTGNode Combine(PTGNode out, PTGNode lhs, PTGNodeList rhs)@>==@{
+/* Build a collection of rules
+ *   On entry-
+ *     out=rules previously constructed
+ *     lhs=common left hand side for the collection
+ *     rhs=non-empty collection of right-hand sides
+ *   On exit-
+ *     Combine=all rules constructed so far
+ ***/
+{ do {
+    out = PTGRule(out, lhs, HeadPTGNodeList(rhs));
+    rhs = TailPTGNodeList(rhs);
+  } while (rhs != NULLPTGNodeList);
+
+  return out;
+}
+@}
+
+@$@<Patterns@>+=@{
+Rule: $ $ ": " $ ".\n"
+@}
+
+@{GenerateName@} is exported by an Eli library module:
+
+@$@<Instantiate library modules@>+=@{
+$/Tech/MakeName.gnrc +instance=Identifier :inst
+@}
+
+@A@<C Code@>
+
+In order to include C code in an Eli specification, we need to provide an
+interface specification and an implementation.
+The interface file must be protected against multiple inclusion, and must
+include whatever header files it needs to ensure that all of its symbols
+are defined.
+We also support either a K&R (no function prototypes) or an ANSI C
+compiler.
+
+@O@<ebnf.h@>==@{
+#ifndef EBNF_H
+#define EBNF_H
+
+#include "PTGNodeList.h"
+#include "eliproto.h"
+
+extern PTGNodeList Concatenate ELI_ARG((PTGNodeList,PTGNodeList));
+extern PTGNode     Combine ELI_ARG((PTGNode,PTGNode,PTGNodeList));
+
+#endif
+@}
+
+The C file must include header files defining interfaces that it needs,
+and support both kinds of compiler.
+It is also conventional to include the module interface header.
+
+@O@<ebnf.c@>==@{
+#include "ebnf.h"
+#include "ptg_gen.h"
+
+PTGNodeList
+#ifdef PROTO_OK
+Concatenate(PTGNodeList left, PTGNodeList right)
+#else
+Concatenate(left, right) PTGNodeList left, right;
+#endif
+@<PTGNodeList Concatenate(PTGNodeList left, PTGNodeList right)@>
+
+PTGNode
+#ifdef PROTO_OK
+Combine(PTGNode out, PTGNode lhs, PTGNodeList rhs)
+#else
+Combine(out, lhs, rhs) PTGNode out, lhs; PTGNodeList rhs;
+#endif
+@<PTGNode Combine(PTGNode out, PTGNode lhs, PTGNodeList rhs)@>
+@}
+
+Finally, interface information must be made available to Eli-generated
+files:
+
+@O@<ebnf.head@>==@{
+#include "ebnf.h"
+@}

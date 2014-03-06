@@ -1,0 +1,90 @@
+This file contains an interface specification for Suif.  The purposes of the
+files are:
+
+Suif.fw		Specification, written in FunnelWeb.  You can use this
+		file to produce a LaTeX document named "f.tex" by giving the
+		Eli request "-> Suif.fw :fwTex > f.tex".
+
+Suif.specs	Definition of the specifications used to produce Suif
+		from FORTRAN 77.  Replace the FORTRAN 77 specification
+		modules with those for the front end of interest, and
+		re-define the symbol SUIF to reflect the location of the
+		SUIF implementation on your system.
+
+Odinfile	Odin commands necessary to derive the compiler.
+
+For more information about Eli, see the material at
+
+	http://www.cs.colorado.edu/~eliuser/
+
+
+The following comments are written by Haibing Ma, May 18, 1997.
+
+Usually the derived compiler will compile fortran 77 source file, which
+ONLY contains one f77 function/procedure. A Suif file named "suifout" will
+be generated after each successful running if the f77 source code is
+error free. The compiler user then needs to rename/copy this "suifout" file
+in order to keep a copy. Some necessary Suif passs should be run on our 
+generated Suif files for the use of backend. Currently, in order to generate
+an executable file from f77 source code, s2c must be run to tranlate the
+Suif files to C source code, the use local C compiler, cc, to generate an
+executable. While running cc, please put -lF77 -lI77 -lm -lc -taso. 
+
+Unless explicitly expressed, for hint of solutions of problems reported, 
+please run sf2c.
+
+
+Problems need to be solved:
+
+1. Character assignment and concatenation.
+    The input/output paret just assume each "xExpr" symbol 
+has "charvar" and "lenDatum" attributes. Currently only "xExpr" directly
+goes to "xScon" has the proper values for these two attributes.
+    The parts of input/output that character expression can appear are
+format identifier and input/output item. In the case of format identifier,
+the variable that holds the format string must be null ended.
+
+2. Label assignment.
+    The label assignment is used for format identifier of input/output. So
+two places need to be worried, the label assignment statement and the
+input/output statement.
+
+3. Type analysis for input/output item and format identifier for input/output
+statement.
+
+4. Binary libary for formated IO.
+    The implementation of IO is highly depended on the I77 library. The 
+problem here is that when we try to use scc to compile f77 source code to
+an executable file, (what scc does is it translates to Suif formated file,
+then runs several Suif passes, then translates the Suif formated file to
+C source code, then runs the local cc compiler and links the library), the
+finally generated executable file got core dumped. So far we know alpha
+machine has such problem, but we don't know about other machines.
+
+5. Suif size() method on Alpha
+    On alpha, the pointer is 64-bit long. But the size() mechod still returns
+32. This matters for the initialization of those struct type variables for
+control information of input/output. For hint of solution, please send mail
+to the suif e-mail list.
+
+6. Common block size check
+    There should be some suif pass, either provided by the Suif package or
+created by ourselves, to check the common block size. Currently, each
+global variable that represents a common block name is appended with a
+"k_common_block" annotation. For named common blocks, a string representing
+that name is also in the annotation parameter list. For hint of solution, 
+please send mail to the suif e-mail list.
+
+7. Common block name is declared to be extern
+    Common block name is declared to be in the global symbol table,
+but they are declared to be extern by default. But from the result of
+running scc, global symbols could be non-extern. For hint of solution,
+please send mail to the suif e-mail list.
+
+8. Alpha backend
+    Harvard is working on Suif backend. Please check web site:
+http://www.eecs.harvard.edu/~hube/
+    or e-mail Mike Smith <smith@eecs.harvard.edu>
+
+
+

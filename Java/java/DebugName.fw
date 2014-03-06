@@ -1,0 +1,89 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Provide Readable Type Names@>
+\label{chap:debug}
+
+@O@<DebugName.specs@>==@{
+$/Tech/Strings.specs
+@}
+
+@O@<DebugName.pdl@>==@{
+DebugName: CharPtr; "Strings.h"
+
+byteType   -> DebugName={"byte"};
+shortType  -> DebugName={"short"};
+intType    -> DebugName={"int"};
+longType   -> DebugName={"long"};
+charType   -> DebugName={"char"};
+boolType   -> DebugName={"boolean"};
+
+floatType  -> DebugName={"float"};
+doubleType -> DebugName={"double"};
+
+voidType   -> DebugName={"void"};
+objectType -> DebugName={"java.lang.Object"};
+stringType -> DebugName={"java.lang.String"};
+throwableType -> DebugName={"java.lang.Throwable"};
+nullType   -> DebugName={"null"};
+
+addOp -> DebugName={"addOp"};
+andOp -> DebugName={"andOp"};
+arrCondOp -> DebugName={"arrCondOp"};
+arreqOp -> DebugName={"arreqOp"};
+arrneOp -> DebugName={"arrneOp"};
+arrstrOp -> DebugName={"arrstrOp"};
+bogusOp -> DebugName={"bogusOp"};
+candOp -> DebugName={"candOp"};
+castNumOp -> DebugName={"castNumOp"};
+clsCondOp -> DebugName={"clsCondOp"};
+clseqOp -> DebugName={"clseqOp"};
+clsneOp -> DebugName={"clsneOp"};
+clsstrOp -> DebugName={"clsstrOp"};
+cmpeqOp -> DebugName={"cmpeqOp"};
+cmpgeOp -> DebugName={"cmpgeOp"};
+cmpgtOp -> DebugName={"cmpgtOp"};
+cmpleOp -> DebugName={"cmpleOp"};
+cmplsOp -> DebugName={"cmplsOp"};
+cmpneOp -> DebugName={"cmpneOp"};
+complOp -> DebugName={"complOp"};
+conjOp -> DebugName={"conjOp"};
+corOp -> DebugName={"corOp"};
+decrOp -> DebugName={"decrOp"};
+disjOp -> DebugName={"disjOp"};
+divOp -> DebugName={"divOp"};
+exorOp -> DebugName={"exorOp"};
+incrOp -> DebugName={"incrOp"};
+invOp -> DebugName={"invOp"};
+lshiftOp -> DebugName={"lshiftOp"};
+mulOp -> DebugName={"mulOp"};
+narrowOp -> DebugName={"narrowOp"};
+negOp -> DebugName={"negOp"};
+obj2arrOp -> DebugName={"obj2arrOp"};
+objCondOp -> DebugName={"objCondOp"};
+orOp -> DebugName={"orOp"};
+posOp -> DebugName={"posOp"};
+prmCondOp -> DebugName={"prmCondOp"};
+prmstrOp -> DebugName={"prmstrOp"};
+remOp -> DebugName={"remOp"};
+rshiftOp -> DebugName={"rshiftOp"};
+strarrOp -> DebugName={"strarrOp"};
+strclsOp -> DebugName={"strclsOp"};
+strprmOp -> DebugName={"strprmOp"};
+subOp -> DebugName={"subOp"};
+urshiftOp -> DebugName={"urshiftOp"};
+@}
+
+@O@<DebugName.lido@>==@{
+CLASS SYMBOL PointerDeclarator COMPUTE
+  ResetDebugName(THIS.Type,"pointer");
+END;
+
+CLASS SYMBOL ArrayDeclarator COMPUTE
+  ResetDebugName(THIS.Type,"array");
+END;
+
+CLASS SYMBOL FunctionDeclarator COMPUTE
+  ResetDebugName(THIS.Type,"function");
+END;
+@}

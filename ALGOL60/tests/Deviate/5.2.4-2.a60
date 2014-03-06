@@ -1,0 +1,6 @@
+begin comment $Id: 5.2.4-2.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+A bound position acts like an integer variable;
+
+  array r[1:true];
+
+end

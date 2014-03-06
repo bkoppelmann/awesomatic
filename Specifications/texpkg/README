@@ -1,0 +1,36 @@
+This directory defines the distributed TeX package for Odin.  The actual
+package can be generated using Eli:  In the directory containing this
+README, run the following command:
+
+	% eli %package
+
+The subdirectory "tex" is the created package.  Replace the directory
+ODIN/pkg/tex with that subdirectory.
+
+After generating and installing the package, reset the cache to include it
+by giving the command:
+
+	% eli -R
+
+Once this package has been installed, you can obtain a PostScript copy of
+the report describing how it works by giving the command:
+
+	% eli report.ps
+
+The same report can be rendered in PDF by giving the command:
+
+	% eli report.pdf
+
+The files in this directory are:
+
+README		This file
+
+Odinfile	Controls the construction of the package.  The possible
+		products are:
+	report.ps	PostScript file describing the implementation
+	report.pdf	PDF file describing the implementation
+	%package	Complete package in subdirectory "tex"
+
+texpkg.fw	Executable description of the package
+
+$Id: README,v 1.2 2004/06/16 08:32:49 profw Exp $

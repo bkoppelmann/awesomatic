@@ -1,0 +1,5 @@
+begin comment $Id: 4.6.3.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+Verify the type of a controlled variable;
+
+Boolean x; for x := true do ;
+end

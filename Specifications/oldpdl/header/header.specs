@@ -1,0 +1,11 @@
+/* $Id: header.specs,v 1.2 1992/07/11 20:56:14 kadhim Exp $ */
+/* Specifications for PDL header generation */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+header.lido	/* abstract syntax attribution */
+header.c	/* attribution computations */
+header.h	/* exported definitions for attribution computations */
+header.head	/* inclusion of exported definition in global header */
+header.ptg	/* output forms */
+header.pdl	/* properties used in attribution */
+

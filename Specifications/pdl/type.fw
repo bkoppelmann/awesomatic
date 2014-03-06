@@ -1,0 +1,126 @@
+@O@<type.lido@>==@{
+/* PDL type analysis */
+
+SYMBOL PropertyNameDecl: reldef: VOID;
+SYMBOL Source: GotAllRels: VOID;
+
+ATTR TypeKey: DefTableKey;
+
+RULE Axiom: Source ::= Range '$LIBRARY' LibraryList
+COMPUTE
+  /* global ordering dependencies */
+  Source.GotAllRels=CONSTITUENTS PropertyNameDecl.reldef;
+END;
+
+RULE GenericType: TypeSpecifier ::= 'TYPE'
+COMPUTE
+  TypeSpecifier.TypeKey=NoKey;
+END;
+
+RULE DefinedType: TypeSpecifier ::= TypeIdent
+COMPUTE
+  TypeSpecifier.TypeKey=TypeIdent.key;
+END;
+
+RULE PropertySpec: PropertyDecl ::= PropertyNameList ':' Type ';'
+COMPUTE
+  PropertyDecl.TypeKey=CONSTITUENT TypeSpecifier.TypeKey;
+
+  /* Check for valid type declaration */
+  IF(EQ(PropertyDecl.TypeKey,NoKey),
+  message(FATAL,"TYPE is not a valid type specification for a property",
+	0, COORDREF));
+END;
+
+RULE PropertyName: PropertyNameDecl ::= Identifier
+COMPUTE
+  /* Set the type key as an attribute of the property key */
+  PropertyNameDecl.reldef=TypeIs(PropertyNameDecl.key, 
+				INCLUDING PropertyDecl.TypeKey);
+
+  /* If the property has been declared more than once with a different */
+  /* give an error message */
+  IF(EQ(GetDefine(PropertyNameDecl.key,Unknown),MultDefined),
+  message(FATAL,"Redeclaration of Property with different type", 0, COORDREF))
+  DEPENDS_ON INCLUDING Source.GotAllRels;
+END;
+@}
+
+@O@<type.head@>==@{
+/* PDL type analysis computation interface */
+
+#include "type.h"
+@}
+
+@O@<type.h@>==@{
+/* Exported definitions for type analysis attribute computations */
+
+#ifndef TYPE_H
+#define TYPE_H
+
+#include "deftbl.h"	/* definition table module */
+
+/* These are used to indicate whether a property has been declared more */
+/* than once with different types */
+#define Unknown           0
+#define Defined           1
+#define MultDefined       2
+
+/* exported functions */
+
+#if defined(__cplusplus) || defined(__STDC__)
+extern void TypeIs(DefTableKey key, DefTableKey type);
+#else
+extern void TypeIs();
+#endif
+
+#endif
+@}
+
+@O@<type.c@>==@{
+/* Attribute computations for PDL type analysis */
+
+#include <stdio.h>
+#include "ptg_gen.h"	/* output generation definitions */
+#include "deftbl.h"	/* definition table module */
+#include "envmod.h"	/* environment module */
+#include "func.h"	/* declarations required for db.h */
+#include "pdl_gen.h"	/* PDL generated header for exported functions */
+#include "type.h"	/* constants and exported functions */
+
+/***/
+#if defined(__cplusplus) || defined(__STDC__)
+void
+TypeIs (DefTableKey key, DefTableKey type)
+#else
+void
+TypeIs(key,type)
+DefTableKey key, type;
+#endif
+/* Verify the type of an entity
+ *    On entry-
+ *       key defines the entity
+ *       type specifies the type of entity
+ *    On exit-
+ *       The Type property has been set
+ ***/
+{
+   switch (GetDefine(key, Unknown)) {
+   case Defined:
+      if (GetType(key, NoKey) != type)
+         SetDefine(key, MultDefined, MultDefined);
+   case MultDefined:
+      return;
+   case Unknown:
+      SetDefine(key, Defined, MultDefined);
+      SetType(key, type, NoKey);
+   }
+}
+@}
+
+@O@<type.pdl@>==@{
+/* Properties for checking definition status */
+
+Define: int;			/* checks for multiple definition */
+Type: DefTableKey;		/* Type key for properties */
+@}

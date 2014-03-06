@@ -1,0 +1,44 @@
+Fortran scanner/parser specifications for Eli4.0 or higher.  The contents
+of this directory are:
+
+F77Phrase.specs	Specifications for the phrase structure of FORTRAN 77
+F77Phrase.fw
+F77		Directory containing FORTRAN 77 keyword definitions
+
+F90Phrase.specs	Specifications for the phrase structure of FORTRAN 90
+F90Phrase.fw
+F90		Directory containing FORTRAN 90 keyword definitions
+
+Include.fw	Specification for INCLUDE file processing
+
+Scan.fw		Specification for FORTRAN lexical analysis
+
+Grammar.fw	Specification for FORTRAN syntactic analysis
+
+HtmlScan.fw	Wrapper for the lexical analysis specification in HTML
+TexScan.fw	Wrapper for the lexical analysis specification in PostScript
+scan.fwi	Abstract for the printed lexical analysis specification
+
+HtmlParse.fw	Wrapper for the syntactic analysis specification in HTML
+TexParse.fw	Wrapper for the syntactic analysis specification in PostScript
+parse.fwi	Abstract for the printed syntactic analysis specification
+
+Odinfile	Commands that build some useful products
+
+You can request any of the following products by invoking "eli" with the
+name of the product as its argument (e.g. "eli f77.exe"):
+
+f77.exe		Executable scanner/parser for FORTRAN 77
+f90.exe		Executable scanner/parser for FORTRAN 90
+
+Scan.html	Formatted lexical analysis specification with hyperlinks
+Scan.ps		Formatted lexical analysis specification for printing
+
+The following products should be redirected to a directory (e.g. "eli
+'%f77.src>src'").  They consist of all files, including a Makefile, needed
+to implement the corresponding processor:
+
+%f77.src        Source of a scanner/parser for FORTRAN 77
+%f90.src        Source of a scanner/parser for FORTRAN 90
+
+$Id: README,v 1.4 1998/01/01 19:37:00 waite Exp $

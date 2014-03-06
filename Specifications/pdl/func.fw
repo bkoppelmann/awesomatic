@@ -1,0 +1,655 @@
+@O@<func.lido@>==@{
+/* Attribution for generation of PDL C file */
+
+ATTR out: PTGNode;		/* generic output attribute */
+ATTR arglist: PTGNode;		/* argument list output for generated macros */
+ATTR formallist: PTGNode;	/* argument list output for generated macros */
+ATTR functions: funclist;	/* operations associated with a declaration */
+ATTR funcdef: VOID;		/* all function lists defined */
+ATTR funcout: PTGNode;		/* output for function definition */
+ATTR declout: PTGNode;		/* function argument declarations */
+ATTR opout: OpOutput;		/* Relevant output information for op's */
+ATTR sym: int;			/* symbol table index */
+
+ATTR mon: PTGNode;		/* output for monitoring support */
+                                /* names, types and switch entries for
+                                      monitoring support */
+ATTR name, type, typeid, switch: PTGNode;
+ATTR first: int;
+CHAIN firstch : VOID;
+
+CHAIN func: funclist;		/* operations associated with a declaration */
+
+SYMBOL Source: GotAllFuncs: VOID;
+
+RULE Axiom: Source ::= Range '$LIBRARY' LibraryList
+COMPUTE
+  /* Global ordering dependency */
+  Source.GotAllFuncs=CONSTITUENTS (PropertyNameDecl.funcdef, Type.funcdef);
+
+  /* Concatenation of function definitions */
+  Source.funcout=CONSTITUENTS Type.funcout
+			WITH(PTGNode, concatptgnode, creatptgnode, nullptgnode);
+
+  /* Collection of monitoring support */
+  CHAINSTART Range.firstch = 0;
+  Source.mon=PTGMon (CONSTITUENTS PropertyNameDecl.name
+		     WITH(PTGNode, concatptgnode, creatptgnode, nullptgnode),
+		     CONSTITUENTS PropertyNameDecl.type
+		     WITH(PTGNode, concatptgnode, creatptgnode, nullptgnode),
+		     CONSTITUENTS PropertyNameDecl.switch
+		     WITH(PTGNode, concatptgnode, creatptgnode, nullptgnode));
+
+  PTGOutFile(
+    "pdl_gen.c",
+    PTGCGen(Source.funcout, Source.Element, Source.Array, Source.CloneKey,
+            Source.mon));
+END;
+
+RULE PropertySpec: PropertyDecl ::= PropertyNameList ':' Type ';'
+COMPUTE
+  /* Operations associated with this property declaration */
+  PropertyDecl.functions=Type.functions;
+
+  /* Types for monitoring support */
+  PropertyDecl.typeid = CONSTITUENT TypeSpecifier.typeid;
+  PropertyDecl.type = CONSTITUENT TypeSpecifier.type;
+END;
+
+RULE PropertyName: PropertyNameDecl ::= Identifier
+COMPUTE
+  /* Add the declared list of operations to the list of operations */
+  /* associated with this property */
+  PropertyNameDecl.funcdef=addfunclist(PropertyNameDecl.key, 
+					INCLUDING PropertyDecl.functions);
+
+  /* Generate name, type and switch for monitoring support */
+  /* Only do for first occurrence of this property name */
+  .first = GetFirst (PropertyNameDecl.key, 1) <- PropertyNameDecl.firstch;
+  PropertyNameDecl.firstch = ResetFirst (PropertyNameDecl.key, 0)
+                             <- .first;
+  PropertyNameDecl.name =
+      IF (.first, PTGArrayEntry (PTGIdentifier (Identifier)), PTGNULL);
+  PropertyNameDecl.type =
+      IF (.first, INCLUDING PropertyDecl.type, PTGNULL);
+  PropertyNameDecl.switch =
+      IF (.first, 
+          PTGSwitchEntry (GetSelector (PropertyNameDecl.key, 0),
+                          INCLUDING PropertyDecl.typeid),
+          PTGNULL);
+END;
+
+RULE TypeNoOp: Type ::= TypeSpecifier
+COMPUTE
+  /* There are no operations declared in this tree fragment */
+  Type.functions=dummyfunclist;
+  Type.funcdef=VOIDEN(0);
+
+  /* Generate the necessary functions for this type */
+  Type.funcout=GenFunctions(TypeSpecifier.key, TypeSpecifier.sym, 
+			INCLUDING Source.openv,
+			GetFuncList(TypeSpecifier.key, dummyfunclist))
+		DEPENDS_ON INCLUDING Source.GotAllFuncs;
+END;
+
+RULE TypeWithOp: Type ::= TypeSpecifier '[' OperationNameList ']'
+COMPUTE
+  /* Add the declared list of operations to the list of operations */
+  /* associated with this type */
+  Type.funcdef=addfunclist(TypeSpecifier.key, Type.functions);
+
+  /* This is the list of operations declared in this tree fragment */
+  Type.functions=OperationNameList.func;
+
+  /* Generate the functions associated with this type */
+  Type.funcout=GenFunctions(TypeSpecifier.key, TypeSpecifier.sym, 
+			INCLUDING Source.openv,
+			GetFuncList(TypeSpecifier.key, dummyfunclist))
+		DEPENDS_ON INCLUDING Source.GotAllFuncs;
+
+  /* Accumulate the list of operations for this tree fragment */
+  CHAINSTART OperationNameList.func=nullfunclist();
+END;
+
+RULE GenericType: TypeSpecifier ::= 'TYPE'
+COMPUTE
+  /* 'TYPE' is not a valid type specifier */
+  TypeSpecifier.sym=0;
+  TypeSpecifier.key=NoKey;
+
+  /* Generate name and type for monitoring support */
+  /* Should never happen since TYPE is not used in property decls */
+  TypeSpecifier.typeid = PTGString ("TYPE");
+  TypeSpecifier.type = PTGArrayEntry (TypeSpecifier.typeid);
+END;
+
+RULE DefinedType: TypeSpecifier ::= TypeIdent
+COMPUTE
+  /* propogate the type identifier's deftbl key and symbol table index */
+  TypeSpecifier.sym=TypeIdent.sym;
+  TypeSpecifier.key=TypeIdent.key;
+
+  /* Generate name and type for monitoring support */
+  TypeSpecifier.typeid = PTGIdentifier (TypeIdent.sym);
+  TypeSpecifier.type = PTGArrayEntry (TypeSpecifier.typeid);
+END;
+
+RULE TypeName: TypeIdent ::= Identifier
+COMPUTE
+  TypeIdent.sym = Identifier;
+END;
+
+RULE OperationName: OperationNameDecl ::= Identifier
+COMPUTE
+  /* Fetch the correct operation declaration */
+  OperationNameDecl.key=FindOpKey(INCLUDING Source.openv, Identifier)
+			DEPENDS_ON INCLUDING Source.GotAllOps;
+
+  /* concatenate to the list of operations for this declaration */
+  OperationNameDecl.func=concatfunclist(OperationNameDecl.key,
+					OperationNameDecl.func);
+END;
+
+RULE OperationSpec: OperationDecl ::=
+                        TypeSpecifier Identifier '(' ParameterList ')' Text
+COMPUTE
+  /* Output for the C function generated from this operation definition */
+  OperationDecl.opout=BuildOperationSpec(TypeSpecifier.out,
+					PTGIdentifier(Identifier),
+					ParameterList.out,
+					ParameterList.declout,
+					PTGIdentifier(Text));
+
+  /* argument list output for the generated macros */
+  OperationDecl.arglist=PTGParen(ParameterList.arglist);
+  OperationDecl.formallist=ParameterList.formallist;
+END;
+
+/* The remaining attribution accumulates the output from the descendants */
+/* of the OperationSpec for use by the OperationSpec */
+
+RULE GenericType: TypeSpecifier ::= 'TYPE'
+COMPUTE
+  TypeSpecifier.out=PTGString("TYPE");
+END;
+
+RULE DefinedType: TypeSpecifier ::= TypeIdent
+COMPUTE
+  TypeSpecifier.out=PTGIdentifier(TypeIdent.sym);
+END;
+
+RULE MultipleParameters: ParameterList ::= ParameterList ',' ParameterDecl
+COMPUTE
+  ParameterList[1].out=PTGCommaSeq(ParameterList[2].out, ParameterDecl.out);
+  ParameterList[1].declout=
+		PTGSeq(ParameterList[2].declout, ParameterDecl.declout);
+  ParameterList[1].arglist=PTGCommaSeq(ParameterList[2].arglist, 
+					ParameterDecl.arglist);
+  ParameterList[1].formallist=PTGCommaSeq(ParameterList[2].formallist,
+					ParameterDecl.formallist);
+END;
+
+RULE SingleParameter: ParameterList ::= ParameterDecl
+COMPUTE
+  ParameterList.out=ParameterDecl.out;
+  ParameterList.declout=ParameterDecl.declout;
+  ParameterList.arglist=ParameterDecl.arglist;
+  ParameterList.formallist=ParameterDecl.formallist;
+END;
+
+RULE ParameterSpec: ParameterDecl ::= TypeSpecifier Identifier Modifier
+COMPUTE
+  ParameterDecl.out=PTGIdentifier(Identifier);
+  ParameterDecl.declout=IF(EQ(Modifier.out, PTGNULL),
+			   PTGParamDecl(TypeSpecifier.out,
+					PTGIdentifier(Identifier),
+					PTGNULL),
+			   PTGParamDecl(TypeSpecifier.out,
+				    PTGFuncName(PTGIdentifier(Identifier)),
+				    Modifier.out));
+  ParameterDecl.arglist=PTGIdentifier(Identifier);
+  ParameterDecl.formallist=PTGParen(PTGIdentifier(Identifier));
+END;
+
+RULE EmptyModifier: Modifier ::=
+COMPUTE
+  Modifier.out=PTGNULL;
+END;
+
+RULE VoidModifier: Modifier ::= '(' ')'
+COMPUTE
+  Modifier.out=PTGString("()");
+END;
+
+RULE SimpleModifier: Modifier ::= '(' ParameterTypeList ')'
+COMPUTE
+  Modifier.out=PTGSModifier(ParameterTypeList.out);
+END;
+
+RULE ExtendedModifier: Modifier ::= '(' ParameterTypeList ',' '...' ')'
+COMPUTE
+  Modifier.out=PTGEModifier(ParameterTypeList.out);
+END;
+
+RULE MultipleParameterTypes: ParameterTypeList ::=
+                        ParameterTypeList ',' ParameterTypeDecl
+COMPUTE
+  ParameterTypeList[1].out=PTGCommaSeq(ParameterTypeList[2].out,
+					ParameterTypeDecl.out);
+END;
+
+RULE SingleParameterType: ParameterTypeList ::= ParameterTypeDecl
+COMPUTE
+  ParameterTypeList.out=ParameterTypeDecl.out;
+END;
+
+RULE ParameterTypeSpec: ParameterTypeDecl ::= TypeSpecifier Modifier
+COMPUTE
+  ParameterTypeDecl.out=PTGPTypeSpec(TypeSpecifier.out, Modifier.out);
+END;
+
+RULE IdentParameterTS: ParameterTypeDecl ::= TypeSpecifier Identifier Modifier
+COMPUTE
+  ParameterTypeDecl.out=PTGIPTypeSpec(TypeSpecifier.out,
+						PTGIdentifier(Identifier),
+						Modifier.out);
+END;
+
+@}
+
+@O@<func.h@>==@{
+/* Exported definitions for function output generation */
+
+#ifndef FUNC_H
+#define FUNC_H
+
+#include "ptg_gen.h"	/* definition for PTG symbols */
+#include "deftbl.h"	/* definition for DefTableKey */
+#include "envmod.h"	/* definition for Environment */
+
+#define nullptgnode()         PTGNULL
+#define creatptgnode(x)       x
+#define concatptgnode(x,y)    PTGSeq((x),(y))
+
+/* element structs and funclists are used to build up a list of operations */
+/* associated with a type or property key */
+typedef struct element {
+	DefTableKey key;
+	struct element *next;
+} element;
+
+typedef element *funclist;
+
+typedef struct {
+	PTGNode rettype;
+	PTGNode opname;
+	PTGNode paramlist;
+	PTGNode paramdecls;
+	PTGNode text;
+} OpOutput;
+
+/* A dummyfunclist should guarantee not to cause allocation of new space */
+/* as opposed to nullfunclist - this can vary according to how the list */
+/* is represented */
+#define dummyfunclist     ((funclist) 0)
+
+/* exported functions */
+
+#if defined(__cplusplus) || defined(__STDC__)
+extern void addfunclist(DefTableKey key, funclist list);
+extern funclist nullfunclist();
+extern funclist concatfunclist(DefTableKey key, funclist list);
+extern DefTableKey FindOpKey(Environment env, int ident);
+extern PTGNode GenFunctions(DefTableKey key, int type, 
+                            Environment env, funclist list);
+extern void PrIdent();
+extern OpOutput BuildOperationSpec(PTGNode type, PTGNode opname,
+				   PTGNode paramlist, PTGNode paramdecls,
+				   PTGNode text);
+#else
+extern void addfunclist();
+extern funclist nullfunclist();
+extern funclist concatfunclist();
+extern DefTableKey FindOpKey();
+extern PTGNode GenFunctions();
+extern void PrIdent();
+extern OpOutput BuildOperationSpec();
+#endif
+
+#endif
+
+@}
+
+@O@<func.c@>==@{
+/* Attribute computations for C output generation */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include "err.h"		/* error module */
+#include "deftbl.h"		/* definition table */
+#include "envmod.h"		/* environment module */
+#include "ptg_gen.h"		/* output generation functions */
+#include "func.h"
+#include "header.h"
+#include "pdl_gen.h"		/* PDL generated functions */
+#include "csm.h"		/* string table */
+
+/* global constants */
+
+#define FALSE      0
+#define TRUE       1
+
+/* string table indices for predefined operations */
+extern int GetHandle, SetHandle, ResetHandle;
+
+/* Add a list of operations to those already associated with the given key */
+#if defined(__cplusplus) || defined(__STDC__)
+void
+addfunclist (DefTableKey key, funclist list)
+#else
+void
+addfunclist (key, list)
+DefTableKey key;
+funclist list;
+#endif
+{
+  funclist olist, temp;
+
+  /* Get the current list of operations for the key */
+  olist = GetFuncList(key, dummyfunclist);
+
+  /* For each of the functions to add, see if they are already in the list */
+  /* and if not add them to the list */
+  while (list) {
+    temp = olist;
+    while (temp && (temp->key != list->key))
+      temp = temp->next;
+    if (!temp) {
+      temp = (funclist) malloc(sizeof(element));
+      temp->key = list->key;
+      temp->next = olist;
+      olist = temp;
+    }
+    list = list->next;
+  }  
+
+  /* Set the appropriate property */
+  SetFuncList(key, olist, olist);
+}
+
+/* Returns a null funclist */
+#if defined(__cplusplus) || defined(__STDC__)
+funclist
+nullfunclist (void)
+#else
+funclist
+nullfunclist ()
+#endif
+{
+  return ((funclist) 0);
+}
+
+/* Concatenate the key for a single operation onto a list of operations */
+#if defined(__cplusplus) || defined(__STDC__)
+funclist
+concatfunclist (DefTableKey key, funclist list)
+#else
+funclist
+concatfunclist (key, list)
+DefTableKey key;
+funclist list;
+#endif
+{
+  funclist temp;
+
+  if (key == NoKey)
+    return list;
+  else {
+    temp = (funclist) malloc(sizeof(element));
+    temp->key = key;
+    temp->next = list;
+    return temp;
+  }
+}
+
+/* Return the appropriate operation definition for the given operation */
+/* declaration key */
+#if defined(__cplusplus) || defined(__STDC__)
+DefTableKey
+FindOpKey (Environment env, int ident)
+#else
+DefTableKey
+FindOpKey (env, ident)
+Environment env;
+int ident;
+#endif
+{
+  /* If it is Get or Set, return an invalid key as these operations are */
+  /* always generated, otherwise look up the identifier in the operation */
+  /* environment */
+  if ((ident == GetHandle) || (ident == SetHandle) || (ident == ResetHandle))
+    return NoKey;
+  else
+    return KeyInEnv(env, ident);
+}
+
+/* Generate the necessary functions associated with a type */
+#if defined(__cplusplus) || defined(__STDC__)
+PTGNode
+GenFunctions (DefTableKey key, int type, Environment env, funclist list)
+#else
+PTGNode
+GenFunctions (key, type, env, list)
+DefTableKey key;	/* deftbl key for the type */
+int type;		/* string table index for the type name */
+Environment env;	/* operation declaration environment */
+funclist list;		/* list of operations declared for this type */
+#endif
+{
+  PTGNode result, typename;
+  DefTableKey SetKey, GetKey, ResetKey;
+  OpOutput out;
+  ExtOutput extout;
+
+  /* If this output has not been generated yet, generate it - otherwise */
+  /* return no output */
+  if (!GetGenFuncs(key, FALSE)) {
+    /* First generate both Get and Set operations */
+    ResetKey=KeyInEnv(env, ResetHandle);
+    SetKey=KeyInEnv(env, SetHandle);
+    GetKey=KeyInEnv(env, GetHandle);
+    typename = PTGIdentifier(type); ResetTypeName(key, typename);
+    result=PTGTypeDef(typename);
+    if (GetKey != NoKey) {
+      out=GetFuncOut(GetKey,out);
+      extout=GetExtOut(GetKey,extout);
+      result=PTGSeq(result,PTGOperationSpec(out.rettype,out.opname,
+					    typename,extout.paramlist,
+					    out.paramlist,out.paramdecls,
+					    out.text));
+    }
+    if (SetKey != NoKey) {
+      out=GetFuncOut(SetKey,out);
+      extout=GetExtOut(SetKey,extout);
+      result=PTGSeq(result,PTGOperationSpec(out.rettype,out.opname,
+					    typename,extout.paramlist,
+					    out.paramlist,out.paramdecls,
+					    out.text));
+    }
+    if (ResetKey != NoKey) {
+      out=GetFuncOut(ResetKey,out);
+      extout=GetExtOut(ResetKey,extout);
+      result=PTGSeq(result,PTGOperationSpec(out.rettype,out.opname,
+					    typename,extout.paramlist,
+					    out.paramlist,out.paramdecls,
+					    out.text));
+    }
+
+    /* For each operation declared in the list, append the output for that */
+    /* function to the output already generated */
+    while (list) {
+      out=GetFuncOut(list->key,out);
+      extout=GetExtOut(list->key,extout);
+      result=PTGSeq(result,PTGOperationSpec(out.rettype,out.opname,
+					    typename,extout.paramlist,
+					    out.paramlist,out.paramdecls,
+					    out.text));
+      list=list->next;
+    }
+
+    /* Indicate that the output has now been generated */
+    SetGenFuncs(key, TRUE, TRUE);
+    return PTGFunctions(typename, typename, result);
+  } else
+    return PTGNULL;
+}
+
+/* Print an identifier */
+#if defined(__cplusplus) || defined(__STDC__)
+void
+PrIdent (FILE *f, int val)
+#else
+void
+PrIdent (f, val)
+FILE *f; int val;
+#endif
+{
+  fprintf(f, "%s", StringTable(val));
+}
+
+/* Build up the structure to hold information for an operation declaration */
+#if defined(__cplusplus) || defined(__STDC__)
+OpOutput
+BuildOperationSpec (PTGNode type, PTGNode opname, PTGNode paramlist,
+		    PTGNode paramdecls, PTGNode text)
+#else
+OpOutput
+BuildOperationSpec (type, opname, paramlist, paramdecls, text)
+PTGNode type, opname, paramlist, paramdecls, text;
+#endif
+{
+  OpOutput *temp;
+
+  if (!(temp = (OpOutput *) malloc(sizeof(OpOutput))))
+    message(DEADLY, "BuildOperationSpec: malloc failed", 0, (POSITION *)0);
+
+  temp->rettype = type;
+  temp->opname = opname;
+  temp->paramlist = paramlist;
+  temp->paramdecls = paramdecls;
+  temp->text = text;
+  return *temp;
+}
+
+@}
+
+@O@<func.head@>==@{
+#include "func.h"
+@}
+
+@O@<func.pdl@>==@{
+FuncList: funclist;
+GenFuncs: int;
+
+"ptg_gen.h"
+TypeName: PTGNode;
+
+First: int;
+@}
+
+@O@<func.ptg@>==@{
+/* Property Definition Language function output forms */
+
+CGen: "#include \"pdl_gen.h\"\n\n" 
+      "#ifdef MONITOR\n"
+      "#include \"pdl_dapto.h\"\n" 
+      "#endif\n\n"
+      "#define PRESENT find(key, _property, (Entry *)&_Item, 0)\n"
+      "#define VALUE (_Item->PropVal)\n\n"
+      $ "\n"
+      $
+      $
+      $
+      $
+
+OperationSpec: "#if defined(__STDC__) || defined(__cplusplus)\n"
+	       $1 "\n"
+	       $2 $3 " (int _property, " $4 ")\n"
+	       "#else\n"
+	       $1 "\n" 
+               $2 $3 " (_property, " $5 ")\n"
+	       "int _property;\n"
+	       $6
+	       "#endif\n"
+	       "{  " $3 "Property _Item;\n"
+	       $7 "\n}\n\n"
+
+Paren: "(" $ ")"
+Identifier: [PrIdent $ int]
+String: $ string
+CommaSeq: $ ", " $
+ParamDecl: $ " " $ $ ";\n"
+SModifier: "(" $ ")"
+EModifier: "(" $ ", ... )"
+PTypeSpec: $ " " $
+IPTypeSpec: $ " " $ " " $
+FuncName: "(*" $ ")"
+Seq: $ $
+
+TypeDef: "typedef struct " $1 "Elt {\n"
+	 "\tEntry next;\n"
+	 "\tint selector;\n"
+	 "\tTYPE PropVal;\n"
+	 "} *" $1 "Property;\n\n"
+
+Functions: "#define TYPE " $ "\n\n" 
+   "#define ACCESS find(key, _property, (Entry *)&_Item, sizeof(struct " 
+	                        $ "Elt))\n\n"
+	   $ 
+	   "#undef ACCESS\n"
+	   "#undef TYPE\n"
+
+Mon: "\n#ifdef MONITOR\n"
+     "static CONST char *pdl_names[] = {\n"
+     "    (char *)0,\n"
+     $1
+     "};\n"
+     "static CONST char *pdl_types[] = {\n"
+     "    (char *)0,\n"
+     $2
+     "};\n\n"
+     "void\n"
+     "#if defined(__STDC__) || defined(__cplusplus)\n"
+     "pdl_mon_properties(DefTableKey k)\n"
+     "#else\n"
+     "pdl_mon_properties(k) DefTableKey k;\n"
+     "#endif\n"
+     "{\n"
+     "    Entry e;\n"
+     "    if (k == NoKey) return;\n"
+     "    for (e = k->List; (e != (Entry)0) && (e->selector != 0);\n"
+     "         e = e->next) {\n"
+     "        DAPTO_RESULT_STR (pdl_names[e->selector]);\n"
+     "        DAPTO_RESULT_STR (pdl_types[e->selector]);\n"
+     "        switch (e->selector) {\n"
+     $3
+     "            default: DAPTO_RESULT_STR (\"unknown property\");\n"
+     "        }\n"
+     "    }\n"
+     "}\n"
+     "#endif\n"
+
+ArrayEntry:
+     "    \"" $ "\",\n"
+
+SwitchEntry:
+     "            case " $1 int ":\n"
+     "#ifdef DAPTO_RESULT" $2 "\n"
+     "                DAPTO_RESULT" $2 " (((" $2 
+                                "Property)e)->PropVal);\n"
+     "#else\n"
+     "                DAPTO_RESULT_OTHER (((" $2 
+                                "Property)e)->PropVal);\n"
+     "#endif\n"
+     "                break;\n"
+@}

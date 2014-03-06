@@ -1,0 +1,9 @@
+/* $Id: header.pdl,v 1.4 1995/07/31 17:26:25 kadhim Exp $ */
+/* Properties for header output generation */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+GenExts: int;		/* check if externs have already been generated */
+GenMacros: int;		/* check if macros have already been generated */
+
+"ptg_gen.h"
+Selector: int;		/* Integer selecting this property */

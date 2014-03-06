@@ -1,0 +1,407 @@
+@$@<Check for right sibling@>==@{
+ATTR GotSiblingCheck: VOID;
+ATTR SiblingKey: DefTableKey;
+
+SYMBOL Source COMPUTE
+  SYNT.GotSiblingCheck = CONSTITUENTS (AbsElements.GotSiblingCheck,
+                           ConAlt.GotSiblingCheck);
+END;
+
+/* The next two rules perform a CONSTITUENTS on the rhs element keys of */
+/* rules.  The combination function sets the Sibling property for the   */
+/* first key and returns the second.  This causes all but the last rhs  */
+/* element to be marked.                                                */
+RULE: AbsElements LISTOF AbsElement COMPUTE
+  AbsElements.GotSiblingCheck =
+    VOIDEN(CONSTITUENTS AbsElement.SiblingKey
+      WITH(DefTableKey, CombineSiblings, IDENTICAL, ZeroKey));
+END;
+
+RULE: ConAlt LISTOF ConElement COMPUTE
+  ConAlt.GotSiblingCheck =
+    VOIDEN(CONSTITUENTS ConElement.SiblingKey
+      WITH(DefTableKey, CombineSiblings, IDENTICAL, ZeroKey));
+END;
+
+SYMBOL AbsElement COMPUTE
+  SYNT.SiblingKey = THIS.Key;
+END;
+
+RULE: AbsElement ::= '$' Identifier COMPUTE
+  AbsElement.SiblingKey = NoKey;
+END;
+
+SYMBOL ConElement COMPUTE
+  /* We want to avoid setting the Sibling property based on concrete rules */
+  /* that won't be inserted into the abstract syntax.                      */
+  SYNT.SiblingKey =
+    IF(EQ(GetDuplicate(INCLUDING ConProd.Key, NoKey), NoKey),
+      NoKey,
+      THIS.Key)
+    DEPENDS_ON INCLUDING Source.GotMatch;
+END;
+
+RULE: ConElement ::= '&' Text COMPUTE
+  ConElement.SiblingKey = NoKey;
+END;
+
+RULE: ConElement ::= '@@' Identifier COMPUTE
+  ConElement.SiblingKey = NoKey;
+END;
+
+RULE: ConElement ::= '@@' Text COMPUTE
+  ConElement.SiblingKey = NoKey;
+END;
+
+RULE: ConElement ::= '$' Identifier COMPUTE
+  ConElement.SiblingKey = NoKey;
+END;
+
+RULE: ConElement ::= '$' Text COMPUTE
+  ConElement.SiblingKey = NoKey;
+END;
+@}
+
+@$@<Combine siblings@>==@{
+#define CombineSiblings(x,y)	((y) != NoKey) ? \
+				(ResetSibling((x), 1), (y)) : (x)
+#define ZeroKey()	NoKey
+@}
+
+@$@<Sibling property@>==@{
+Sibling: int;
+@}
+
+@$@<Symbol Classification@>==@{
+ATTR GotKind, Kind: VOID;
+ATTR AxiomCnt, axiom: int;
+ATTR GotReach: VOID;
+ATTR GotConSym: VOID;
+ATTR GotOccur: VOID;
+
+SYMBOL Source COMPUTE
+  /* Guarantees that the NonTerm and IsRHS properties have been		*/
+  /* appropriately set for all symbol keys.				*/
+  SYNT.GotKind = CONSTITUENTS (ConLHS.Kind, AbsLHS.Kind, ConElement.Kind,
+				AbsElement.Kind, AbsAlt.Kind);
+
+  /* Guarantees that reachability has been computed from the start	*/
+  /* symbol of the abstract tree through all rules.  This reachability	*/
+  /* analysis does not include computed trees.  Reachability is marked	*/
+  /* on rule keys, not symbol keys.					*/
+  SYNT.GotReach = CONSTITUENTS (ConProd.GotReach, AbsProd.GotReach);
+
+  /* Marks symbol keys if they are part of the final concrete syntax.	*/
+  /* This partially determines which terminal symbols need special	*/
+  /* terminal node production actions in the Pgram output object.	*/
+  SYNT.GotConSym = CONSTITUENTS (ConLHS.GotConSym, ConElement.GotConSym,
+					AbsProd.GotConSym);
+
+  /* This property detects which input grammar each symbol appears in.	*/
+  /* The IsAbs property is set for symbols occurring in the abstract	*/
+  /* syntax input and IsCon property for the concrete syntax input.	*/
+  SYNT.GotOccur = CONSTITUENTS (ConLHS.GotOccur, ConElement.GotOccur,
+				AbsLHS.GotOccur, AbsElement.GotOccur,
+				AbsAlt.GotOccur);
+
+  /* Counts the number of roots found */
+  SYNT.AxiomCnt = CONSTITUENTS (ConProd.axiom, AbsProd.axiom)
+			WITH(int, ADD, IDENTICAL, ZERO);
+
+  /* Signal an error if no root context was found */
+  IF(EQ(SYNT.AxiomCnt, 0),
+	message(ERROR, "Could not determine the start symbol",
+		0, NoPosition));
+END;
+
+RULE: ConProd ::= ConLHS ':' ConAlt '.' COMPUTE
+  /* Determines if this rule context is a root */
+  ConProd.axiom = CheckAxiom(ConLHS.Key, 0)
+			DEPENDS_ON (INCLUDING Source.GotKind,
+				INCLUDING Source.GotSymMap);
+
+  /* If this is a root, then compute reachability from the root symbol */
+  ConProd.GotReach = IF(ConProd.axiom,
+			ComputeReach(ConLHS.Key),
+			0)	
+			DEPENDS_ON (INCLUDING Source.GotRule,
+				INCLUDING Source.GotSymMap);
+
+END;
+
+RULE: AbsProd ::=  'RULE' AbsRuleId ':' AbsSignature 'END' ';' COMPUTE
+  /* Determines if this rule context is a root */
+  AbsProd.axiom = CheckAxiom(CONSTITUENT AbsLHS.Key, 1)
+			DEPENDS_ON (INCLUDING Source.GotKind,
+				INCLUDING Source.GotSymMap);
+
+  /* If this is a root, then compute reachability from the root symbol */
+  AbsProd.GotReach = IF(AbsProd.axiom,
+			ComputeReach(CONSTITUENT AbsLHS.Key),
+			0)
+			DEPENDS_ON (INCLUDING Source.GotRule,
+				INCLUDING Source.GotSymMap);
+
+  /* If this is an abstract rule, which will be included in the		*/
+  /* concrete grammar, then mark each of the symbols of the abstract	*/
+  /* rule as being concrete symbols.					*/
+  AbsProd.GotConSym = MarkConSym(AbsProd.Key)
+			DEPENDS_ON (INCLUDING Source.GotMatch,
+				INCLUDING Source.GotRuleMap,
+				INCLUDING Source.GotReach);
+END;
+
+SYMBOL LHS COMPUTE
+  /* Left hand sides are necessarily nonterminals */
+  SYNT.Kind = ResetNonTerm(THIS.Key, 1);
+
+  /* If this is a root and more than one root was detected in the	*/
+  /* grammar, then signal an error.					*/
+  IF(AND(AND(GetStart(THIS.Key, 0), NE(INCLUDING Source.AxiomCnt, 1)),
+         NOT(GetRootErr(THIS.Key, 0))),
+    ORDER(ResetRootErr(THIS.Key, 1),
+      message(ERROR,
+        CatStrInd("One of the multiple roots: ", THIS.Sym), 0, COORDREF)));
+END;
+
+SYMBOL AbsLHS INHERITS LHS COMPUTE
+  SYNT.GotOccur = ResetIsAbs(SYNT.Key, 1);
+END;
+
+SYMBOL ConLHS INHERITS LHS COMPUTE
+  /* This is a concrete symbol */
+  SYNT.GotConSym = ResetConSym(SYNT.Key, 1);
+
+  SYNT.GotOccur = ResetIsCon(SYNT.Key, 1);
+END;
+
+SYMBOL Element COMPUTE
+  /* This symbol appears on the rhs of a rule */
+  SYNT.Kind = ResetIsRHS(THIS.Key, 1);
+END;
+
+SYMBOL AbsElement INHERITS Element COMPUTE
+  SYNT.GotOccur = ResetIsAbs(SYNT.Key, 1);
+END;
+
+SYMBOL AbsAlt INHERITS Element COMPUTE
+  SYNT.GotOccur = ResetIsAbs(SYNT.Key, 1);
+END;
+
+SYMBOL ConElement INHERITS Element COMPUTE
+  /* This is a concrete symbol */
+  SYNT.GotConSym = ResetConSym(SYNT.Key, 1);
+
+  SYNT.GotOccur = ResetIsCon(SYNT.Key, 1);
+END;
+@}
+
+@$@<Classification Properties@>==@{
+IsRHS: int;	/* Does the symbol appear on the rhs of a rule */
+NonTerm: int;	/* Is the symbol a nonterminal */
+Start: int;	/* Is the symbol a root symbol */
+Reach: int;	/* Is this rule reachable from an abstract root */
+		/* without passing through computed subtrees	*/
+ConSym: int;	/* Is the symbol which will appear in the final	*/
+		/* concrete grammar				*/
+IsCon: int;	/* Is this symbol in the concrete input		*/
+IsAbs: int;	/* Is this symbol in the abstract input		*/
+RootErr: int;   /* Has a multiple root message already been issued */
+@}
+
+@$@<Classification Definitions@>==@{
+#ifndef CLASSIFY_H
+#define CLASSIFY_H
+
+#include "deftbl.h"
+#include "eliproto.h"
+
+extern int CheckAxiom ELI_ARG((DefTableKey key, int type));
+extern void ComputeReach ELI_ARG((DefTableKey key));
+extern void MarkConSym ELI_ARG((DefTableKey key));
+
+#endif
+@}
+
+@$@<Classification Functions@>==@{
+#include "pdl_gen.h"
+#include "DefTableKeyList.h"
+#include "classify.h"
+#include "symbol.h"
+
+/* On Entry:
+ *   key - a key representing a grammar symbol
+ *   type - 0 if key is in the concrete grammar and
+ *		1 if it is in the abstract grammar
+ * On Exit:
+ *   If the symbol is determined to be a root, then the Start
+ *   property will be set for all symbols in its equivalence
+ *   class and CheckAxiom will return 1, otherwise CheckAxiom
+ *   returns 0.  CheckAxiom will also return 0 if this root has
+ *   previously been detected.
+ */
+#ifdef PROTO_OK
+int
+CheckAxiom (DefTableKey key, int type)
+#else
+int
+CheckAxiom (key, type)
+DefTableKey key;
+int type;
+#endif
+{
+  DefTableKeyList list;
+
+  /* If the symbol appears on the rhs of a production, then it	*/
+  /* is not a root.  If we have previously detected this symbol */
+  /* to be a root, also return 0.				*/
+  if ((GetIsRHS(key, 0)) || (GetStart(key, 0)))
+    return 0;
+  if (!type) {
+    if (GetIsRHS(GetMap(key, key), 0))
+      return 0;
+  } else {
+    list = GetAbsMap(key, NULLDefTableKeyList);
+    while (list != NULLDefTableKeyList) {
+      if (GetIsRHS(HeadDefTableKeyList(list), 0))
+        return 0;
+      list = TailDefTableKeyList(list);
+    }
+  }
+
+  /* If it is a concrete symbol, then set the Start property	*/
+  /* for the key itself and its mapping in the abstract		*/
+  /* grammar.  Otherwise, mark this symbol and all concrete	*/
+  /* symbols in its equivalence class.				*/
+  if (!type) {
+    ResetStart(key, 1);
+    ResetStart(GetMap(key, key), 1);
+  } else {
+    ResetStart(key, 1);
+    list = GetAbsMap(key, NULLDefTableKeyList);
+    while (list != NULLDefTableKeyList) {
+      ResetStart(HeadDefTableKeyList(list), 1);
+      list = TailDefTableKeyList(list);
+    }
+  }
+  return 1;
+}
+
+/* On Entry:
+ *   key - a root symbol
+ * On Exit:
+ *   The Reach property will be set for all contexts which
+ *   appear as subtrees of the symbol represented by key.
+ *   The Reach property is not set for contexts which are
+ *   only reachable through $ symbols, i.e., computed subtrees.
+ */
+#ifdef PROTO_OK
+void
+ComputeReach (DefTableKey key)
+#else
+void
+ComputeReach (key)
+DefTableKey key;
+#endif
+{
+  DefTableKeyList Rules, ConKeys;
+  SymbolPList RHS;
+  DefTableKey Rule;
+
+  /* Get all concrete and abstract rules which have this key as their	*/
+  /* lhs.  To get the abstract rules, the key is first mapped.  If it	*/
+  /* is already an abstract key, the mapping won't matter.		*/
+  Rules = AppDefTableKeyList(GetAbsRules(GetMap(key, key),
+					NULLDefTableKeyList),
+			GetConRules(key, NULLDefTableKeyList));
+
+  /* Get all of the concrete keys in the equivalence class.  If key is	*/
+  /* a concrete key, then a null list will be returned.  Append the	*/
+  /* associated rules to the set of rules which must be traversed.	*/
+  ConKeys = GetAbsMap(key, NULLDefTableKeyList);
+  while (ConKeys != NULLDefTableKeyList) {
+    Rules = AppDefTableKeyList(GetConRules(HeadDefTableKeyList(ConKeys),
+					NULLDefTableKeyList),
+				Rules);
+    ConKeys = TailDefTableKeyList(ConKeys);
+  }    
+
+  /* Loop through each of these rules and if the rule has not yet been	*/
+  /* marked, then mark it and recursively check each of the rhs symbols */
+  while (Rules != NULLDefTableKeyList) {
+    Rule = HeadDefTableKeyList(Rules);
+    if (!GetReach(Rule, 0)) {
+      ResetReach(Rule, 1);
+
+      RHS = GetRHS(Rule, NULLSymbolPList);
+      while (RHS != NULLSymbolPList) {
+        if (SymbolClassGet(HeadSymbolPList(RHS)) == IDENTIFIER)
+          ComputeReach(SymbolKeyGet(HeadSymbolPList(RHS)));
+        RHS = TailSymbolPList(RHS);
+      }
+    }
+    Rules = TailDefTableKeyList(Rules);
+  }
+}
+
+/* On Entry:
+ *   key - key representing an abstract rule
+ * On Exit:
+ *   The symbols of the rule represented by key will be marked
+ *   as concrete symbols, if the rule is to be included in the
+ *   concrete grammar.
+ */
+#ifdef PROTO_OK
+void
+MarkConSym (DefTableKey key)
+#else
+void
+MarkConSym (key)
+DefTableKey key;
+#endif
+{
+  SymbolPList prod;
+
+  /* If there is no corresponding concrete rule, the abstract	*/
+  /* rule is reachable, and it is not a chain production, then	*/
+  /* it needs to be included as a concrete production.		*/
+  if ((GetAbsMatch(key, NULLDefTableKeyList) == NULLDefTableKeyList) &&
+	(GetReach(key, 0)) &&
+	(GetArgCount(key, 0) != 1)) {
+    ResetConSym(GetLHS(key, NoKey), 1);
+    prod = GetRHS(key, NULLSymbolPList);
+    while (prod != NULLSymbolPList) {
+      if (SymbolClassGet(HeadSymbolPList(prod)) != GEN_IDENT)
+        ResetConSym(SymbolKeyGet(HeadSymbolPList(prod)), 1);
+      prod = TailSymbolPList(prod);
+    }
+  }
+}
+@}
+
+@$@<Classification Headers@>==@{
+#include "classify.h"
+@}
+
+@O@<classify.lido@>==@{
+@<Symbol Classification@>
+@<Check for right sibling@>
+@}
+
+@O@<classify.pdl@>==@{
+@<Classification Properties@>
+@<Sibling property@>
+@}
+
+@O@<classify.h@>==@{
+@<Classification Definitions@>
+@<Combine siblings@>
+@}
+
+@O@<classify.c@>==@{
+@<Classification Functions@>
+@}
+
+@O@<classify.head@>==@{
+@<Classification Headers@>
+@}

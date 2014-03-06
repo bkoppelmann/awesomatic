@@ -1,0 +1,6 @@
+begin comment $Id: 5.4.5-3.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+Identifiers in the formal parameter part cannot be repeated;
+
+procedure p(x,x); integer x,y; ;
+
+end

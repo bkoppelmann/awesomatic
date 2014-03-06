@@ -1,0 +1,35 @@
+An illustration of the use of Eli for simple "data laundry" problems.
+Useful as a tutorial example.  The contents of this directory are:
+
+keywords.fw	Complete specification of the processor
+
+input		Test data
+
+HtmlKeywd.fw	Wrapper for the specification in HTML
+TexKeywd.fw	Wrapper for the specification in PostScript
+abstract.fwi	Abstract for the printed version
+
+Odinfile	Commands that build some useful products
+
+You can request any of the following products by invoking "eli" with the
+name of the product as it argument (e.g. "eli keywords.tex"):
+
+keywords.exe	An executable processor that accepts a file containing a
+		grammar and creates two files "keywd.delit" and "keywd.h".
+		The purpose of these files and their relationship to the
+		grammar is described in the paper.  This processor can be
+		applied to file "input".
+
+Keywd.html	A paper describing the problem solved by the processor
+Keywd.ps	generated from the specification in this directory,
+		explaining the strategy taken in constructing the
+		specification, and giving the complete specification
+		itself.
+
+The following product should be redirected to a directory (e.g. "eli
+'keywords.src>src'").  It consists of all files, including a Makefile,
+needed to implement the corresponding processor:
+
+%keywords.src	Source of the keyword processor
+
+$Id: README,v 1.4 1998/01/01 20:08:15 waite Exp $

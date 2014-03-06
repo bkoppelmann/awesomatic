@@ -1,0 +1,2974 @@
+@A@<Introduction@>
+
+Definitions appearing in this document are numbered sequentially.
+Those numbers can be used to cross-reference definitions with locations at
+which they are invoked.
+Each definition is followed by a list of the numbers of the positions where
+it is invoked, or by a note that it is attached to an output file.
+(In the latter case the name of the definition is the name of the output
+file.)
+
+@A@<Notation@>
+
+This document uses a variety of notations to define the lexical and
+syntactic structure of a Java program,
+specify relationships among Java operations and data types,
+associate computations with specific Java constructs, 
+and describe the generation of Java virtual machine code.
+Each notation is associated with one or more tools that implement
+a standard solution to the subproblem described using the notation.
+Input for a tool is provided by one or more files whose names indicate the
+tools by which they should be processed.
+Eli uses the file name extension to determine the @/type@/ of a file,
+which specifies how it is to be processed.
+
+All of the material presented in a particular notation is collected into a
+single file, as described in this section, for further processing by the
+Eli system.
+Thus there are no specific examples of notation presented here; the
+interested reader can examine any of definitions referred to in the given
+file to see how the notation is actually used.
+
+@B@<The Lexical Analysis Subproblem@>
+
+To solve the lexical analysis subproblem, a Java processor must examine
+each character of the input text, recognizing character sequences as
+tokens, comments or white space.
+Regular expressions are used to classify these sequences.
+
+Once a character sequence has been classified, the sequence defined by the
+regular expression may be extended or shortened by an
+@/auxiliary scanner@/.
+An auxiliary scanner is associated with a regular expression by specifying
+it's name, enclosed in parentheses (e.g. @{(auxNewLine)@}).
+
+Identifiers and denotations must be retained for further processing.
+This is done in a uniform way by retaining one copy of each distinct input
+string appearing as an identifier or a denotation.
+Each identifier or denotation is represented internally by the index of its
+string in the string memory.
+If @{i@} is this index, then @{StringTable(i)@} is a pointer to the
+(null-terminated) string.
+
+A @/token processor@/ can be associated with each regular expression by
+specifying its name, enclosed in brackets (e.g. @{[mkidn]@}).
+The token processor is a C routine, the intent of which is to construct
+an integer-valued internal representation of the scanned string.
+Every token processor obeys the following interface:
+
+@$@<Token processor@>@(@1@)@M@{
+void
+#if PROTO_OK
+@1(char *c, int l, int *t, int *s)
+#else
+@1(c, l, t, s) char *c; int l, *t, *s;
+#endif
+/* On entry-
+ *   c points to the first character of the scanned string
+ *   l=length of the scanned string
+ *   *t=initial classification
+ * On exit-
+ *   *t=final classification
+ *   *s=internal representation
+ ***/
+@}
+
+A type-@{gla@} file specifies the lexical analysis subproblem:
+
+@O@<Java_gen.gla@>==@{
+@<InputElement@>
+@}
+
+Sometimes it is necessary to use special procedures to recognize some
+condition in the input file.
+The locations of such conditions are conveniently specified by placing
+descriptive literals in the grammar, but these literals should not be
+recognized in the ``normal'' way.
+They are therefore enumerated in a type-@{delit@} file as regular
+expressions, and associated with identifiers whose values will be defined
+by Eli as the syntax codes for the markers:
+
+@O@<Java_gen.delit@>==@{
+@<Mark EndOfFile and NoFilesPending to be recognized specially@>
+@}
+
+@B@<The Syntactic Analysis Subproblem@>
+
+To solve the syntactic analysis subproblem, a Java processor must examine
+the sequence of tokens resulting from lexical analysis, grouping those
+tokens into a hierarchy of phrases.
+A context-free grammar is used to describe the phrase structure.
+
+Character sequences that must appear exactly as specified are @{'quoted'@}
+in grammar rules.
+No additional lexical specification of these @/literal terminals@/ is
+given.
+Non-literal terminals of the grammar are represented by symbols, and the
+form of the character strings acceptable as instances of these terminals is
+described by separate regular expressions.
+
+The definition of a nonterminal is introduced by the name
+of the nonterminal being defined, followed by a colon.
+One or more alternative expansions for the nonterminal then follow,
+separated by slashes (@{/@}).
+The entire set of alternatives is terminated by a period.
+
+Eli's notation for an optional symbol in a context-free grammar is to
+surround that symbol with square brackets (@{[ ]@}).
+In a regular expression, square brackets indicate a set of characters
+rather than an option.
+This corresponds to the ``one of'' notation found in the Java
+specification, but it cannot be used in context-free grammars.
+
+A type-@{con@} file specifies the syntactic analysis subproblem:
+
+@O@<Java_gen.con@>==@{
+@<Productions from 2.3: The Syntactic Grammar@>
+@<Productions from 3: Lexical Structure@>
+@<Productions from 4: Types, Values, and Variables@>
+@<Productions from 6: Names@>
+@<Productions from 7: Packages@>
+@<Productions Only in the LALR(1) Grammar@>
+@<Productions from 8.1: Class Declaration@>
+@<Productions from 8.3: Field Declarations@>
+@<Productions from 8.4: Method Declarations@>
+@<Productions from 8.5: Static Initializers@>
+@<Productions from 8.6: Constructor Declarations@>
+@<Productions from 9.1: Interface Declarations@>
+@<Productions from 10: Arrays@>
+@<Productions from 14: Blocks and Statements@>
+@<Productions from 15: Expressions@>
+@}
+
+@B@<Computations Over Trees@>
+
+Many of the tasks of a Java processor can be specified as computations over
+a tree.
+Attribute grammars are used in this document to describe these
+computations.
+
+The computations themselves are written in an obvious notation whose atoms
+are identifiers and C denotations (integers, floating-point numbers or
+strings), and whose only composition rule is function application.
+Attributes of arbitrary type can be attached to tree nodes, and notations
+are provided to access attributes of the current context and remote
+contexts.
+An attribute of the current context can be set to the value of an
+expression.
+
+Pre-defined functions provide access to the normal operations of C and
+implement a conditional with non-strict argument evaluation.
+Arbitrary abstract data types can be defined separately and their
+operations invoked in tree computations.
+
+Eli determines a computation order from the dependence relations expressed
+by the attribute grammar, and also decides how to store attribute values on
+the basis of their lifetimes and access patterns.
+
+A type-@{lido@} file specifies computations over a tree:
+
+@O@<Java_gen.lido@>==@{
+@<Type keys@>
+@<Primitive Types and Reference Types@>
+@<Primitive Types and Values@>
+@<Reference Types, Objects, and Reference Values@>
+@<Extract the components of a name@>
+@<Declarations@>
+@<Name spaces and compilation units@>
+@<Scope of a Simple Name@>
+@<Classification of a name@>
+@<Syntactic Classification of a Name According to Context@>
+@<Report an undefined type name@>
+@<Simple Expression Names@>
+@<Reclassification of Contextually Ambiguous Names@>
+@<Qualified Names and Access Control@>
+@<Compilation unit analysis@>
+@<Dependence upon compilation unit's package name@>
+@<Automatic Import@>
+@<Labeled Statements@>
+@<The break Statement@>
+@<The continue Statement@>
+@<Array Creation Expressions@>
+@<Cast Expressions@>
+@}
+
+@B@<Relating Phrase Structure to Tree Structure@>
+
+Although the phrase structure specified by the context-free grammar and the
+tree structure implicit in the attribute grammar are related, they are not
+identical.
+Eli determines their relationship by comparing the structures of the
+specifications and taking account of additional information provided by the
+user in a special mapping language.
+
+The phrase structure of Java is completely specified by the context-free
+grammar contained in @{Java_gen.con@} (defined above).
+A user can obtain this grammar from Eli by requesting the @{consyntax@}
+product.
+@{Java_gen.lido@} (defined above), on the other hand, specifies only those
+contexts in which computations take place.
+Eli deduces the remainder of the tree structure from @{Java_gen.con@} and 
+@{Java_gen.map@} (defined below).
+A user can obtain the complete set of rules describing the tree structure
+from Eli by requesting the @{abstree@} product.
+
+There are two kinds of descriptions in the mapping language: symbol
+mappings and rule mappings.
+Symbol mappings specify that a number of symbols representing distinct
+phrases correspond to a single symbol representing a distinct tree node.
+Only the tree node symbol may appear in the attribute grammar.
+Rule mappings specify that a given phrase corresponds to a particular tree
+fragment.
+Only the tree fragments may appear in the attribute grammar.
+
+A type-@{map@} file describes correspondences between the phrase structure
+of the input text and the tree that represents the program internally.
+
+@O@<Java_gen.map@>==@{
+MAPSYM
+@<Types@>
+@<Names@>
+@<Statements@>
+@<Expressions@>
+@}
+
+@B@<Properties of Entities@>
+
+Entities are components of the Java program, such as types, methods and
+variables.
+Each entity has some set of properties associated with it, and computations
+involving that entity must be able to query and set its properties.
+
+The characteristics of the properties and access functions are described in
+the @/Property Definition Language@/.
+From this description, Eli creates a @/definition table@/ that serves as a
+repository for the relevant information.
+A type-@{pdl@} file describes the definition table:
+
+@O@<Java_gen.pdl@>==@{
+"Java_gen.h"
+@<Known keys representing predefined types@>
+@<Property of a simple type name@>
+@<Linking to the Host Support Module@>
+@<Properties of fully qualified names@>
+@<Property of a type import on demand@>
+@<Direct superclass property@>
+@<Label error property@>
+@}
+
+@B@<Abstract Data Types@>
+
+Many of the computations carried out by the Java processor involve abstract
+data types unique to those computations.
+Such abstract data types are implemented in some appropriate manner and
+made available to the computations via an interface specification.
+
+All of the tools that are components of Eli produce code in a
+C++-compatible subset of ANSI C.
+Thus any abstract data types to be used directly must be compatible with
+either C or C++.
+This does not necessarily mean that they must be @/written@/ in one of
+those languages, since Eli can access pre-compiled libraries for the
+implementation of an abstract data type.
+In the case of this document, however, all required abstract data types are
+supplied in ANSI C.
+
+A type-@{h@} file exports the interfaces for abstract data types:
+
+@O@<Java_gen.h@>==@{
+#ifndef JAVA_H
+#define JAVA_H
+
+#ifdef PROTO_OK
+#undef PROTO_OK
+#endif
+
+#ifdef ELI_ARGS
+#undef ELI_ARGS
+#endif
+
+#if defined(__cplusplus) || defined(__STDC__)
+#define PROTO_OK 1
+#define ELI_ARGS(a) a
+#else
+#define PROTO_OK 0
+#define ELI_ARGS(a) ()
+#endif
+
+#include "err.h"
+#include "envmod.h"
+#include "intList.h"
+#include "intListList.h"
+#include "class.h"
+#include "host.h"
+
+@<The categories of names@>
+
+@<State variable interfaces@>
+
+@<Processing function interfaces@>
+
+#endif
+@}
+
+A type-@{c@} file implements the operations and data structures of the
+abstract data types:
+
+@O@<Java_gen.c@>==@{
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "Java_gen.h"
+#include "err.h"
+#include "source.h"
+#include "csm.h"
+#include "idn.h"
+#include "clp.h"
+#include "strmath.h"
+#include "envmod.h"
+#include "termcode.h"
+#include "obstack.h"
+#include "pdl_gen.h"
+#include "Strings.h"
+#include "MakeName.h"
+#include "host.h"
+#include "JavaFilesStack.h"
+
+@<State variables@>
+
+@<Report a keyword error@>
+@<Normalize an integer@>
+@<Normalize a numeric literal@>
+
+@<Processing functions@>
+@}
+
+@B@<Eli Library Modules@>
+
+Eli makes library modules available to solve common problems in compiler
+construction.
+Many of these modules are generic, and must be instantiated in order to use
+them.
+Even those that need not be instantiated must be made available for use in
+the specification.
+Eli request notation is used for this purpose.
+
+A type-@{specs@} file instantiates modules to be included in this
+specification.
+
+@O@<Java_gen.specs@>==@{
+$/Adt/List.gnrc +instance=int :inst
+@<Name Spaces@>
+@<Label scope module@>
+@<Support modules@>
+@}
+
+Eli library modules requested in a type-@{specs@} file cannot be overridden
+by modules implementing the same interface that are supplied by the user.
+A type-@{reqmod@} file, on the other hand, specifies only that the
+@/behavior@/ of a specific library module is required.
+The user can supply a module with the specified behavior, but if no such
+module is supplied then the library module will be taken,
+
+@O@<Java_gen.reqmod@>==@{
+@<String arithmetic@>
+@}
+
+@B@<Java_gen.xxx.phi@>
+
+A type-@{phi@} file specifies material to be collected and inserted into
+some set of generated C or C++ files.
+Collections are identified by the component of the name that precedes the
+@{phi@}: all files with the same component are concatenated in arbitrary
+order to create a file whose name is the collection identifier and whose
+extension is @{h@}.
+This created file can then be named by an @{#include@} directive appearing
+in one or more generated C or C++ files.
+
+@C
+
+The @{HEAD@} collection is predefined by Eli.
+File @{HEAD.h@} is included in the generated C files making up the
+attribute evaluator.
+Thus @{HEAD.phi@} files are used to specify abstract data types used in
+attribute evaluation.
+
+@O@<Java_gen.HEAD.phi@>==@{
+#include "Java_gen.h"
+#include "strmath.h"
+@}
+
+@C
+
+The @{INIT@} collection is predefined by Eli.
+File @{INIT.h@} is included by the driver program at a point that
+guarantees execution of its content before scanning of the input text
+begins.
+Thus @{INIT.phi@} files are used to specify initialization of the abstract
+data types used in attribute evaluation.
+
+@O@<Java_gen.INIT.phi@>==@{
+@<Require normalized results for all values@>
+@<Initialize the host system@>
+@<Initialize the package environment@>
+@<Initialize the type environment@>
+@<Initialize the java.lang.Object key@>
+@}
+
+@B@<Command Line Structure@>
+
+The structure of the processor's command line is given by a declarative
+specification in which each component is indicated:
+
+@O@<Java_gen.clp@>==@{
+SourceFile input;
+@}
+
+@A@<Lexical Structure@>
+
+@B@<Unicode@>
+
+This document does not describe the handling of Unicode input.
+A source program is assumed to consist solely of ASCII characters, and
+contain no Unicode escapes.
+The issue of Unicode is orthogonal to the remainder of the specification,
+affecting only the input routine, the specification of the @{Identifier@}
+token, and the implementation of the lexical analyzer.
+
+@B@<Lexical Translation@>
+
+@B@<Unicode Escapes@>
+
+This provides a regular expression definition for Unicode escapes.  This is
+not the correct (or general) way to handle Unicode escapes.  It simply
+makes it possible to accept Unicode escapes inside character and string
+literals.
+
+@$@<Unicode Escape@>@M@{\\u@#H@#H@#H@#H@}
+
+@$@#H@M@{[0-9a-fA-F]@}
+
+@B@<Line Terminators@>
+
+Eli normally recognizes the ASCII LF character as an input line terminator.
+Thus only the CR and CRLF terminators need be added:
+
+@$@<LineTerminator@>==@{
+	$\r\n?		(auxNewLine)
+@}
+
+The auxiliary scanner @{auxNewLine@} signals the end of a text line so that
+the input coordinates can be updated.
+
+This definition does @/not@/ specify the termination of the @{//@} form of
+comment; that must be done as part of the comment definition below.
+
+@B@<Input Elements and Tokens@>
+
+Eli does not separate the specification of tokens from the specification of
+the language structure, so there is no specification here of @{Input@}
+or @{InputElements@}.
+The definition of @{InputElement@} given here simply collects all of the
+regular expressions defining those elements:
+
+@$@<InputElement@>==@{
+@<WhiteSpace@>
+@<Comment@>
+@<Token@>
+@}
+
+White space is defined in the next section.
+
+@$@<Token@>==@{
+@<Keyword@>
+@<Identifier@>
+@<Literal@>
+@}
+
+Separators and operators do not have individual lexical
+descriptions in an Eli specification.
+They appear as literal terminals in the grammar, and their lexical
+descriptions are extracted from the grammar by Eli.
+
+@B
+
+By default, Eli considers SP and HT characters to be white space.
+The FF character, however, must be added:
+
+@$@<WhiteSpace@>==@{
+	$\f
+@<LineTerminator@>
+@}
+
+@B@<Comments@>
+
+The three kinds of comment are specified by regular expressions and
+auxiliary scanners rather than a context-free grammar:
+
+@$@<Comment@>==@{
+	$"/*"		(auxCComment)
+	$"//".*\n	(auxNewLine)
+	$"//".*\r\n?	(auxNewLine)
+@}
+
+The auxiliary scanner @{auxCComment@} accumulates characters up to and
+including the next occurrence of the sequence @{*/@};
+@{auxNewLine@} was discussed above.
+
+@B@<Keywords@>
+
+Most of the Java keywords appear as literals in the grammar, and therefore
+do not need additional specifications.
+The keywords @{const@} and @{goto@} are reserved by Java, even though they
+are not currently used.
+This allows the processor to give a very specific error report if these C++
+keywords are incorrectly used in Java programs.
+
+@$@<Keyword@>==@{
+	$const		[KeyErr]
+	$goto		[KeyErr]
+@}
+
+Here the token processor @{KeyErr@} makes the error report:
+
+@$@<Report a keyword error@>==@{
+@<Token processor@>@(KeyErr@)
+{ message(ERROR, "Illegal keyword -- ignored", 0, &curpos); }
+@}
+
+When scanning of a character sequence begins, the scanner sets the variable
+@{curpos@} (exported by the error module) to the coordinates of the first
+character of the sequence.
+By using the address of this variable in the @{message@} call,
+@{KeyErr@} places the report at the start of the incorrect keyword.
+
+@B@<Identifiers@>
+
+This definition reflects the assumption discussed earlier that the input
+text would be ASCII rather than Unicode.
+A change to Unicode requires modification of the sets given here.
+
+@$@<Identifier@>==@{
+Identifier:	$[A-Za-z$_][A-Za-z0-9$_]*	[mkidn]
+@}
+
+The token processor @{mkidn@} encodes the string matched by the regular
+expression with a unique integer value.
+Every occurrence of a given string will be encoded with the same integer.
+A pointer to the characters of the string can be obtained by applying
+@{StringTable@} to the integer encoding.
+
+@B@<Literals@>
+
+A @/literal@/ is the source code representation of a value of a primitive
+type or the @{String@} type or the null type.
+All literals are represented internally by integers.
+The literal string represented by the integer @{i@} is the value of
+@{StringTable(i)@}.
+Every instance of a particular literal is represented by the same integer.
+
+@$@<Literal@>==@{
+@<Integer Literal@>
+@<Floating-Point Literal@>
+@<Character Literal@>
+@<String Literal@>
+@}
+
+The Boolean and null literals appear in the grammar as keywords and
+therefore have no separate lexical definition.
+
+Numeric literals are converted to standard normalized forms and checked for
+validity before their integer representations are determined.
+This conversion is performed by Eli's string arithmetic module, which is
+also used to evaluate constant expressions:
+
+@$@<String arithmetic@>==@{
+$/Tech/strmath.specs
+@}
+
+By default, Eli's string arithmetic module will represent a value whose
+exponent is @{-1@} with a leading @{0@}.
+This avoids the need for an explicit exponent, but does not conform to the
+definition of a normalized number.
+We therefore instruct the module not to perform such ``de-normalization'':
+
+@$@<Require normalized results for all values@>==@{
+(void)strmath(STRM_DENORMALIZE, 0);
+@}
+
+@C@<Integer Literals@>
+
+Integer literals are decomposed by type in order to preserve type
+information gleaned during lexical analysis.
+If this information were not preserved, later components of the compiler
+would be forced to re-scan the characters of the literal to obtain it.
+
+@$@<Integer Literal@>==@{
+IntLiteral:	$0|[1-9][0-9]*		[mkint10]
+		$0[xX][0-9a-fA-F]+	[mkint16]
+		$0[0-7]+		[mkint8]
+LongLiteral:	$(0|[1-9][0-9]*)[lL]	[mklng10]
+		$0[xX][0-9a-fA-F]+[lL]	[mklng16]
+		$0[0-7]+[lL]		[mklng8]
+@}
+
+The grammar symbol @{IntegerLiteral@} is expanded to retain the type
+information:
+
+@$@<IntegerLiteral@>==@{IntLiteral / LongLiteral@}
+
+The token processors normalize the integer to decimal form to guarantee that
+integer literals with the same value have the same internal representation.
+Thus if @{i@} is the internal representation of an integer literal,
+@{StringTable(i)@} is always a null-terminated sequence of decimal digits from
+the set @{[0-9]@}.
+
+@$@<Normalize a numeric literal@>+=@{
+@<Token processor@>@(mkint10@)
+{ *t = IntLiteral; NormInt(c, l, t, s, 10); }
+
+@<Token processor@>@(mkint16@)
+{ *t = IntLiteral; NormInt(c + 2, l - 2, t, s, 16); }
+
+@<Token processor@>@(mkint8@)
+{ *t = IntLiteral; NormInt(c, l, t, s, 8); }
+
+@<Token processor@>@(mklng10@)
+{ *t = LongLiteral; NormInt(c, l - 1, t, s, 10); }
+
+@<Token processor@>@(mklng16@)
+{ *t = LongLiteral; NormInt(c + 2, l - 3, t, s, 16); }
+
+@<Token processor@>@(mklng8@)
+{ *t = LongLiteral; NormInt(c, l - 1, t, s, 8); }
+@}
+
+The actual normalization is performed by invoking the string arithmetic
+package from the Eli library:
+
+@$@<Normalize an integer@>==@{
+static void
+#if PROTO_OK
+NormInt(char *c, int l, int *t, int *s, int r)
+#else
+NormInt(c, l, t, s, r) char *c; int l, *t, *s, r;
+#endif
+/* On entry-
+ *   c points to the first character of the scanned string
+ *   l=length of the scanned string
+ *   *t=initial classification
+ *   r=radix of the number to be normalized
+ * On exit-
+ *   *t=final classification
+ *   *s=internal representation
+ ***/
+{ char save, *num, *temp, complement[ARITH_SIZE*2];
+  int error;
+
+  save = c[l]; c[l] = '\0';
+
+  /* Maximum values taken from section 3.10.1 of the language specification */
+  if (*t == IntLiteral) {
+    if (r == 8) {
+      temp = strsub(c, "40000000000", 8);
+      error = (!temp || temp[0] != '-');
+      if (!error) {
+        strcpy(complement, temp);
+        num = strsub("17777777777", c, 8);
+        if (num[0] == '-')
+          num = strnorm(complement, 8, 10, "");
+        else
+          num = strnorm(c, 8, 10, "");
+      }
+    } else if (r == 10) {
+      temp = strsub(c, "2147483648", 10);
+      error = (!temp || temp[0] != '-');
+      if (!error)
+        num = strnorm(c, 10, 10, "");
+    } else {    /* r == 16 */
+      temp = strsub(c, "100000000", 16);
+      error = (!temp || temp[0] != '-');
+      if (!error) {
+        strcpy(complement, temp);
+        num = strsub("7fffffff", c, 16);
+        if (num[0] == '-')
+          num = strnorm(complement, 16, 10, "");
+        else
+          num = strnorm(c, 16, 10, "");
+      }
+    }
+  } else {        /* *t == LongLiteral */
+    if (r == 8) {
+      temp = strsub(c, "2000000000000000000000", 8);
+      error = (!temp || temp[0] != '-');
+      if (!error) {
+        strcpy(complement, temp);
+        num = strsub("777777777777777777777", c, 8);
+        if (num[0] == '-')
+          num = strnorm(complement, 8, 10, "");
+        else
+          num = strnorm(c, 8, 10, "");
+      }
+    } else if (r == 10) {
+      temp = strsub(c, "9223372036854775808", 10);
+      error = (!temp || temp[0] != '-');
+      if (!error)
+        num = strnorm(c, 10, 10, "");
+    } else {    /* r == 16 */
+      temp = strsub(c, "10000000000000000", 16);
+      error = (!temp || temp[0] != '-');
+      if (!error) {
+        strcpy(complement, temp);
+        num = strsub("7fffffffffffffff", c, 16);
+        if (num[0] == '-')
+          num = strnorm(complement, 16, 10, "");
+        else
+          num = strnorm(c, 16, 10, "");
+      }
+    }
+  }
+
+  if (error) {
+    message(ERROR, "Integer overflow", 0, &curpos);
+    *s = 0; return;
+  }
+
+  c[l] = save;
+  mkidn(num, strlen(num), t, s);
+}
+@}
+
+If an overflow is detected, the internal representation is set to @{0@}.
+@{StringTable[0]@} is the internal representation of a null string, and is
+therefore different from the representation of any valid integer.
+
+@C@<Floating-Point Literals@>
+
+Floating-point literals are decomposed by type in order to preserve type
+information gleaned during lexical analysis.
+If this information were not preserved, later components of the compiler
+would be forced to re-scan the characters of the literal to obtain it.
+
+A floating-point literal has the following parts:
+a whole-number part,
+a decimal point,
+a fractional part,
+an exponent,
+and a type suffix.
+The exponent, if present, is indicated by the letter @{e@} or @{E@}
+followed by an optionally signed integer.
+
+At least one digit, in either the whole number or the fractional part, and
+either a decimal point, an exponent, or a float type suffix are required.
+All other parts are optional.
+
+@$@<Floating-Point Literal@>==@{
+DoubleLiteral:	$((@#N@#E?|@#D+@#E)[dD]?|@#D+@#E?[dD])	[mkflt]
+FloatLiteral:	$(@#N@#E?|@#D+@#E)[fF]			[mkflt]
+@}
+
+The @{D@} macro represents a single digit:
+
+@$@#D@M@{[0-9]@}
+
+The @{N@} macro represents a sequence of digits with a leading, trailing or
+embedded decimal point:
+
+@$@#N@M@{(@#D+\.@#D*|\.@#D+)@}
+
+The @{E@} macro represents an exponent:
+
+@$@#E@M@{([eE][+-]?@#D+)@}
+
+The grammar symbol @{FloatingPointLiteral@} is expanded to retain the type
+information:
+
+@$@<FloatingPointLiteral@>==@{FloatLiteral / DoubleLiteral@}
+
+The token processor @{mkflt@} converts the value to IEEE 754 format,
+expressed as a character string.
+Thus if @{i@} is the internal representation of a floating point literal,
+@{StringTable(i)@} is always in normalized IEEE 754 format.
+Digits of single-precision values are binary, those of double-precision
+values are hexadecimal.
+Exponents are always sequences of decimal digits.
+
+@$@<Normalize a numeric literal@>+=@{
+@<Token processor@>@(mkflt@)
+{ char save, *temp; int DomainError;
+
+  /* If there is a type specifier on the end, remove it since we don't */
+  /* need it anymore. */
+  if (*t == FloatLiteral || c[l-1] == 'd' || c[l-1] == 'D') l--;
+
+  (void)strmath(STRM_EXP_SYMBOLS, "eE");
+  (void)strmath(STRM_INTEGER_SIZE, 1);
+  (void)strmath(STRM_ROUND_SIZE, ARITH_SIZE-1);
+  save = c[l]; c[l] = '\0';
+  @<Convert a Floating-Point Literal@>
+  if (*t == FloatLiteral) {
+    @<Check for over- or underflow in a FloatLiteral@>
+  } else {
+    @<Check for over- or underflow in a DoubleLiteral@>
+  }
+  c[l] = save;
+  (void)strmath(STRM_ROUND_SIZE, 0);
+  (void)strmath(STRM_INTEGER_SIZE, ARITH_SIZE);
+
+  if (!CsmStrPtr || DomainError) {
+    message(ERROR, "Value out of range", 0, &curpos);
+    obstack_free(Csm_obstk, CsmStrPtr); *s = 0; return;
+  }
+
+  mkidn(CsmStrPtr, strlen(CsmStrPtr), t, s);
+}
+@}
+
+If an overflow is detected, the internal representation is set to @{0@}.
+@{StringTable[0]@} is the internal representation of a null string, and is
+therefore different from the representation of any valid number.
+
+A @{FloatingPointLiteral@} is regarded as representing an exact decimal value
+in the usual ``computerized scientific notation''.
+
+@$@<Convert a Floating-Point Literal@>==@{
+CsmStrPtr = obstack_strcpy(Csm_obstk, strnorm(c, 10, 10, "e"));
+@}
+
+Overflow is detected by subtracting the converted value from the maximum
+possible value; underflow is detected by subtracting the minimum possible
+value from the converted value.  In both cases, a negative value represents
+the error condition.  The constants for minimum and maximum values for float
+and double are taken from section 3.10.2 of the language specification.
+
+@$@<Check for over- or underflow in a FloatLiteral@>==@{
+temp = strsub("3.40282347e38", CsmStrPtr, 10);
+DomainError  = (!temp || temp[0] == '-');
+if (CsmStrPtr[0] != '0') {
+  /*
+   * Fib on this one, since the JDK appears to have a smaller MIN_VALUE.
+   *   temp = strsub(CsmStrPtr, "1.40239846e-45", 10);
+   */
+  temp = strsub(CsmStrPtr, "1.40129846432481707e-45", 10);
+  DomainError |= (!temp || temp[0] == '-');
+}
+@}
+
+@$@<Check for over- or underflow in a DoubleLiteral@>==@{
+temp = strsub("1.79769313486231570e308", CsmStrPtr, 10);
+DomainError  = (!temp || temp[0] == '-');
+if (CsmStrPtr[0] != '0') {
+  temp = strsub(CsmStrPtr, "4.94065645841246544e-324", 10);
+  DomainError |= (!temp || temp[0] == '-');
+}
+@}
+
+@C@<Boolean Literals@>
+
+The @{boolean@} type has two values, specified by keywords:
+
+@$@<BooleanLiteral@>==@{'true' / 'false'@}
+
+@C@<Character Literals@>
+
+A literal of type @{char@} is expressed as a character or an escape
+sequence, enclosed in apostrophes:
+
+@$@<Character Literal@>==@{
+CharacterLiteral:	$'([^\\\n\015]|@<Escape@>|@<Unicode Escape@>)'	[mkidn]
+@}
+
+@C
+
+A string literal is zero or more characters enclosed in double quotes:
+
+@$@<String Literal@>==@{
+StringLiteral:	$\"([^\\\n\r\"]|@<Escape@>|@<Unicode Escape@>)*\"	[mkidn]
+@}
+
+@C@<Escape Sequences for Character and String Literals@>
+
+The character and string @/escape sequences@/ allow for the representation
+of some nongraphic characters as well as the single quote, double quote,
+and backslash characters in character literals and string literals:
+
+@$@<Escape@>@M@{\\([btnfr\"'\\]|@#O|@#O@#O|@#T@#O@#O)@}
+
+@$@#O@M@{[0-7]@}
+
+@$@#T@M@{[0-3]@}
+
+@C@<The Null Literal@>
+
+The null type has one value, the null reference, denoted by a keyword:
+
+@$@<NullLiteral@>==@{'null'@}
+
+@B@<Separators@>
+
+Separators do not have individual lexical descriptions in an Eli Specification.
+They appear as literal terminals in the grammar, and their lexical
+descriptions are extracted from the grammar by Eli.
+
+@B@<Operators@>
+
+Operators do not have individual lexical descriptions in an Eli Specification.
+They appear as literal terminals in the grammar, and their lexical
+descriptions are extracted from the grammar by Eli.
+
+@A@<Types, Values, and Variables@>
+
+Java is a @/strongly typed@/ language, which means that every variable and
+every expression has a type that is known at compile time.
+Types limit the values that a variable can hold or that an expression can
+produce, limit the operations supported on those values, and determine the
+meanings of the operations.
+Strong typing helps detect errors at compile time.
+
+Types are the same if they have the same fully qualified names.
+Names of types are used in declarations, in casts, in creation expressions,
+and in type-testing @{instanceof@} operators.
+
+A type is an entity that has properties, and it is therefore represented
+internally by a definition table key.
+Each type has a unique definition table key; two types with the same fully
+qualified names in the source text will be represented internally by the
+same definition table key.
+
+Some type errors can be detected when the program is parsed, by using
+distinct grammar symbols to represent different subsets of the type
+universe.
+Once parsing is complete, however, there is no need to retain these
+distinctions as different kinds of tree node.
+Every type name is therefore represented in the tree by a @{Type@} node
+that has a @{TypeKey@} attribute to hold the definition table key
+representing that type internally:
+
+@$@<Types@>==@{
+Type ::=
+  PrimitiveType NumericType IntegralType FloatingPointType ReferenceType
+  ClassType InterfaceType ArrayType .
+@}
+
+@$@<Type keys@>==@{
+ATTR TypeKey: DefTableKey;
+@}
+
+@B
+
+There is a special @/null type@/, the type of the expression @{null@},
+which has no name.
+
+@$@<Primitive Types and Reference Types@>==@{
+@<Type keyword@>@(null@)
+@}
+
+@B
+
+A @/primitive type@/ is predefined by the Java language, and named by its
+reserved keyword:
+
+@$@<Primitive Types and Values@>==@{
+@<Type keyword@>@(boolean@)
+@<Type keyword@>@(byte@)
+@<Type keyword@>@(short@)
+@<Type keyword@>@(int@)
+@<Type keyword@>@(long@)
+@<Type keyword@>@(char@)
+@<Type keyword@>@(float@)
+@<Type keyword@>@(double@)
+@}
+
+Each primitive type is associated with a known key whose name is the type
+keyword suffixed with @{Key@}:
+
+@$@<Known keys representing predefined types@>==@{
+nullKey;
+booleanKey;
+byteKey;
+shortKey;
+intKey;
+longKey;
+charKey;
+floatKey;
+doubleKey;
+@}
+
+@$@<Type keyword@>@(@1@)@M@{
+RULE: Type ::= '@1'
+COMPUTE
+  Type.TypeKey=@1Key;
+END;
+@}
+
+@B
+
+@$@<Reference Types, Objects, and Reference Values@>==@{
+@<Determine the TypeKey@>@(Type ::= Name '[' ']'@)
+@<Determine the TypeKey@>@(Type ::= Name@)
+
+RULE: Type ::= Type '[' ']' COMPUTE
+    Type[1].TypeKey = NoKey;
+END;
+@}
+
+@$@<Determine the TypeKey@>@(@1@)@M@{
+RULE: @1
+COMPUTE
+  Type.TypeKey=
+    IF(EQ(TailintList(Name.Ids),NULLintList),
+      SimpleTypeKey(
+        INCLUDING TypRootScope.TypEnv,
+        INCLUDING CompilationUnit.Package,
+        INCLUDING DmdRootScope.DmdEnv,
+        HeadintList(Name.Ids)),
+      QualifiedTypeKey(Name.Ids))
+    DEPENDS_ON INCLUDING CompilationUnit.GotDeclaredProperties;
+  IF(EQ(GetDisp(Type.TypeKey,InvalidType),InvalidType),
+    message(ERROR,"InvalidType",0,COORDREF));
+END;
+@}
+
+@B@<When Class Types Are The Same@>
+
+@B@<Where Types are Used@>
+
+@B@<Variables@>
+
+@A@<Conversions and Promotions@>
+
+@A
+
+Names are used to refer to entities declared in a Java program.
+A declared entity is a package, class type, interface type, member (field
+or method) of a reference type, parameter (to a method, constructor, or
+exception handler), or local variable.
+
+Names in Java programs are @/simple@/, consisting of a single identifier,
+or @/qualified@/, consisting of a sequence of identifiers separated by
+``@{.@}'' tokens.
+This distinction between @{Name@} and @{QualifiedName@} is useful to
+restrict the structure of names in certain contexts,
+but is irrelevant for further analysis:
+
+@$@<Names@>+=@{
+Name ::= QualifiedName .
+@}
+
+@{ClassOrInterfaceType@} is a grammar symbol denoting
+particular contexts in which a name must be interpreted as a type name.
+In each case, the context itself is sufficient to classify the name as a
+type name and the symbol is semantically equivalent to @{Name@}:
+
+@$@<Names@>+=@{
+Name ::= ClassOrInterfaceType .
+@}
+
+In determining the meaning of a name Java uses the context of the
+occurrence to disambiguate among packages, types, variables and methods
+with the same name.
+Names must be extracted as a sequence of components:
+
+@$@<Extract the components of a name@>==@{
+ATTR Ids: intList;
+ATTR Sym: int;
+
+RULE: Name ::= SimpleName
+COMPUTE
+  Name.Ids=ConsintList(SimpleName.Sym,NULLintList);
+END;
+
+RULE: SimpleName ::= Identifier
+COMPUTE
+  SimpleName.Sym=Identifier;
+END;
+
+RULE: Name ::= Name '.' MemberIdUse
+COMPUTE
+  Name[1].Ids=ConsintList(MemberIdUse.Sym,Name[2].Ids);
+END;
+
+RULE: MemberIdUse ::= Identifier
+COMPUTE
+  MemberIdUse.Sym=Identifier;
+END;
+@}
+
+Every name introduced by a declaration has a @/scope@/, which is the part
+of the Java program text within which the declared entity can be referred
+to by a simple name.
+
+Access control can be specified in a class, interface, method or field
+declaration to control when @/access@/ to a member is allowed.
+Access is a different concept from scope: access specifies the part of the
+Java program text within which the declared entity can be referred to by a
+qualified name.
+
+@B
+
+A @/declaration@/ introduces an entity into a Java program and includes an
+identifier that can be used in a name to refer to this entity.
+
+@$@<Declarations@>==@{
+@<Package Declarations@>
+
+@<Single-Type-Import Declarations@>
+@<Type-Import-on-Demand Declaration@>
+
+@<Class Declaration@>
+
+@<Interface Declarations@>
+
+@<Field Declarations@>
+@<Method Declarations@>
+
+@<Blocks@>
+@<Local Variable Declaration Statements@>
+@}
+
+@B@<Names@>
+
+The same identifier can be used to denote a package, a type, a variable, a
+method or a label.
+Thus each of these entities has its own name space, implemented by an
+instantiation of an Eli name analysis module.
+A particular name space is implemented by one instance of the appropriate
+module, and all of the computational roles of that instance are qualified
+by the instance name:
+
+@$@<Name Spaces@>+=@{
+$/Name/AlgScope.gnrc +instance=Typ +referto=Typ :inst
+$/Name/AlgScope.gnrc +instance=Fld +referto=Fld :inst
+$/Name/AlgScope.gnrc +instance=Mth +referto=Mth :inst
+$/Name/CScope.gnrc   +instance=Var +referto=Var :inst
+@}
+
+The @{AlgScope@} module implements a name space in which a definition is
+visible throughout the range in which it appears;
+a definition in a name space implemented by the @{CScope@} module is
+visible only between the defining phrase and the end of the range.
+
+Each name space consists of a collection of independent @/roots@/ that may
+contain nested @/ranges@/.
+The roots are associated with compilation units:
+
+@$@<Name spaces and compilation units@>==@{
+@<Root in@>@(Typ@,CompilationUnit@)
+@<Root in@>@(Fld@,CompilationUnit@)
+@<Root in@>@(Mth@,CompilationUnit@)
+@<Root in@>@(Var@,CompilationUnit@)
+@}
+
+@$@<Root in@>@(@2@)@M@{
+SYMBOL @2 INHERITS @1RootScope COMPUTE
+  SYNT.@1Env=NewScope(@1RootEnv);
+END;
+@}
+
+@B
+
+The @/scope@/ of a declaration is the region of the program within which
+the entity declared by the declaration can be referred to using a simple
+name.
+
+The scope of a type imported by a single-type-import declaration or
+type-import-on-demand declaration is all of the class and interface type
+declarations in the compilation unit in which the import declaration
+appears.
+The scope of a type introduced by a class type declaration or interface
+type declaration is the declarations of all class and interface types in
+all the compilation units of the package in which it is declared.
+
+@$@<Scope of a Simple Name@>+=@{
+SYMBOL TypeDeclarationsOpt INHERITS TypRangeScope END;
+@}
+
+The scope of a member declared or inherited by a class type or interface
+type is the entire declaration of the class or interface type:
+
+@$@<Scope of a Simple Name@>+=@{
+SYMBOL ClassBody INHERITS FldRangeScope END;
+SYMBOL ClassBody INHERITS MthRangeScope END;
+
+SYMBOL InterfaceBody INHERITS FldRangeScope END;
+SYMBOL InterfaceBody INHERITS MthRangeScope END;
+@}
+
+The scope of a parameter is the entire body of the method, constructor or
+exception handler in which it is declared.
+The scope of a local variable declaration in a block is the rest of the
+block in which the declaration appears, starting with its own initializer
+and including any further declarators to the right in the local variable
+declaration.
+The scope of a local variable declared in the @{ForInit@} part of a @{for@}
+statement includes its own initializer, any further declarators to the
+right in the @{ForInit@} part of the @{for@} statement, the @{Expression@}
+and @{ForUpdate@} parts of the @{for@} statement, and the contained
+@{Statement@}.
+
+@$@<Scope of a Simple Name@>+=@{
+SYMBOL MethodDeclaration      INHERITS VarRangeScope END;
+SYMBOL ConstructorDeclaration INHERITS VarRangeScope END;
+SYMBOL Block                  INHERITS VarRangeScope END;
+SYMBOL ForStatement           INHERITS VarRangeScope END;
+@}
+
+@B@<Members and Inheritance@>
+
+@B@<Determining the Meaning of a Name@>
+
+The meaning of a name in Java depends on the context in which it is used.
+The determination of the meaning of a name requires three steps.
+First, context causes a name to fall into one of five categories:
+
+@$@<The categories of names@>==@{
+typedef enum {
+  PackageName,
+  TypeName,
+  ExpressionName,
+  MethodName,
+  AmbiguousName
+} NameCategory;
+@}
+
+The category obtained from the context decorates each @{Name@} node:
+
+@$@<Classification of a name@>+=@{
+SYMBOL Name: Category: NameCategory;
+@}
+
+Second, a name that is intially classified by its context as an
+@{AmbiguousName@} is then reclassified by certain scoping rules to be a 
+@{PackageName@}, @{TypeName@} or @{ExpressionName@}.
+
+@$@<Classification of a name@>+=@{
+SYMBOL Name: FinalCategory: NameCategory;
+@}
+
+Third, the resulting category then dictates the final determination of the
+meaning of the name (or a compilation error if the name has no meaning).
+
+@C
+
+A name is syntactically classified as a @{PackageName@} in these contexts:
+
+@$@<Syntactic Classification of a Name According to Context@>+=@{
+@<Classify as a PackageName@>@(PackageDeclarationOpt ::= 'package' Name ';'@)
+@<Classify as a PackageName@>@(
+  TypeImportOnDemandDeclaration ::= 'import' Name '.' '*' ';'@)
+@}
+
+@$@<To the left of ``.'' in a PackageName or TypeName@>==@{PackageName@}
+
+@$@<Classify as a PackageName@>@(@1@)@M@{
+RULE: @1
+COMPUTE
+  Name.Category=PackageName;
+END;
+@}
+
+A name is syntactically classified as a @{TypeName@} in these contexts
+(@{Type@} represents the occurrence of a name as a type in a number of
+different contexts such as declarations, instance creations and casts):
+
+@$@<Syntactic Classification of a Name According to Context@>+=@{
+@<Classify as a TypeName@>@(SingleTypeImportDeclaration ::= 'import' Name ';'@)
+@<Classify as a TypeName@>@(Type ::= Name '[' ']'@)
+@<Classify as a TypeName@>@(Type ::= Name@)
+@}
+
+@$@<Classify as a TypeName@>@(@1@)@M@{
+RULE: @1
+COMPUTE
+  Name.Category=TypeName;
+END;
+@}
+
+A name is syntactically classified as an @{ExpressionName@} in these
+contexts:
+
+@$@<Syntactic Classification of a Name According to Context@>+=@{
+@<Classify as an ExpressionName@>@(Expression ::= Name '[' Expression ']'@)
+@<Classify as an ExpressionName@>@(Expression ::= Name@)
+@<Classify as an ExpressionName@>@(LeftHandSide ::= Name@)
+@}
+
+@$@<Classify as an ExpressionName@>@(@1@)@M@{
+RULE: @1
+COMPUTE
+  Name.Category=ExpressionName;
+END;
+@}
+
+
+A name is syntactically classified as a @{MethodName@} in these
+contexts:
+
+@$@<Syntactic Classification of a Name According to Context@>+=@{
+RULE: Expression ::= Name '(' Arguments ')'
+COMPUTE
+  Name.Category=MethodName;
+END;
+@}
+
+A name is syntactically classified as an @{AmbiguousName@} in these
+contexts:
+
+@$@<Syntactic Classification of a Name According to Context@>+=@{
+RULE: Name ::= Name '.' MemberIdUse
+COMPUTE
+  Name[2].Category=
+    IF(OR(EQ(Name[1].Category,PackageName),EQ(Name[1].Category,TypeName)),
+      @<To the left of ``.'' in a PackageName or TypeName@>,
+      AmbiguousName);
+END;
+@}
+
+@C
+
+@$@<Reclassification of Contextually Ambiguous Names@>==@{
+RULE: Name ::= SimpleName
+COMPUTE
+  Name.FinalCategory=
+    IF(NE(Name.Category,AmbiguousName), Name.Category,
+    IF(NE(SimpleName.VarKey,NoKey),     ExpressionName,
+    IF(NE(SimpleName.FldKey,NoKey),     TypeName,
+    PackageName)));
+END;
+
+RULE: Name ::= Name '.' MemberIdUse
+COMPUTE
+  Name[1].FinalCategory=
+    IF(NE(Name[1].Category,AmbiguousName), Name[1].Category,
+    IF(
+1,
+/*
+      IsType(
+        NoEnv,
+        KeyInEnv(PkgRootEnv,FullyQualifiedName(Name[2].Ids)),
+        MemberIdUse.Sym),
+*/
+      TypeName,
+      PackageName));
+END;
+@}
+
+@C
+
+If no package of the given name is accessible, as determined by the host
+system, a compile-time error occurs:
+
+@$@<Meaning of Package Names@>@M@{
+message(ERROR,"Invalid package",0,COORDREF)
+@}
+
+@C@<Meaning of Type Names@>
+
+@D@<Simple Type Names@>
+
+If a type name consists of a single @{Identifier@}, then the identifier
+must occur in the scope of a declaration of a type with that name, or a
+compile-time error occurs.
+It is possible that the identifier occurs within the scope of more than one
+type with that name, in which case the type denoted by the name is
+determined as follows:
+
+@$@<Processing functions@>+=@{
+DefTableKey
+#if PROTO_OK
+SimpleTypeKey(Environment env, intList pkg, Environment demand, int sym)
+#else
+SimpleTypeKey(env, pkg, demand, sym)
+Environment env; intList pkg; Environment demand; int sym;
+#endif
+{ DefTableKey key = KeyInEnv(env, sym);
+  DefTableKey FQKey;
+  Scope p;
+
+  if (key != NoKey) return GetFQKey(key, NoKey);
+
+  FQKey = FullyQualifiedTypeKey(ConsintList(sym, pkg));
+  if (TypeDisp(FQKey, PkgHandle(NoKey, FullyQualifiedName(pkg)), sym) !=
+      InvalidType) {
+    key = DefineIdn(env, sym);
+    SetDef(key, 1, 2);
+  } else {
+    FQKey = NoKey;
+    for (p = DefinitionsOf(demand); p; p = NextDefinition(p)) {
+      intList DmdPkg = GetIds(KeyOf(p),NULLintList);
+      DefTableKey TryFQKey = FullyQualifiedTypeKey(ConsintList(sym, DmdPkg));
+      if (TypeDisp(
+            TryFQKey,
+            PkgHandle(NoKey, FullyQualifiedName(DmdPkg)),
+            sym) != InvalidType) {
+        key = DefineIdn(env, sym);
+        SetDef(key, 1, 2);
+        FQKey = TryFQKey;
+      }
+    }
+  }
+
+  if (key != NoKey) ResetFQKey(key, FQKey);
+  return FQKey;
+}
+@}
+
+@$@<Processing function interfaces@>+=@{
+extern DefTableKey
+  SimpleTypeKey ELI_ARGS((Environment, intList, Environment, int));
+@}
+
+If a simple type name is undefined, it will not be bound in the @{Typ@}
+environment of the current compilation unit:
+
+@$@<Report an undefined type name@>==@{
+RULE: Name ::= SimpleName
+COMPUTE
+  IF(AND(EQ(Name.Category,TypeName),EQ(SimpleName.TypKey,NoKey)),
+    message(ERROR,"Undefined type",0,COORDREF));
+END;
+@}
+
+@D@<Qualified Type Names@>
+
+If a type name is of the form @{Q.ID@}, then @{Q@} must be a package name.
+The type name @{Q.ID@} names a type that is a member named @{ID@} within
+the package named by @{Q@}.
+If @{Q@} does not name an accessible package, or @{ID@} does not name a
+type within that package, or the type named @{ID@} within that package is
+not accessible, then a compile-time error occurs.
+
+@$@<Processing functions@>+=@{
+DefTableKey
+#if PROTO_OK
+QualifiedTypeKey(intList name)
+#else
+QualifiedTypeKey(name) intList name;
+#endif
+{ PackageHandle handle;
+  DefTableKey key = FullyQualifiedTypeKey(name);
+
+  handle = PkgHandle(key, FullyQualifiedName(TailintList(name)));
+  if (handle == InvalidPackage ||
+      TypeDisp(key, handle, HeadintList(name)) == InvalidType)
+    return NoKey;
+
+  return key;
+}
+@}
+
+@$@<Processing function interfaces@>+=@{
+extern DefTableKey QualifiedTypeKey ELI_ARGS((intList));
+@}
+
+@C@<Meaning of Expression Names@>
+
+@D
+
+@$@<Simple Expression Names@>==@{
+SYMBOL SimpleName INHERITS VarIdUseEnv, FldIdUseEnv, TypIdUseEnv, MthIdUseEnv
+END;
+@}
+
+@D@<Qualified Expression Names@>
+
+@C@<Meaning of Method Names@>
+
+The meaning of a name classified as a @{MethodName@} is determined as
+follows.
+
+@D@<Simple Method Names@>
+
+@D@<Qualified Method Names@>
+
+@B
+
+Qualified names are a means of access to members of packages and reference
+types; related means of access include field access expressions and method
+invocation expressions.
+All three are syntactically similar in that a ``.'' token appears, preceded
+by some indication of a package, type, or expression having a type and
+followed by an @{Identifier@} that names a member of the package or type:
+
+@$@<Qualified Names and Access Control@>==@{
+RULE: Name ::= Name '.' MemberIdUse
+/*
+COMPUTE
+  MemberIdUse.FldScope=
+    GetFldScope(Name[2].Key,NoEnv) DEPENDS_ON INCLUDING Goal.FldGotScopeProp;
+*/
+END;
+
+SYMBOL MemberIdUse: Sym: int;
+SYMBOL MemberIdUse /*INHERITS FldIdUseScopeProp*/ COMPUTE
+  SYNT.Sym=TERM;
+  /* INH.FldScope=NoEnv;	Default */
+END;
+@}
+
+@B@<Fully Qualified Names@>
+
+Every package, class, interface, array type, and primitive type has a fully
+qualified name.
+Each is associated with a definition table key, under which the following
+properties are stored:
+
+@$@<Properties of fully qualified names@>==@{
+Id:     int;		/* Fully-qualified identifier */
+Def:    int;		/* 1 if defined, 2 if multiply defined */
+FldEnv: Environment;	/* Fields of the class or interface */
+MthEnv: Environment;	/* Methods of the class or interface */
+@}
+
+The fully qualified name of a primitive type is the keyword for that
+primitive type, and therefore needs no further specification.
+The fully qualified name of a package, class or interface type is
+determined by the @{FullyQualifiedName@} function:
+
+@$@<Processing function interfaces@>+=@{
+extern int FullyQualifiedName ELI_ARGS((intList));
+@}
+
+@$@<Processing functions@>+=@{
+static void
+#if PROTO_OK
+MakeFQName(intList rep)
+#else
+MakeFQName(rep) intList rep;
+#endif
+{ intList tail = TailintList(rep);
+  if (tail != NULLintList) {
+    MakeFQName(tail);
+    obstack_1grow(Csm_obstk, '.');
+  }
+  obstack_strgrow(Csm_obstk, StringTable(HeadintList(rep)));
+}
+
+int
+#if PROTO_OK
+FullyQualifiedName(intList rep)
+#else
+FullyQualifiedName(rep) intList rep;
+#endif
+{ if (rep) {
+    MakeFQName(rep);
+    CsmStrPtr = (char *)obstack_strcpy(Csm_obstk, "");
+    return MakeName(CsmStrPtr);
+  } else
+    return 0;
+}
+@}
+
+The fully qualified names of all classes and interfaces for which definitions
+are available in the current compilation must be collected to control the
+acquisition of information from the host system.
+A separate environment is used for this purpose:
+
+@$@<State variables@>+=@{
+Environment FullyQualifiedTypeEnv;
+@}
+
+@$@<State variable interfaces@>+=@{
+extern Environment FullyQualifiedTypeEnv;
+@}
+
+@$@<Initialize the type environment@>==@{
+FullyQualifiedTypeEnv = NewEnv();
+@}
+
+The definition table key corresponding to a fully qualified name is
+obtained by defining that name in the @{FullyQualifiedTypeEnv@} environment:
+
+@$@<Processing functions@>+=@{
+DefTableKey
+#if PROTO_OK
+FullyQualifiedTypeKey(intList rep)
+#else
+FullyQualifiedTypeKey(rep) intList rep;
+#endif
+{ int sym = FullyQualifiedName(rep);
+  DefTableKey key = DefineIdn(FullyQualifiedTypeEnv, sym);
+
+  ResetId(key, sym);
+  return key;
+}
+@}
+
+@$@<Processing function interfaces@>+=@{
+extern DefTableKey FullyQualifiedTypeKey ELI_ARGS((intList));
+@}
+
+@$@<Support modules@>+=@{
+$/Tech/Strings.specs
+$/Tech/MakeName.gnrc +instance=Identifier :inst
+$/Adt/List.gnrc +instance=intList +referto=intList :inst
+@}
+
+@A@<Packages@>
+
+@B@<Package Members@>
+
+@B@<Host Support for Packages@>
+
+Each Java host determines how packages, compilation units, and subpackages
+are created and stored; which top-level package names are in scope in a
+particular compilation; and which packages are accessible.
+
+The packages may be stored in a local file system in simple implementations
+of Java.
+Other implementations may use a distributed file system or some form of
+database to store Java source and/or binary code.
+The precise mechanism is independent of the Java language, and is
+therefore not specified here.
+Instead, we informally describe a module that captures the relevant information
+and link this specification to that module in a way that minimizes the
+number of host system operations performed.
+A separate document giving an executable specification of the module
+must be provided in order to complete an executable specification of a Java
+compiler.
+
+@C@<The Host Support Module@>
+
+The module that encapsulates the host support for packages exports two types,
+@{PackageHandle@} and @{TypeDisposition@}.
+
+@{PackageHandle@} has two distinguished values, @{InvalidPackage@} and
+@{UnnamedPackage@}, that have the obvious interpretations.
+Objects of type @{PackageHandle@} are created by invoking the operator
+@{PackageHandleFor@} with a string as an argument.
+(That string is the fully qualified name of the package
+whose handle is desired.)
+
+@{TypeDisposition@} is an enumeration with three values @{InvalidType@},
+@{DefinedType@}, and @{DeferredType@}.
+These values are delivered as the result of invoking the operator
+@{TypeDispositionOf@} with a definition table key, package handle and
+string as arguments.
+@{TypeDispositionOf@} checks for a type that is a member of the package
+whose handle is provided, and whose name is the given string.
+If the package is invalid or the string does not identify a type that is a
+member of that package, @{TypeDispositionOf@} returns @{InvalidType@}.
+Otherwise, if the type has been compiled then @{TypeDispositionOf@} updates
+the definition table information accessed by the specified definition table
+key with all of the relevant properties and returns @{DefinedType@}.
+Otherwise @{TypeDispositionOf@} updates the definition table information
+accessed by the specified definition table key with a @{TypeHandle@}
+property that is internal to the module and returns @{DeferredType@}.
+
+A @{DeferredType@} is a type whose source text must be added to the
+current compilation.
+The operation @{CompileType@}, exported by the host system module,
+actually performs this addition.
+@{CompileType@} is invoked when the end of the current source text has been
+reached.
+It is provided with a definition table key whose @{TypeHandle@} property
+was previously set by @{TypeDispositionOf@}, and when it returns the source
+text corresponding to that deferred type is available via the source
+module.
+
+@C
+
+Operations of the host support module are potentially expensive, and 
+should therefore not be invoked more than once per package or type.
+The easiest way to arrange this is to provide properties that capture the
+results of the operations, and to actually invoke the operations only
+within access functions for those properties.
+In that way the operations can be invoked only when the accessed property
+does not exist for the key associated with the package or type.
+
+@$@<Linking to the Host Support Module@>==@{
+"csm.h" "host.h" "JavaFilesStack.h"
+
+Handle: PackageHandle [Pkg];
+
+TYPE Pkg(DefTableKey key, int sym)
+{ if (key == NoKey) {
+    if (sym == 0) return UnnamedPackage;
+    key = DefineIdn(PackageEnv, sym);
+    if (!ACCESS) VALUE = PackageHandleFor(StringTable(sym));
+  } else if (!ACCESS) VALUE = PkgHandle(NoKey, sym);
+  return VALUE;
+}
+
+Disp: TypeDisposition [Type];
+
+TYPE Type(DefTableKey key, PackageHandle pkg, int sym)
+{ if (key == NoKey) return InvalidType;
+  if (!ACCESS) {
+    VALUE = TypeDispositionOf(key, pkg, StringTable(sym));
+    if (VALUE == DeferredType) JavaFilesStackPush(key);
+  }
+  return VALUE;
+}
+@}
+
+The host system must also be initialized:
+
+@$@<Initialize the host system@>==@{
+InitHostSystem();
+@}
+
+@B
+
+A @{CompilationUnit@} constitutes the text in a single file.
+Types declared in different compilation units can depend on each other,
+circularly.
+The compiler must compile such types all at the same time, which implies
+that it must deal with an arbitrary number of compilation units:
+
+@$@<Compilation Units@>==@{
+Goal:
+  Cluster .
+
+Cluster:
+  ClusterElement / Cluster ClusterElement .
+
+ClusterElement:
+  (CompilationUnit 'EndOfFile')+ 'NoFilesPending' .
+@}
+
+Here a @{Cluster@} is a set of compilation units that is complete with
+respect to inheritance:
+No compilation unit in the @{Cluster@} may inherit from a type available
+only in source form unless it is also a member of the @{Cluster@}.
+
+The @{EndOfFile@} and @{NoFilesPending@} markers do not actually appear in
+the source text; they are deduced from conditions checked when the current
+input is exhausted.
+Therefore the corresponding literals must not be recognized as usual by the
+lexical analyzer:
+
+@$@<Mark EndOfFile and NoFilesPending to be recognized specially@>==@{
+$EndOfFile	EndOfFile
+$NoFilesPending	NoFilesPending
+@}
+
+These two markers will be recognized by a token procesor that replaces the
+library end-of-file token processor:
+
+@$@<Processing functions@>+=@{
+#include "gla.h"
+#include "litcode.h"
+
+static int EOTstate = 0;
+
+@<Token processor@>@(EndOfText@)
+{ switch (EOTstate) {
+  case 0:
+    *t = EndOfFile; EOTstate = 1; return;
+  case 1:
+    if (JavaFilesStackEmpty) {
+      *t = NoFilesPending; EOTstate = 2; return;
+    }
+    break;
+  case 2:
+    if (JavaFilesStackEmpty) return;
+  }
+  CompileType(JavaFilesStackPop); ResetScan = 1;
+  *t = NORETURN; EOTstate = 0; return;
+}
+@}
+
+@$@<Processing function interfaces@>+=@{
+extern void EndOfText ELI_ARGS((char *c, int l, int *t, int *s));
+@}
+
+The specific compilation units that constitute a compilation are not known
+a priori.
+As the compilation proceeds, analysis determines compilation units that
+must be added to the compilation.
+This analysis must be carried out in two steps, the first when all of the
+properties established by the declarations in a compilation unit have
+become available, the second when all of the compilation units in a group
+have been processed.
+
+@$@<Compilation unit analysis@>==@{
+CHAIN Decide: VOID;
+
+SYMBOL Goal COMPUTE
+  CHAINSTART HEAD.Decide = "yes";
+  SYNT.TypGotKeys=TAIL.Decide;
+END;
+
+SYMBOL CompilationUnit COMPUTE
+  SYNT.GotDeclaredProperties=
+    CONSTITUENTS (
+      TypIdDefScope.GotDeclaredProperties,
+      DmdIdDefScope.GotDeclaredProperties
+    ) DEPENDS_ON THIS.GotAutomaticImport;
+  THIS.Decide=CONSTITUENTS Type.TypeKey DEPENDS_ON THIS.Decide BOTTOMUP;
+END;
+@}
+
+Definition table keys for these units are pushed onto @{JavaFilesStack@}
+as necessary,
+and at the end of each compilation unit @{JavaFilesStack@} is consulted for
+possible additional work.
+
+@$@<Support modules@>+=@{
+$/Adt/Stack.gnrc +instance=JavaFiles +referto=DefTableKey :inst
+$/Input/CoordMap.gnrc :inst
+@}
+
+A compilation unit consists of three parts: a @{package@} declaration,
+@{import@} declarations, and type declarations.
+Each part is optional.
+The @{package@} declaration, whether or not it is present, determines the
+name of the package to which a compilation unit belongs;
+the fully qualified names of the types declared in the compilation unit
+depend on that package name:
+
+@$@<Dependence upon compilation unit's package name@>==@{
+SYMBOL CompilationUnit: Package: intList;
+
+RULE: CompilationUnit ::=
+  PackageDeclarationOpt ImportDeclarationsOpt TypeDeclarationsOpt
+COMPUTE
+  CompilationUnit.Package=PackageDeclarationOpt.Ids;
+END;
+@}
+
+@B
+
+A package declaration appears within a compilation unit to indicate the
+package to which the compilation unit belongs.
+A compilation unit that has no package declaration is part of an unnamed
+package.
+
+@$@<Package Declarations@>==@{
+@<Named Packages@>
+@<Unnamed Packages@>
+@}
+
+@C
+
+The package name mentioned in a package declaration must be the fully
+qualified name of the package.
+
+@$@<Named Packages@>==@{
+RULE: PackageDeclarationOpt ::= 'package' Name ';'
+COMPUTE
+  PackageDeclarationOpt.Ids=Name.Ids;
+  IF(EQ(PkgHandle(NoKey,FullyQualifiedName(Name.Ids)),InvalidPackage),
+    @<Meaning of Package Names@>);
+END;
+@}
+
+@C
+
+A Java system must support at least one unnamed package.
+In this specification, exactly one unnamed package is supported.
+
+@$@<Unnamed Packages@>==@{
+RULE: PackageDeclarationOpt ::=
+COMPUTE
+  PackageDeclarationOpt.Ids=NULLintList;
+END;
+@}
+
+@C@<Scope and Hiding of a Package Name@>
+
+Package names never hide other names.
+Therefore we place package names into a separate environment containing no
+other names.
+This package environment must be established, made known to the definition
+table access function, and initialized:
+
+@$@<State variables@>+=@{
+Environment PackageEnv;
+@}
+
+@$@<State variable interfaces@>+=@{
+extern Environment PackageEnv;
+@}
+
+@$@<Initialize the package environment@>==@{
+PackageEnv = NewEnv();
+@}
+
+@B@<Import Declarations@>
+
+@C
+
+@$@<Single-Type-Import Declarations@>==@{
+SYMBOL SingleTypeImportDeclaration INHERITS TypIdDefScope END;
+
+RULE: SingleTypeImportDeclaration ::= 'import' Name ';'
+COMPUTE
+  SingleTypeImportDeclaration.Sym=HeadintList(Name.Ids);
+  SingleTypeImportDeclaration.TypeKey=QualifiedTypeKey(Name.Ids);
+  SingleTypeImportDeclaration.GotDeclaredProperties=
+    ResetFQKey(SingleTypeImportDeclaration.TypKey,
+      SingleTypeImportDeclaration.TypeKey);
+  IF(
+    EQ(
+      PkgHandle(NoKey,FullyQualifiedName(TailintList(Name.Ids))),
+      InvalidPackage),
+    @<Meaning of Package Names@>,
+  IF(EQ(GetDisp(SingleTypeImportDeclaration.TypeKey,InvalidType),InvalidType),
+    message(ERROR,"Invalid type",0,COORDREF)));
+END;
+@}
+
+@C
+
+@$@<Type-Import-on-Demand Declaration@>==@{
+SYMBOL CompilationUnit               INHERITS DmdRootScope  END;
+SYMBOL TypeImportOnDemandDeclaration INHERITS DmdIdDefScope END;
+
+RULE: TypeImportOnDemandDeclaration ::= 'import' Name '.' '*' ';'
+COMPUTE
+  TypeImportOnDemandDeclaration.Sym=FullyQualifiedName(Name.Ids);
+  TypeImportOnDemandDeclaration.GotDeclaredProperties=
+    ResetIds(TypeImportOnDemandDeclaration.DmdKey,Name.Ids);
+  IF(EQ(PkgHandle(NoKey,TypeImportOnDemandDeclaration.Sym),InvalidPackage),
+    @<Meaning of Package Names@>);
+END;
+@}
+
+@$@<Property of a type import on demand@>==@{
+"intList.h"
+Ids: intList;
+@}
+
+@$@<Name Spaces@>+=@{
+$/Name/AlgScope.gnrc +instance=Dmd +referto=Dmd :inst
+@}
+
+@C
+
+Each compilation unit automatically imports each of the @{public@} type
+names declared in the predefined package @{java.lang@}, as if the
+type-import-on-demand declaration @{import java.lang.*;@} appeared at the
+beginning of each compilation unit, immediately following any @{package@}
+statement:
+
+@$@<Automatic Import@>==@{
+SYMBOL CompilationUnit COMPUTE
+  SYNT.GotAutomaticImport=
+    ResetIds(
+      DefineIdn(THIS.DmdEnv, MakeName("java.lang")),
+      ConsintList(MakeName("lang"),ConsintList(MakeName("java"),NULLintList)));
+END;
+@}
+
+@B@<Type Declarations@>
+
+@B@<Unique Package Names@>
+
+@A@<Class Declarations@>
+
+Class and interface type declarations have several computations in common:
+
+@$@<Type Declarations@>@(@1@)@M@{
+SYMBOL @1Declaration:
+  FQKey: DefTableKey;
+
+SYMBOL @1Declaration INHERITS TypIdDefScope COMPUTE
+  SYNT.Sym=TERM;
+  SYNT.FQKey=
+    FullyQualifiedTypeKey(
+      ConsintList(THIS.Sym, INCLUDING CompilationUnit.Package));
+  SYNT.GotDeclaredProperties=
+    ORDER(
+      SetDef(THIS.TypKey,1,2),
+      ResetDisp(THIS.FQKey,DefinedType),
+      ResetFldEnv(THIS.FQKey,CONSTITUENT @1Body.FldEnv),
+      ResetMthEnv(THIS.FQKey,CONSTITUENT @1Body.MthEnv)
+    );
+END;
+@}
+
+@$@<Property of a simple type name@>==@{
+FQKey: DefTableKey;
+@}
+
+@B
+
+@$@<Class Declaration@>==@{
+@<Type Declarations@>@(Class@)
+
+RULE: TypeDeclaration ::= ClassDeclaration END;
+
+@<Superclasses and Subclasses@>
+@<Constructor Declarations@>
+@}
+
+@C@<Scope of a Class Type Name@>
+
+@C@<Class Modifiers@>
+
+@C
+
+The optional @{extends@} clause in a class declaration specifies the
+@/direct superclass@/ of the current class.
+If the @{extends@} clause is omitted from a class declaration, then the
+class has the class @{java.lang.Object@} as its direct superclass:
+
+
+@$@<Superclasses and Subclasses@>==@{
+RULE: Super ::= 'extends' Type
+COMPUTE
+  Super.GotDirectSubclass=
+    ResetDirectSuper(INCLUDING ClassDeclaration.FQKey,Type.TypeKey);
+END;
+
+RULE: Super ::=
+COMPUTE
+  Super.GotDirectSubclass=
+    ResetDirectSuper(INCLUDING ClassDeclaration.FQKey,JavaLangObject);
+END;
+@}
+
+@{JavaLangObject@} is a variable giving the key of @{java.lang.Object@}:
+
+@$@<State variables@>+=@{
+DefTableKey JavaLangObject;
+@}
+
+@$@<State variable interfaces@>+=@{
+extern DefTableKey JavaLangObject;
+@}
+
+@$@<Initialize the java.lang.Object key@>==@{
+JavaLangObject=
+  QualifiedTypeKey(
+    ConsintList(MakeName("Object"),
+    ConsintList(MakeName("lang"),
+    ConsintList(MakeName("java"),
+    NULLintList))));
+@}
+
+@$@<Direct superclass property@>==@{
+DirectSuper: DefTableKey;
+@}
+
+@B@<Class Members@>
+
+@B
+
+@$@<Field Declarations@>==@{
+SYMBOL FieldIdDef INHERITS FldIdDefScope COMPUTE
+  SYNT.Sym=TERM;
+END;
+@}
+
+@B
+
+@$@<Method Declarations@>==@{
+SYMBOL MethodIdDef INHERITS MthIdDefScope COMPUTE
+  SYNT.Sym=TERM;
+END;
+
+RULE: MethodDeclarator ::= MethodIdDef '(' FormalParameters ')'
+END;
+@}
+
+@C@<Formal Parameters@>
+
+@C@<Method Signature@>
+
+@C@<Method Modifiers@>
+
+@C@<Throws@>
+
+@B@<Static Initializers@>
+
+@B
+
+@$@<Constructor Declarations@>==@{
+RULE: ConstructorDeclarator ::= Type '(' FormalParameters ')'
+END;
+@}
+
+@A@<Interface Declarations@>
+
+@B
+
+@$@<Interface Declarations@>==@{
+@<Type Declarations@>@(Interface@)
+
+RULE: TypeDeclaration ::= InterfaceDeclaration END;
+@}
+
+@B@<Interface Members@>
+
+@B@<Field (Constant) Declarations@>
+
+@B@<Abstract Method Declarations@>
+
+@A@<Arrays@>
+
+@A@<Exceptions@>
+
+@A@<Execution@>
+
+@A@<Binary Compatibility@>
+
+@A@<Blocks and Statements@>
+
+@B@<Normal and Abrupt Completion of Statements@>
+
+@B
+
+@$@<Blocks@>==@{
+RULE: Statement ::= Block END;
+@}
+
+@B
+
+@$@<Local Variable Declaration Statements@>==@{
+SYMBOL VariableIdDef INHERITS VarIdDefScope COMPUTE
+  SYNT.Sym=TERM;
+END;
+@}
+
+@B
+
+The concrete syntax for Java introduces a large number of nonterminals for
+the purpose of removing the ``dangling else'' ambiguity, and also to
+differentiate statements for the purposes of exposition.
+In most of these cases no special semantics are associated with these
+nonterminals, and therefore there is no need to distinguish them in the
+tree:
+
+@$@<Statements@>==@{
+Statement ::=
+  StatementWithoutTrailingSubstatement StatementNoShortIf
+  IfThenStatement IfThenElseStatement IfThenElseStatementNoShortIf
+  EmptyStatement
+  ExpressionStatement
+  ReturnStatement
+  SynchronizedStatement
+  ThrowStatement
+  TryStatement .
+
+LabeledStatement ::= LabeledStatementNoShortIf .
+WhileStatement   ::= WhileStatementNoShortIf .
+ForStatement     ::= ForStatementNoShortIf .
+@}
+
+@B
+
+@$@<Labeled Statements@>==@{
+SYMBOL Goal             INHERITS LblRootScope  END;
+SYMBOL LabeledStatement INHERITS LblRangeScope END;
+
+ATTR Key:    DefTableKey;
+ATTR LblKey: DefTableKey;
+RULE: LabeledStatement ::= Identifier ':' Statement
+COMPUTE
+  .Key=
+    KeyInEnv(LabeledStatement.LblEnv,Identifier)
+    DEPENDS_ON LabeledStatement._C_LblGotKeys;
+  LabeledStatement.LblKey=
+    DefineIdn(LabeledStatement.LblEnv,Identifier)
+    DEPENDS_ON .Key;
+  Statement._C_LblGotKeys=
+    IF(NE(.Key,NoKey),
+      ORDER(ResetError(.Key,1),ResetError(LabeledStatement.LblKey,1)));
+  IF(GetError(LabeledStatement.LblKey,0),
+    message(ERROR,CatStrInd("Label conflict: ",Identifier),0,COORDREF))
+    DEPENDS_ON INCLUDING Goal.LblGotKeys;
+END;
+@}
+
+@$@<Label error property@>==@{
+Error: int;
+@}
+
+@$@<Label scope module@>==@{
+$/Name/CScope.gnrc +instance=Lbl +referto=Lbl :inst
+@}
+
+@B@<Expression Statements@>
+
+@B@<The if Statement@>
+
+@B@<The switch Statement@>
+
+@B@<The while Statement@>
+
+@B@<The do Statement@>
+
+@B@<The for Statement@>
+
+@B
+
+@$@<The break Statement@>==@{
+RULE: BreakStatement ::= 'break' Identifier ';'
+COMPUTE
+  BreakStatement.LblKey=
+    KeyInEnv(INCLUDING LblAnyScope.LblEnv,Identifier)
+    DEPENDS_ON BreakStatement._C_LblGotKeys;
+END;
+
+RULE: BreakStatement ::= 'break' ';'
+COMPUTE
+  BreakStatement.LblKey=
+    INCLUDING (BreakTarget.LblKey, Goal.LblKey)
+    DEPENDS_ON BreakStatement._C_LblGotKeys;
+  IF(EQ(BreakStatement.LblKey,NoKey),
+    message(
+      ERROR,
+      "Not inside a switch, while, do or for statement",
+      0,
+      COORDREF));
+END;
+
+SYMBOL BreakTarget COMPUTE SYNT.LblKey=NewKey(); END;
+SYMBOL Goal        COMPUTE SYNT.LblKey=NoKey;    END;
+
+SYMBOL SwitchStatement INHERITS BreakTarget END;
+SYMBOL WhileStatement  INHERITS BreakTarget END;
+SYMBOL DoStatement     INHERITS BreakTarget END;
+SYMBOL ForStatement    INHERITS BreakTarget END;
+@}
+
+@B
+
+@$@<The continue Statement@>==@{
+RULE: ContinueStatement ::= 'continue' Identifier ';'
+COMPUTE
+  ContinueStatement.LblKey=
+    KeyInEnv(INCLUDING LblAnyScope.LblEnv,Identifier)
+    DEPENDS_ON ContinueStatement._C_LblGotKeys;
+END;
+
+RULE: ContinueStatement ::= 'continue' ';'
+COMPUTE
+  ContinueStatement.LblKey=
+    INCLUDING (ContinueTarget.LblKey, Goal.LblKey)
+    DEPENDS_ON ContinueStatement._C_LblGotKeys;
+  IF(EQ(ContinueStatement.LblKey,NoKey),
+    message(ERROR,"Not inside a while, do or for statement",0,COORDREF));
+END;
+
+SYMBOL ContinueTarget COMPUTE SYNT.LblKey=NewKey(); END;
+
+SYMBOL WhileStatement INHERITS ContinueTarget END;
+SYMBOL DoStatement    INHERITS ContinueTarget END;
+SYMBOL ForStatement   INHERITS ContinueTarget END;
+@}
+
+@B@<The return Statement@>
+
+@B@<The throw Statement@>
+
+@B@<The synchronized Statement@>
+
+@B@<The try Statement@>
+
+@B@<Unreachable Statements@>
+
+@A
+
+@$@<Expressions@>==@{
+Expression ::=
+  Primary PrimaryNoNewArray ArrayCreationExpression Literal
+  ClassInstanceCreationExpression FieldAccess MethodInvocation ArrayAccess
+  DimExpr PostfixExpression PostIncrementExpression PostDecrementExpression
+  UnaryExpression PreIncrementExpression PreDecrementExpression
+  UnaryExpressionNotPlusMinus CastExpression MultiplicativeExpression
+  AdditiveExpression ShiftExpression RelationalExpression EqualityExpression
+  AndExpression ExclusiveOrExpression InclusiveOrExpression
+  ConditionalAndExpression ConditionalOrExpression ConditionalExpression
+  AssignmentExpression Assignment .
+@}
+
+@B@<Evaluation, Denotation and Result@>
+
+@B@<Variables as Values@>
+
+@B@<Type of an Expression@>
+
+@B@<Expressions and Run-Time Checks@>
+
+@B@<Normal and Abrupt Completion of Evaluation@>
+
+@B@<Evaluation Order@>
+
+@B@<Primary Expressions@>
+
+@B@<Class Instance Creation Operations@>
+
+@B
+
+@$@<Array Creation Expressions@>==@{
+RULE: Expression ::= 'new' Type DimExprs      END;
+RULE: Expression ::= 'new' Type DimExprs Dims END;
+@}
+
+@B@<Field Access Expressions@>
+
+@B@<Method Invocation Expressions@>
+
+@B@<Array Access Expressions@>
+
+@B@<Postfix Expressions@>
+
+@B@<Unary Expressions@>
+
+@B@<Unary Operators@>
+
+@B
+
+@$@<Cast Expressions@>==@{
+RULE: Expression ::= '(' Type Dims ')' Expression END;
+@}
+
+@A@<Definite Assignment@>
+
+@A@<Threads and Locks@>
+
+@A@<Documentation Comments@>
+
+@A@<LALR(1) Java Grammar@>
+
+@B@<Grammatical Difficulties@>
+
+@B
+
+@$@<Productions from 2.3: The Syntactic Grammar@>==@{
+@<Compilation Units@>
+@}
+
+@B
+
+@$@<Productions from 3: Lexical Structure@>==@{
+Literal:
+  @<IntegerLiteral@> /
+  @<FloatingPointLiteral@> /
+  @<BooleanLiteral@> /
+  CharacterLiteral /
+  StringLiteral /
+  @<NullLiteral@> .
+@}
+
+@B
+
+@$@<Productions from 4: Types, Values, and Variables@>==@{
+Type:
+  PrimitiveType /
+  ReferenceType .
+
+PrimitiveType:
+  NumericType /
+  'boolean' .
+
+NumericType:
+  IntegralType /
+  FloatingPointType .
+
+IntegralType:
+  'byte' / 'short' / 'int' / 'long' / 'char' .
+
+FloatingPointType:
+  'float' / 'double' .
+
+ReferenceType:
+  ClassOrInterfaceType /
+  ArrayType .
+
+ClassOrInterfaceType:
+  Name .
+
+ArrayType:
+  PrimitiveType '[' ']' /
+  Name '[' ']' /
+  ArrayType '[' ']' .
+
+ClassType:
+  ClassOrInterfaceType .
+
+InterfaceType:
+  ClassOrInterfaceType .
+@}
+
+@B
+
+@$@<Productions from 6: Names@>==@{
+Name:
+  SimpleName /
+  QualifiedName .
+
+SimpleName:
+  Identifier .
+
+QualifiedName:
+  Name '.' MemberIdUse .
+
+MemberIdUse:
+  Identifier .
+@}
+
+@B
+
+@$@<Productions from 7: Packages@>==@{
+CompilationUnit:
+  PackageDeclarationOpt ImportDeclarationsOpt TypeDeclarationsOpt .
+
+ImportDeclarationsOpt:
+  [ImportDeclarations] .
+
+ImportDeclarations:
+  ImportDeclaration /
+  ImportDeclarations ImportDeclaration .
+
+TypeDeclarationsOpt:
+  [TypeDeclarations] .
+
+TypeDeclarations:
+  TypeDeclaration /
+  TypeDeclarations TypeDeclaration .
+
+PackageDeclarationOpt:
+  ['package' Name ';'] .
+
+ImportDeclaration:
+  SingleTypeImportDeclaration /
+  TypeImportOnDemandDeclaration .
+
+SingleTypeImportDeclaration:
+  'import' Name ';' .
+
+TypeImportOnDemandDeclaration:
+  'import' Name '.' '*' ';' .
+
+TypeDeclaration:
+  ClassDeclaration /
+  InterfaceDeclaration /
+  ';' .
+@}
+
+@B
+
+@$@<Productions Only in the LALR(1) Grammar@>==@{
+Modifiers:
+  Modifier /
+  Modifiers Modifier .
+
+Modifier:
+  'public' / 'protected' / 'private' /
+  'static' /
+  'abstract' / 'final' / 'native' / 'synchronized' / 'transient' / 'volatile' .
+@}
+
+@B@<Productions from 8: Class Declarations@>
+
+@C
+
+@$@<Productions from 8.1: Class Declaration@>==@{
+ClassDeclaration:
+  [Modifiers] 'class' Identifier Super [Interfaces] ClassBody .
+
+Super:
+  'extends' ClassType / .
+
+Interfaces:
+  'implements' InterfaceTypeList .
+
+InterfaceTypeList:
+  InterfaceType /
+  InterfaceTypeList ',' InterfaceType .
+
+ClassBody:
+  '{' [ClassBodyDeclarations] '}' .
+
+ClassBodyDeclarations:
+  ClassBodyDeclaration /
+  ClassBodyDeclarations ClassBodyDeclaration .
+
+ClassBodyDeclaration:
+  ClassMemberDeclaration /
+  StaticInitializer /
+  ConstructorDeclaration .
+
+ClassMemberDeclaration:
+  FieldDeclaration /
+  MethodDeclaration .
+@}
+
+@C
+
+Declarations of fields and local variables have the same form, and the
+published grammar uses the same set of rules for both.
+The scope rules for fields are completely different from those for local
+variables, however, so it makes sense to distinguish their declarations
+syntactically.
+
+@$@<Productions from 8.3: Field Declarations@>==@{
+FieldDeclaration:
+  [Modifiers] Type FieldDeclarators ';' .
+
+FieldDeclarators:
+  FieldDeclarator /
+  FieldDeclarators ',' FieldDeclarator .
+
+FieldDeclarator:
+  FieldDeclaratorId /
+  FieldDeclaratorId '=' VariableInitializer .
+
+FieldDeclaratorId:
+  FieldIdDef /
+  FieldDeclaratorId '[' ']' .
+
+FieldIdDef:
+  Identifier .
+
+VariableInitializer:
+  Expression /
+  ArrayInitializer .
+@}
+
+@C
+
+@$@<Productions from 8.4: Method Declarations@>==@{
+MethodDeclaration:
+  MethodHeader MethodBody .
+
+MethodHeader:
+  [Modifiers] Type MethodDeclarator [Throws] /
+  [Modifiers] 'void' MethodDeclarator [Throws] .
+
+MethodDeclarator:
+  MethodIdDef '(' FormalParameters ')' /
+  MethodDeclarator '[' ']' .
+
+MethodIdDef:
+  Identifier .
+
+FormalParameters:
+  [FormalParameterList] .
+
+FormalParameterList:
+  FormalParameter /
+  FormalParameterList ',' FormalParameter .
+
+FormalParameter:
+  Type VariableDeclaratorId .
+
+Throws:
+  'throws' ClassTypeList .
+
+ClassTypeList:
+  ClassType /
+  ClassTypeList ',' ClassType .
+
+MethodBody:
+  Block /
+  ';' .
+@}
+
+@C
+
+@$@<Productions from 8.5: Static Initializers@>==@{
+StaticInitializer:
+  'static' Block .
+@}
+
+@C
+
+@$@<Productions from 8.6: Constructor Declarations@>==@{
+ConstructorDeclaration:
+  [Modifiers] ConstructorDeclarator [Throws] ConstructorBody .
+
+ConstructorDeclarator:
+  SimpleName '(' FormalParameters ')' .
+
+ConstructorBody:
+  '{' [ExplicitConstructorInvocation] [BlockStatements] '}' .
+
+ExplicitConstructorInvocation:
+  'this' '(' Arguments ')' ';' /
+  'super' '(' Arguments ')' ';' .
+@}
+
+@B@<Productions from 9: Interface Declarations@>
+
+@C
+
+@$@<Productions from 9.1: Interface Declarations@>==@{
+InterfaceDeclaration:
+  [Modifiers] 'interface' Identifier [ExtendsInterfaces] InterfaceBody .
+
+ExtendsInterfaces:
+  'extends' InterfaceType /
+  ExtendsInterfaces ',' InterfaceType .
+
+InterfaceBody:
+  '{' [InterfaceMemberDeclarations] '}' .
+
+InterfaceMemberDeclarations:
+  InterfaceMemberDeclaration /
+  InterfaceMemberDeclarations InterfaceMemberDeclaration .
+
+InterfaceMemberDeclaration:
+  ConstantDeclaration /
+  AbstractMethodDeclaration .
+
+ConstantDeclaration:
+  FieldDeclaration .
+
+AbstractMethodDeclaration:
+  MethodHeader ';' .
+@}
+
+@B
+
+@$@<Productions from 10: Arrays@>==@{
+ArrayInitializer:
+  '{' [VariableInitializers] [','] '}' .
+
+VariableInitializers:
+  VariableInitializer /
+  VariableInitializers ',' VariableInitializer .
+@}
+
+@B
+
+@$@<Productions from 14: Blocks and Statements@>==@{
+Block:
+  '{' BlockStatementsOpt '}' .
+
+BlockStatementsOpt:
+  [BlockStatements] .
+
+BlockStatements:
+  BlockStatement /
+  BlockStatements BlockStatement .
+
+BlockStatement:
+  LocalVariableDeclarationStatement /
+  Statement .
+
+LocalVariableDeclarationStatement:
+  LocalVariableDeclaration ';' .
+
+LocalVariableDeclaration:
+  Type VariableDeclarators .
+
+VariableDeclarators:
+  VariableDeclarator /
+  VariableDeclarators ',' VariableDeclarator .
+
+VariableDeclarator:
+  VariableDeclaratorId /
+  VariableDeclaratorId '=' VariableInitializer .
+
+VariableDeclaratorId:
+  VariableIdDef /
+  VariableDeclaratorId '[' ']' .
+
+VariableIdDef:
+  Identifier .
+
+Statement:
+  StatementWithoutTrailingSubstatement /
+  LabeledStatement /
+  IfThenStatement /
+  IfThenElseStatement /
+  WhileStatement /
+  ForStatement .
+
+StatementNoShortIf:
+  StatementWithoutTrailingSubstatement /
+  LabeledStatementNoShortIf /
+  IfThenElseStatementNoShortIf /
+  WhileStatementNoShortIf /
+  ForStatementNoShortIf .
+
+StatementWithoutTrailingSubstatement:
+  Block /
+  EmptyStatement /
+  ExpressionStatement /
+  SwitchStatement /
+  DoStatement /
+  BreakStatement /
+  ContinueStatement /
+  ReturnStatement /
+  SynchronizedStatement /
+  ThrowStatement /
+  TryStatement .
+
+EmptyStatement:
+    ';' .
+
+LabeledStatement:
+  Identifier ':' Statement .
+
+LabeledStatementNoShortIf:
+  Identifier ':' StatementNoShortIf .
+
+ExpressionStatement:
+  StatementExpression ';' .
+
+StatementExpression:
+  Assignment /
+  PreIncrementExpression /
+  PreDecrementExpression /
+  PostIncrementExpression /
+  PostDecrementExpression /
+  MethodInvocation /
+  ClassInstanceCreationExpression .
+
+IfThenStatement:
+  'if' '(' Expression ')' Statement .
+
+IfThenElseStatement:
+  'if' '(' Expression ')' StatementNoShortIf 'else' Statement .
+
+IfThenElseStatementNoShortIf:
+  'if' '(' Expression ')' StatementNoShortIf 'else' StatementNoShortIf .
+
+SwitchStatement:
+  'switch' '(' Expression ')' SwitchBlock .
+
+SwitchBlock:
+  '{' [SwitchBlockStatements] [SwitchLabels] '}' .
+
+SwitchBlockStatements:
+  SwitchBlockStatement /
+  SwitchBlockStatements SwitchBlockStatement .
+
+SwitchBlockStatement:
+  SwitchLabels BlockStatements .
+
+SwitchLabels:
+  SwitchLabel /
+  SwitchLabels SwitchLabel .
+
+SwitchLabel:
+  'case' ConstantExpression ':' /
+  'default' ':' .
+
+WhileStatement:
+  'while' '(' Expression ')' Statement .
+
+WhileStatementNoShortIf:
+  'while' '(' Expression ')' StatementNoShortIf .
+
+DoStatement:
+  'do' Statement 'while' '(' Expression ')' ';' .
+
+ForStatement:
+  'for' '(' [ForInit] ';' [Expression] ';' [ForUpdate] ')'
+    Statement .
+
+ForStatementNoShortIf:
+  'for' '(' [ForInit] ';' [Expression] ';' [ForUpdate] ')'
+    StatementNoShortIf .
+
+ForInit:
+  StatementExpressionList /
+  LocalVariableDeclaration .
+
+ForUpdate:
+  StatementExpressionList .
+
+StatementExpressionList:
+  StatementExpression /
+  StatementExpressionList ',' StatementExpression .
+
+BreakStatement:
+  'break' [Identifier] ';' .
+
+ContinueStatement:
+  'continue' [Identifier] ';' .
+
+ReturnStatement:
+  'return' [Expression] ';' .
+
+ThrowStatement:
+  'throw' Expression ';' .
+
+SynchronizedStatement:
+  'synchronized' '(' Expression ')' Block .
+
+TryStatement:
+  'try' Block Catches /
+  'try' Block [Catches] Finally .
+
+Catches:
+  CatchClause /
+  Catches CatchClause .
+
+CatchClause:
+  'catch' '(' FormalParameter ')' Block .
+
+Finally:
+  'finally' Block .
+@}
+
+@B
+
+@$@<Productions from 15: Expressions@>==@{
+Primary:
+  PrimaryNoNewArray /
+  ArrayCreationExpression .
+
+PrimaryNoNewArray:
+  Literal /
+  'this' /
+  '(' Expression ')' /
+  ClassInstanceCreationExpression /
+  FieldAccess /
+  MethodInvocation /
+  ArrayAccess .
+
+ClassInstanceCreationExpression:
+  'new' ClassType '(' Arguments ')' .
+
+Arguments:
+  [ArgumentList] .
+
+ArgumentList:
+  Expression /
+  ArgumentList ',' Expression .
+
+ArrayCreationExpression:
+  'new' PrimitiveType DimExprs [Dims] /
+  'new' ClassOrInterfaceType DimExprs [Dims] .
+
+DimExprs:
+  DimExpr /
+  DimExprs DimExpr .
+
+DimExpr:
+  '[' Expression ']' .
+
+Dims:
+  '[' ']' /
+  Dims '[' ']' .
+
+FieldAccess:
+  Primary '.' MemberIdUse /
+  'super' '.' MemberIdUse .
+
+MethodInvocation:
+  Name '(' Arguments ')' /
+  Primary '.' MemberIdUse '(' Arguments ')' /
+  'super' '.' MemberIdUse '(' Arguments ')' .
+
+ArrayAccess:
+  Name '[' Expression ']' /
+  PrimaryNoNewArray '[' Expression ']' .
+
+PostfixExpression:
+  Primary /
+  Name /
+  PostIncrementExpression /
+  PostDecrementExpression .
+
+PostIncrementExpression:
+  PostfixExpression '++' .
+
+PostDecrementExpression:
+  PostfixExpression '--' .
+
+UnaryExpression:
+  PreIncrementExpression /
+  PreDecrementExpression /
+  '+' UnaryExpression /
+  '-' UnaryExpression /
+  UnaryExpressionNotPlusMinus .
+
+PreIncrementExpression:
+  '++' UnaryExpression .
+
+PreDecrementExpression:
+  '--' UnaryExpression .
+
+UnaryExpressionNotPlusMinus:
+  PostfixExpression /
+  '~' UnaryExpression /
+  '!' UnaryExpression /
+  CastExpression .
+
+CastExpression:
+  '(' PrimitiveType [Dims] ')' UnaryExpression /
+  '(' Expression ')' UnaryExpressionNotPlusMinus /
+  '(' Name Dims ')' UnaryExpressionNotPlusMinus .
+
+MultiplicativeExpression:
+  UnaryExpression /
+  MultiplicativeExpression '*' UnaryExpression /
+  MultiplicativeExpression '/' UnaryExpression /
+  MultiplicativeExpression '%' UnaryExpression .
+
+AdditiveExpression:
+  MultiplicativeExpression /
+  AdditiveExpression '+' MultiplicativeExpression /
+  AdditiveExpression '-' MultiplicativeExpression .
+
+ShiftExpression:
+  AdditiveExpression /
+  ShiftExpression '<<' AdditiveExpression /
+  ShiftExpression '>>' AdditiveExpression /
+  ShiftExpression '>>>' AdditiveExpression .
+
+RelationalExpression:
+  ShiftExpression /
+  RelationalExpression '<' ShiftExpression /
+  RelationalExpression '>' ShiftExpression /
+  RelationalExpression '<=' ShiftExpression /
+  RelationalExpression '>=' ShiftExpression /
+  RelationalExpression 'instanceof' Type .
+
+EqualityExpression:
+  RelationalExpression /
+  EqualityExpression '==' RelationalExpression /
+  EqualityExpression '!=' RelationalExpression .
+
+AndExpression:
+  EqualityExpression /
+  AndExpression '&' EqualityExpression.
+
+ExclusiveOrExpression:
+  AndExpression /
+  ExclusiveOrExpression '^' AndExpression.
+
+InclusiveOrExpression:
+  ExclusiveOrExpression /
+  InclusiveOrExpression '|' ExclusiveOrExpression.
+
+ConditionalAndExpression:
+  InclusiveOrExpression /
+  ConditionalAndExpression '&&' InclusiveOrExpression .
+
+ConditionalOrExpression:
+  ConditionalAndExpression /
+  ConditionalOrExpression '||' ConditionalAndExpression .
+
+ConditionalExpression:
+  ConditionalOrExpression /
+  ConditionalOrExpression '?' Expression ':' ConditionalExpression .
+
+AssignmentExpression:
+  ConditionalExpression /
+  Assignment .
+
+Assignment:
+  LeftHandSide AssignmentOperator AssignmentExpression .
+
+LeftHandSide:
+  Name /
+  FieldAccess /
+  ArrayAccess .
+
+AssignmentOperator:
+  '=' / '*=' / '/=' / '%=' / '+=' / '-=' / '<<=' / '>>=' / '>>>=' / '&=' /
+  '^=' / '|=' .
+
+Expression:
+  AssignmentExpression .
+
+ConstantExpression:
+  Expression .
+@}
+
+@A@<The java.lang Package@>
+
+@A@<The java.util Package@>
+
+@A@<The java.io Package@>

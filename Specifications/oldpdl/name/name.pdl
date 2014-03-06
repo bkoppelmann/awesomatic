@@ -1,0 +1,20 @@
+/* $Id: name.pdl,v 1.2 1992/07/11 20:56:53 kadhim Exp $ */
+/* Properties for checking definition status */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+"deftbl.h"
+"ptg_gen.h"
+"func.h"
+"header.h"
+
+Kind: int;			/* Type or Property */
+FuncOut: OpOutput;		/* Function output for an operation decl */
+ArgList: PTGNode;		/* argument list output for generated macros */
+FormalList: PTGNode;		/* argument list output for generated macros */
+ExtOut: ExtOutput;		/* function extern declaration */
+Sym: int;			/* string table lookup for deftbl key */
+
+
+
+
+

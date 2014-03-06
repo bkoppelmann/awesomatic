@@ -1,0 +1,102 @@
+/* $Id: pdl.lido,v 1.1 1992/06/20 19:11:18 kadhim Exp $ */
+/* Property Definition Language tree structure */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+RULE Axiom: Source ::= Range '$LIBRARY' LibraryList
+END;
+
+/*
+RULE LibrarySpec: LibraryList IS OperationList
+END;
+*/
+
+RULE MultipleOpDecls: OperationList ::= OperationList OperationDecl
+END;
+
+RULE SingleOpDecl: OperationList ::= OperationDecl
+END;
+
+RULE Declarations: Range LISTOF PropertyDecl | FileDecl | OperationDecl
+END;
+
+RULE PropertySpec: PropertyDecl ::= PropertyNameList ':' Type ';'
+END;
+
+RULE MultipleProperties: PropertyNameList ::= 
+			PropertyNameList ',' PropertyNameDecl
+END;
+
+RULE SingleProperty: PropertyNameList ::= PropertyNameDecl
+END;
+
+RULE PropertyName: PropertyNameDecl ::= Identifier
+END;
+
+RULE TypeNoOp: Type ::= TypeSpecifier
+END;
+
+RULE TypeWithOp: Type ::= TypeSpecifier '[' OperationNameList ']'
+END;
+
+RULE MultipleOperations: OperationNameList ::= 
+			OperationNameList ',' OperationNameDecl
+END;
+
+RULE SingleOperation: OperationNameList ::= OperationNameDecl
+END;
+
+RULE OperationName: OperationNameDecl ::= Identifier
+END;
+
+RULE FileSpec: FileDecl ::= String
+END;
+
+RULE OperationSpec: OperationDecl ::= 
+			TypeSpecifier Identifier '(' ParameterList ')' Text 
+END;
+
+RULE GenericType: TypeSpecifier ::= 'TYPE'
+END;
+
+RULE DefinedType: TypeSpecifier ::= TypeIdent
+END;
+
+/*
+RULE TypeName: TypeIdent IS Identifier
+END;
+*/
+
+RULE MultipleParameters: ParameterList ::= ParameterList ',' ParameterDecl
+END;
+
+RULE SingleParameter: ParameterList ::= ParameterDecl
+END;
+
+RULE ParameterSpec: ParameterDecl ::= TypeSpecifier Identifier Modifier
+END;
+
+RULE EmptyModifier: Modifier ::=
+END;
+
+RULE VoidModifier: Modifier ::= '(' ')'
+END;
+
+RULE SimpleModifier: Modifier ::= '(' ParameterTypeList ')'
+END;
+
+RULE ExtendedModifier: Modifier ::= '(' ParameterTypeList ',' '...' ')'
+END;
+
+RULE MultipleParameterTypes: ParameterTypeList ::= 
+			ParameterTypeList ',' ParameterTypeDecl
+END;
+
+RULE SingleParameterType: ParameterTypeList ::= ParameterTypeDecl
+END;
+
+RULE ParameterTypeSpec: ParameterTypeDecl ::= TypeSpecifier Modifier
+END;
+
+RULE IdentParameterTS: ParameterTypeDecl ::= TypeSpecifier Identifier Modifier
+END;
+

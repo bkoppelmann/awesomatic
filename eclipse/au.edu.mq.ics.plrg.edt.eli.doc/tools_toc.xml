@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?NLS TYPE="org.eclipse.help.toc"?>
+<toc label="Eli Documentation" href="html/index.html">
+  <topic label="Tools" href="html/tools.html">
+    <topic label="FunnelWeb" href="html/fw_toc.html">
+      <topic label="Introduction" href="html/fw_1.html#SEC1"/>
+      <topic label="Producing Specifications" href="html/fw_2.html#SEC2">
+        <topic label="Output Files" href="html/fw_2.html#SEC3"/>
+        <topic label="Extracting Output Files with Eli" href="html/fw_2.html#SEC4"/>
+        <topic label="Macros" href="html/fw_2.html#SEC5">
+          <topic label="Names" href="html/fw_2.html#SEC6"/>
+          <topic label="Formal Parameter Lists" href="html/fw_2.html#SEC7"/>
+        </topic>
+        <topic label="Macro Calls" href="html/fw_2.html#SEC8"/>
+        <topic label="Controlling Macro Expansion" href="html/fw_2.html#SEC9">
+          <topic label="Indentation" href="html/fw_2.html#SEC10"/>
+          <topic label="Output Length" href="html/fw_2.html#SEC11"/>
+        </topic>
+/>
+      </topic>
+      <topic label="Producing Documentation" href="html/fw_3.html#SEC12">
+        <topic label="Specifying the Typesetter" href="html/fw_3.html#SEC13"/>
+        <topic label="Typesetting Documentation with Eli" href="html/fw_3.html#SEC14"/>
+        <topic label="Structure" href="html/fw_3.html#SEC15"/>
+        <topic label="Marking Text" href="html/fw_3.html#SEC16">
+          <topic label="Typesetting a literal string" href="html/fw_3.html#SEC17"/>
+          <topic label="Emphasising a string" href="html/fw_3.html#SEC18"/>
+        </topic>
+        <topic label="Formatting" href="html/fw_3.html#SEC19">
+          <topic label="Forcing a Pagebreak" href="html/fw_3.html#SEC20"/>
+          <topic label="Producing a table of contents" href="html/fw_3.html#SEC21"/>
+          <topic label="Inserting blank vertical space" href="html/fw_3.html#SEC22"/>
+          <topic label="Specifying the title of your document" href="html/fw_3.html#SEC23"/>
+        </topic>
+/>
+      </topic>
+      <topic label="Input Processing" href="html/fw_4.html#SEC24">
+        <topic label="Special Sequences" href="html/fw_4.html#SEC25"/>
+        <topic label="Setting the Special Character" href="html/fw_4.html#SEC26"/>
+        <topic label="Inserting the Special Character into the Text" href="html/fw_4.html#SEC27"/>
+        <topic label="Inserting Arbitrary Characters into the Text" href="html/fw_4.html#SEC28"/>
+        <topic label="Comments" href="html/fw_4.html#SEC29"/>
+        <topic label="Quick Names" href="html/fw_4.html#SEC30"/>
+        <topic label="Inserting End of Line Markers" href="html/fw_4.html#SEC31"/>
+        <topic label="Suppressing End of Line Markers" href="html/fw_4.html#SEC32"/>
+        <topic label="Include Files" href="html/fw_4.html#SEC33"/>
+        <topic label="Maximum Input Line Length" href="html/fw_4.html#SEC34"/>
+      </topic>
+      <topic label="Grammar" href="html/fw_5.html#SEC35"/>
+      <topic label="Index" href="html/fw_6.html#SEC36"/>
+    </topic>
+    <topic label="Pattern-based Text Generator" href="html/ptg_toc.html">
+      <topic label="Introduction to PTG" href="html/ptg_1.html#SEC1"/>
+      <topic label="Pattern Specifications" href="html/ptg_2.html#SEC2">
+        <topic label="Indexed Insertion Points" href="html/ptg_2.html#SEC3"/>
+        <topic label="Typed Insertion Points" href="html/ptg_2.html#SEC4"/>
+        <topic label="Function Call Insertion" href="html/ptg_2.html#SEC5"/>
+        <topic label="Optional Parts in Patterns" href="html/ptg_2.html#SEC6"/>
+      </topic>
+      <topic label="Output Functions" href="html/ptg_3.html#SEC7"/>
+      <topic label="Some Useful Techniques" href="html/ptg_4.html#SEC8">
+        <topic label="Output of Data Items" href="html/ptg_4.html#SEC9"/>
+        <topic label="Generating Identifiers" href="html/ptg_4.html#SEC10"/>
+        <topic label="Output of Sequences" href="html/ptg_4.html#SEC11"/>
+      </topic>
+      <topic label="A Complete Example" href="html/ptg_5.html#SEC12">
+        <topic label="Source Language Structure" href="html/ptg_5.html#SEC13"/>
+        <topic label="Program Frame" href="html/ptg_5.html#SEC14"/>
+        <topic label="Expressions" href="html/ptg_5.html#SEC15"/>
+        <topic label="Using LIDO CHAINs" href="html/ptg_5.html#SEC16"/>
+        <topic label="Using LIDO CONSTITUENTS" href="html/ptg_5.html#SEC17"/>
+      </topic>
+      <topic label="Predefined Entities" href="html/ptg_6.html#SEC18"/>
+      <topic label="Influencing PTG Output" href="html/ptg_7.html#SEC19">
+        <topic label="Changing Default Output for Limited Line Length" href="html/ptg_7.html#SEC20"/>
+      </topic>
+      <topic label="Outdated Constructs" href="html/ptg_8.html#SEC21"/>
+      <topic label="Syntax of PTG Specifications" href="html/ptg_9.html#SEC22"/>
+      <topic label="Index" href="html/ptg_10.html#SEC23"/>
+    </topic>
+    <topic label="Definition Table" href="html/deftbl_toc.html">
+      <topic label="The Definition Table Module" href="html/deftbl_1.html#SEC1">
+        <topic label="How to create and use definition table keys" href="html/deftbl_1.html#SEC2"/>
+        <topic label="How to declare properties" href="html/deftbl_1.html#SEC3"/>
+        <topic label="Behavior of the basic query operations" href="html/deftbl_1.html#SEC4"/>
+        <topic label="Behavior of the basic update operations" href="html/deftbl_1.html#SEC5"/>
+        <topic label="A simple definition table application" href="html/deftbl_1.html#SEC6"/>
+      </topic>
+      <topic label="Definition Table Design Criteria" href="html/deftbl_2.html#SEC7">
+        <topic label="Criteria for selecting entities" href="html/deftbl_2.html#SEC8"/>
+        <topic label="Criteria for grouping data values" href="html/deftbl_2.html#SEC9"/>
+      </topic>
+      <topic label="The Definition Table Interface" href="html/deftbl_3.html#SEC10">
+        <topic label="Predefined query and update operations" href="html/deftbl_3.html#SEC11"/>
+        <topic label="The property definition language" href="html/deftbl_3.html#SEC12">
+          <topic label="How to declare properties" href="html/deftbl_3.html#SEC13"/>
+          <topic label="How to declare operations" href="html/deftbl_3.html#SEC14"/>
+          <topic label="How to specify the initial state" href="html/deftbl_3.html#SEC15"/>
+        </topic>
+/>
+      </topic>
+      <topic label="PDL Input Grammar" href="html/deftbl_4.html#SEC16"/>
+      <topic label="Index" href="html/deftbl_5.html#SEC17"/>
+    </topic>
+    <topic label="Oil Reference Manual" href="html/oil_toc.html">
+      <topic label="Introduction" href="html/oil_1.html#SEC1">
+        <topic label="Operator identification" href="html/oil_1.html#SEC2"/>
+        <topic label="Coercions" href="html/oil_1.html#SEC3"/>
+        <topic label="Sets of possible types" href="html/oil_1.html#SEC4"/>
+        <topic label="Classes" href="html/oil_1.html#SEC5"/>
+        <topic label="Names for operators, types and classes" href="html/oil_1.html#SEC6"/>
+      </topic>
+      <topic label="A review of an example OIL Specification" href="html/oil_2.html#SEC7"/>
+      <topic label="OIL's Specification Language" href="html/oil_3.html#SEC8">
+        <topic label="Identifiers" href="html/oil_3.html#SEC9"/>
+        <topic label="Comments" href="html/oil_3.html#SEC10"/>
+        <topic label="Statement types" href="html/oil_3.html#SEC11">
+          <topic label="Operator definition" href="html/oil_3.html#SEC12"/>
+          <topic label="Coercion operator definition" href="html/oil_3.html#SEC14"/>
+          <topic label="Operator identification" href="html/oil_3.html#SEC15"/>
+          <topic label="Class definition" href="html/oil_3.html#SEC16"/>
+          <topic label="Type set definition" href="html/oil_3.html#SEC17"/>
+        </topic>
+/>
+      </topic>
+      <topic label="OIL's Support Library" href="html/oil_4.html#SEC18">
+        <topic label="Library Types" href="html/oil_4.html#SEC19"/>
+        <topic label="Set of Possible Types" href="html/oil_4.html#SEC20"/>
+        <topic label="Validating operator identification" href="html/oil_4.html#SEC21"/>
+        <topic label="Simpler operator identification" href="html/oil_4.html#SEC22"/>
+        <topic label="Looking at an operator's type signature" href="html/oil_4.html#SEC23"/>
+        <topic label="Coercion sequences" href="html/oil_4.html#SEC24"/>
+        <topic label="Instantiate Classes" href="html/oil_4.html#SEC25"/>
+        <topic label="Name Functions" href="html/oil_4.html#SEC26"/>
+        <topic label="Compile Time" href="html/oil_4.html#SEC27">
+          <topic label="Types" href="html/oil_4.html#SEC28"/>
+          <topic label="Operators" href="html/oil_4.html#SEC29"/>
+          <topic label="Argument Signatures" href="html/oil_4.html#SEC30"/>
+          <topic label="Coercions" href="html/oil_4.html#SEC31"/>
+          <topic label="Identifications" href="html/oil_4.html#SEC32"/>
+          <topic label="Classes" href="html/oil_4.html#SEC33"/>
+        </topic>
+/>
+      </topic>
+      <topic label="Relating an OIL specification to library function calls" href="html/oil_5.html#SEC34">
+        <topic label="Using Names" href="html/oil_5.html#SEC35"/>
+        <topic label="A simple example" href="html/oil_5.html#SEC36">
+          <topic label="Definitions from the specification" href="html/oil_5.html#SEC37"/>
+          <topic label="Operator Identification" href="html/oil_5.html#SEC38"/>
+          <topic label="Operator Signatures" href="html/oil_5.html#SEC39"/>
+          <topic label="Coercion sequence" href="html/oil_5.html#SEC40"/>
+        </topic>
+        <topic label="A more complex example" href="html/oil_5.html#SEC41">
+          <topic label="Using type sets" href="html/oil_5.html#SEC42"/>
+        </topic>
+        <topic label="Using Classes" href="html/oil_5.html#SEC43"/>
+      </topic>
+      <topic label="Design Hints" href="html/oil_6.html#SEC44">
+        <topic label="Incremental Design and Implementation" href="html/oil_6.html#SEC45"/>
+        <topic label="Identifying Operands" href="html/oil_6.html#SEC46"/>
+        <topic label="Error Handling" href="html/oil_6.html#SEC47"/>
+        <topic label="Modeling OIL's function" href="html/oil_6.html#SEC48"/>
+        <topic label="Schema Restrictions" href="html/oil_6.html#SEC49"/>
+        <topic label="Identification Algorithm" href="html/oil_6.html#SEC50"/>
+      </topic>
+      <topic label="Index" href="html/oil_7.html#SEC51"/>
+    </topic>
+    <topic label="Tree Parsing" href="html/tp_toc.html">
+      <topic label="The Tree To Be Parsed" href="html/tp_1.html#SEC1">
+        <topic label="Tree Structure" href="html/tp_1.html#SEC2"/>
+        <topic label="Decorating Nodes" href="html/tp_1.html#SEC3"/>
+        <topic label="Node Construction Functions" href="html/tp_1.html#SEC4"/>
+      </topic>
+      <topic label="The Tree Patterns" href="html/tp_2.html#SEC5">
+        <topic label="Rules Describing Tree Nodes" href="html/tp_2.html#SEC6"/>
+        <topic label="Chain Rules" href="html/tp_2.html#SEC7"/>
+        <topic label="Rules Describing Tree Fragments" href="html/tp_2.html#SEC8"/>
+      </topic>
+      <topic label="Actions Carried Out During Parsing" href="html/tp_3.html#SEC9">
+        <topic label="Actions and Values" href="html/tp_3.html#SEC10"/>
+        <topic label="Implementing Actions" href="html/tp_3.html#SEC11"/>
+        <topic label="Commutative Actions" href="html/tp_3.html#SEC12"/>
+      </topic>
+      <topic label="Summary of the Specification Language" href="html/tp_4.html#SEC13">
+        <topic label="Declarations" href="html/tp_4.html#SEC14"/>
+        <topic label="Rules" href="html/tp_4.html#SEC15"/>
+      </topic>
+      <topic label="Predefined Entities" href="html/tp_5.html#SEC16"/>
+      <topic label="Index" href="html/tp_6.html#SEC17"/>
+    </topic>
+    <topic label="Command Line Processing" href="html/clp_toc.html">
+      <topic label="What is a command line interface?" href="html/clp_1.html#SEC1"/>
+      <topic label="What happens by default?" href="html/clp_2.html#SEC2"/>
+      <topic label="Specifying the command line interface" href="html/clp_3.html#SEC3">
+        <topic label="The general format of the command line" href="html/clp_3.html#SEC4"/>
+        <topic label="Options that are either there or not" href="html/clp_3.html#SEC5"/>
+        <topic label="Options that have a value given with them" href="html/clp_3.html#SEC6"/>
+        <topic label="Options that are joined to their values" href="html/clp_3.html#SEC7"/>
+        <topic label="Multiple option strings for the same option" href="html/clp_3.html#SEC8"/>
+        <topic label="The order of option specification lines" href="html/clp_3.html#SEC9"/>
+        <topic label="Options that affect usage messages" href="html/clp_3.html#SEC10"/>
+        <topic label="Terminating the option list" href="html/clp_3.html#SEC11"/>
+        <topic label="Parameters given by their command line position" href="html/clp_3.html#SEC12"/>
+        <topic label="Input parameters" href="html/clp_3.html#SEC13"/>
+        <topic label="Documentation options and parameters" href="html/clp_3.html#SEC14"/>
+      </topic>
+      <topic label="Accessing the command line" href="html/clp_4.html#SEC15">
+        <topic label="Accessing boolean options" href="html/clp_4.html#SEC16"/>
+        <topic label="Accessing options with integer values" href="html/clp_4.html#SEC17"/>
+        <topic label="Accessing options with string values" href="html/clp_4.html#SEC18"/>
+        <topic label="Accessing options that appear more than once" href="html/clp_4.html#SEC19"/>
+        <topic label="Accessing positional parameters" href="html/clp_4.html#SEC20"/>
+      </topic>
+      <topic label="Complete Grammar Listing" href="html/clp_5.html#SEC21"/>
+      <topic label="Index" href="html/clp_6.html#SEC22"/>
+    </topic>
+    <topic label="Abstract Syntax Tree Unparsing" href="html/idem_toc.html">
+      <topic label="Using an Unparser" href="html/idem_1.html#SEC1"/>
+      <topic label="Available Kinds of Unparser" href="html/idem_2.html#SEC2">
+        <topic label="Textual unparser" href="html/idem_2.html#SEC3">
+          <topic label="Computations for plain productions" href="html/idem_2.html#SEC4"/>
+          <topic label="Computations for LISTOF productions" href="html/idem_2.html#SEC5"/>
+        </topic>
+        <topic label="Structural unparser" href="html/idem_2.html#SEC6">
+          <topic label="Computations for plain productions" href="html/idem_2.html#SEC7"/>
+          <topic label="Computations for LISTOF productions" href="html/idem_2.html#SEC8"/>
+          <topic label="Languages describing tree structure" href="html/idem_2.html#SEC9"/>
+        </topic>
+/>
+      </topic>
+      <topic label="Changing Structure or Representation" href="html/idem_3.html#SEC10">
+        <topic label="Overriding PTG patterns" href="html/idem_3.html#SEC11"/>
+        <topic label="Changing IdemPtg computations" href="html/idem_3.html#SEC12"/>
+      </topic>
+      <topic label="Deriving an Unparser" href="html/idem_4.html#SEC13">
+        <topic label="Establishing a basis" href="html/idem_4.html#SEC14"/>
+        <topic label="Deriving textual unparsers" href="html/idem_4.html#SEC15"/>
+        <topic label="Deriving structural unparsers" href="html/idem_4.html#SEC16"/>
+        <topic label="Obtaining the structure definition" href="html/idem_4.html#SEC17"/>
+        <topic label="Deriving multiple unparsers" href="html/idem_4.html#SEC18"/>
+        <topic label="Deriving unparsers from sub-grammars" href="html/idem_4.html#SEC19"/>
+      </topic>
+      <topic label="Index" href="html/idem_5.html#SEC20"/>
+    </topic>
+    <topic label="Execution Monitoring Reference" href="html/mon_toc.html">
+      <topic label="Using Noosa" href="html/mon_1.html#SEC1">
+        <topic label="Invoking Noosa" href="html/mon_1.html#SEC2"/>
+        <topic label="Controlling Your Program" href="html/mon_1.html#SEC3"/>
+        <topic label="User Initialisation" href="html/mon_1.html#SEC4"/>
+        <topic label="Changing files from within Noosa" href="html/mon_1.html#SEC5"/>
+        <topic label="X resources used by Noosa" href="html/mon_1.html#SEC6"/>
+      </topic>
+      <topic label="Information" href="html/mon_2.html#SEC7">
+        <topic label="Input Text Display" href="html/mon_2.html#SEC8"/>
+        <topic label="Messages" href="html/mon_2.html#SEC9"/>
+        <topic label="String Table" href="html/mon_2.html#SEC10"/>
+        <topic label="Lexical Structure" href="html/mon_2.html#SEC11"/>
+        <topic label="Phrase Structure" href="html/mon_2.html#SEC12"/>
+        <topic label="Trees and Attribute Values" href="html/mon_2.html#SEC13"/>
+        <topic label="Breakpoints and events" href="html/mon_2.html#SEC14"/>
+        <topic label="Frequency Profiles" href="html/mon_2.html#SEC15"/>
+        <topic label="Time Profiles" href="html/mon_2.html#SEC16"/>
+        <topic label="Tracing Events" href="html/mon_2.html#SEC17"/>
+      </topic>
+      <topic label="Implementation" href="html/mon_3.html#SEC18">
+        <topic label="Monitoring Interfaces" href="html/mon_3.html#SEC19">
+          <topic label="Aspects" href="html/mon_3.html#SEC20"/>
+          <topic label="Event Types" href="html/mon_3.html#SEC21"/>
+          <topic label="Operations" href="html/mon_3.html#SEC22"/>
+          <topic label="Header Files" href="html/mon_3.html#SEC23"/>
+          <topic label="Non-standard types" href="html/mon_3.html#SEC24"/>
+          <topic label="Browsing non-standard types" href="html/mon_3.html#SEC25"/>
+        </topic>
+        <topic label="Implementing Monitoring Interfaces" href="html/mon_3.html#SEC26"/>
+        <topic label="Monitoring Database" href="html/mon_3.html#SEC27"/>
+        <topic label="Adding Monitoring Support To A Component" href="html/mon_3.html#SEC28"/>
+        <topic label="Supporting Profiling" href="html/mon_3.html#SEC29"/>
+        <topic label="Dapto Grammar" href="html/mon_3.html#SEC30"/>
+      </topic>
+      <topic label="Index" href="html/mon_4.html#SEC31"/>
+    </topic>
+    <topic label="Cola Option Tool" href="html/cola_toc.html">
+      <topic label="Introduction" href="html/cola_toc.html#SEC1"/>
+      <topic label="Options" href="html/cola_toc.html#SEC2"/>
+      <topic label="Index" href="html/cola_toc.html#SEC3"/>
+    </topic>
+    <topic label="LCL" href="html/lcl_toc.html">
+      <topic label="Introduction" href="html/lcl_1.html#SEC1"/>
+      <topic label="Expand Options" href="html/lcl_2.html#SEC2"/>
+      <topic label="Order Options" href="html/lcl_3.html#SEC3"/>
+      <topic label="Optim Options" href="html/lcl_4.html#SEC4"/>
+    </topic>
+    <topic label="SHOW - Displays the internal representation of a LIDO grammar." href="html/show_toc.html"/>
+    <topic label="GORTO - Graphical Order Tool " href="html/gorto_toc.html">
+      <topic label="Introduction" href="html/gorto_1.html#SEC1"/>
+      <topic label="Using GORTO within ELI" href="html/gorto_2.html#SEC2"/>
+      <topic label="Usage" href="html/gorto_3.html#SEC3">
+        <topic label="The windows of GORTO" href="html/gorto_3.html#SEC4"/>
+        <topic label="The Main Window" href="html/gorto_3.html#SEC5"/>
+        <topic label="Description of Symbols and Dependencies" href="html/gorto_3.html#SEC6"/>
+        <topic label="Productions" href="html/gorto_3.html#SEC7"/>
+        <topic label="Symbols" href="html/gorto_3.html#SEC8"/>
+        <topic label="Visit-sequences" href="html/gorto_3.html#SEC9"/>
+      </topic>
+      <topic label="Layout Adaptation" href="html/gorto_4.html#SEC10">
+        <topic label="Resources of GORTO" href="html/gorto_4.html#SEC11"/>
+        <topic label="Internal Interface Structure" href="html/gorto_4.html#SEC12"/>
+        <topic label="Graph Widget" href="html/gorto_4.html#SEC13"/>
+      </topic>
+      <topic label="Index" href="html/gorto_5.html#SEC14"/>
+    </topic>
+  </topic>
+</toc>

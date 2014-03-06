@@ -1,0 +1,5 @@
+/* $Id: tree.specs,v 1.1 1992/06/20 19:11:29 kadhim Exp $ */
+/* Tree construction */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+pdl.lido		/* Tree structure */

@@ -1,0 +1,11 @@
+/* $Id: func.specs,v 1.2 1992/07/11 20:55:06 kadhim Exp $ */
+/* Specifications for PDL function output generation */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+func.lido		/* abstract syntax attribution for output generation */
+func.ptg		/* output forms */
+func.pdl		/* output generation properties */
+func.c			/* attribute computations */
+func.h			/* exported definitions for attribute computations */
+func.head		/* inclusion of exported definitions in global header */
+

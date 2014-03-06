@@ -1,0 +1,64 @@
+#
+#	tibinc.publishers
+#
+#
+#  publishers
+#
+D AcPress Academic Press\
+%C |NYC|
+D Academic |AcPress|
+D Addison Addison Wesley\
+%C Reading, MA
+D Freeman W. H. Freeman and Company\
+%C San Francisco, CA
+D CSPress Computer Science Press\
+%C Rockville, MD
+D Elsevier Elsevier\
+% Amsterdam--New York
+D IEEEP IEEE Press\
+%C Montvale, NJ
+D MGHill McGraw-Hill\
+%C |NYC|
+D MIT MIT Press\
+%C Cambridge, MA
+D NHoll North-Holland\
+%C Amsterdam
+D Wiley John Wiley \& Sons\
+%C |NYC|
+D Springer Springer-Verlag\
+%C New York--Heidelberg--Berlin
+D SRA Science Research Associates\
+%C San Fransisco, CA
+D Winth Winthrop Publishers
+D Gordon Gordon and Breach\
+%C |NYC|
+D Chelsea Chelsea\
+%C |NYC|
+D JHU Johns Hopkin |UNIV| Press\
+%C Baltimore, MD
+D MAA Mathematical Association of America\
+%C Washington, DC
+D AMS American Mathematical Society\
+%C Providence, RI
+D SIAM Society for Industrial and Applied Mathematics\
+%C Philadelphia, PA
+D Princeton Princeton |UNIV| Press\
+%C Princeton, NJ
+D Reidel D. Reidel\
+%C Dordrecht--Boston--London
+D Dover Dover\
+%C Mineola, NY
+D Pitman Pitman\
+%C Marshfield, MA
+D Birkh Birkh\"auser Boston\
+%C Cambridge, MA
+D PrHall Prentice-Hall\
+%C Englewood Cliffs, NJ
+D Heyden Heyden \& Sons\
+%C Philadelphia, PA
+D Wadsworth Wadsworth\
+%C Belmont, CA
+D CRC CRC Press\
+%C Boca Raton, FL
+D Dekker Marcel Dekker\
+%C |NYC|

@@ -1,0 +1,8 @@
+begin comment $Id: 4.7.5.3-1.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+A formal parameter which is used within the procedure body as an array
+identifier can only correspond to an actual parameter which is an array;
+
+procedure p(x); array x; x[1] := 1.2;
+integer y;
+p(y);
+end

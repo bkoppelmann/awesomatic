@@ -1,0 +1,38 @@
+# /* This file is part of the Eli translator construction system.
+# 
+# Eli is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2, or (at your option) any later
+# version.
+# 
+# Eli is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+# 
+# You should have received a copy of the GNU General Public License along
+# with Eli; see the file COPYING.  If not, write to the Free Software
+# Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+
+
+EXEC (pgram2bisonGen.sh) (src/pgram2bison.specs +parser=pgs :exe)
+     (:Pgram) (:BuPgram)
+  => (:bisonSpecification);
+    :bisonSpecification 'BISON Specification file' => :FILE;
+
+EXEC (bisonInvoker.sh) (:bisonSpecification) (bison.h) (bison.head)
+     (mon_cprods.h)
+  => (:bisonGen) (:bisonInfo);
+    :bisonGen 'Generation of the concrete parser' => :DERIVED-DIRECTORY;
+    :bisonInfo 'Information of the generated parser' => :FILE;
+
+EXEC (bisonOut.sh) (:bisonGen :name) (:bisonInfo :name) (+parser)
+  => (:bisonOut) (:bisonData);
+    :bisonOut 'Selected BISON-generated parser' => :FILE;
+    :bisonData 'Selected BISON-generated information' => :FILE;
+
+COLLECT (:bisonOut :list)
+  => (:parser*parserGen);
+
+COLLECT (:bisonData :list)
+  => (:parser*parserInfo);

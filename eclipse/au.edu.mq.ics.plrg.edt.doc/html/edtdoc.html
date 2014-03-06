@@ -1,0 +1,368 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<title>Eli Development Tools Documentation</title>
+</head>
+
+<body>
+<h1>Eli Development User Guide</h1>
+
+<h2><a name="Introduction"></a>Introduction</h2>
+
+<p>The Eli Development Tools (EDT) is a collection of plugins for the Eclipse Integrated
+Development Environment that support development of specifications for the Eli language
+processor generation system.</p>
+
+<p>Throughout this documentation it is assumed that the user is familiar with the basics
+of using Eclipse. In particular, it is important to be fluent in using the Resource
+Perspective to manage projects in the Navigator view. The EDT augments the standard
+Eclipse preferences and project properties. It uses the Console and Problems views to
+display output and error feedback, respectively. Editors are annotated with markers to
+indicate diagnostic output as in the Eclipse Java Development Tools.</p>
+
+<h2><a name="EliProjects"></a>Eli Projects</h2>
+
+<p>The EDT supports the management of Eli projects within Eclipse. An empty Eli project
+can be created using a Project wizard under the usual Eclipse New menu. Browse to the Eli
+wizard category and invoke the New Eli Project wizard. The wizard has the usual settings
+for project name, location and references to other projects.</p>
+
+<p>Eli projects are decorated in the Eclipse Navigator view with an &quot;E&quot; in the
+top-right corner of the project icon.</p>
+
+<p>Eli is based on the Odin build management system. See
+<a href="#OdinSupport">Odin support</a> for information on the way in which the EDT
+helps with the use of Odin within Eli projects.</p>
+
+<h3><a name="ContextMenus"></a>Context Menus</h3>
+
+<p>In the Eclipse Navigator view Eli projects and files and folders within Eli projects
+have an &quot;Eli&quot; context menu containing the following item:</p>
+
+<ul>
+  <li>Reset the derived object cache used by the selected project. This item includes
+  the option of reinstalling the cache packages which is useful if you have changed
+  the Eli system that you are using.</li>
+</ul>
+
+<h2><a name="OdinSupport"></a>Odin Support</h2>
+
+<p>The Eli system uses the Odin expert system for build management. The main support
+consists of an Eli Derivation launch configuration type that appears in the standard
+Eclipse "Run..." dialog. There are also a number of project properties and global
+preferences can be used to configure the Odin support in the EDT.</p>
+
+<h3><a name="PerformingDerivations"></a>Performing Derivations</h3>
+
+<p>To perform a derivation, use the standard Eclipse run
+support via the "Run..." menu.  This menu is available via a toolbar
+action or in the main Run menu.  The launch configuration for Eli derivations
+operates in a similar manner to other launch configuration types such as
+"Java Application".</p>
+
+<p>From the "Run..." dialog, select "Eli Derivation" from the list at
+the left.  Click on "New" at the bottom of the list to create a new launch
+configuration.  On the right in the Derivation tab, set the properties of
+the derivation:</p>
+
+<ul>
+  <li>The derivation name to be used when referring to this launch configuration
+      elsewhere in Eclipse.</li>
+  <li>The source file from which the derivation should be performed.  If you had
+      the file selected in the Navigator view or its editor was current, then the
+      name of the file will be automatically filled in for you.  A "Browse..."
+      button allows you to select any file.</li>
+  <li>The derivation to perform.  The available derivations are configured via
+      the <a href="#ProjectDerivations">Project Derivations</a> preferences page.</li>
+  <li>Option arguments to provide to the derivation.</li>
+  <li>What to do with the output of the derivation:
+  <p><ul>
+    <li>Ignore it (most suitable for things like executables).</li>
+    <li>Send it to the console view.</li>
+    <li>Send it to an Eclipse editor.</li>
+    <li>Send it to a file outside of Eli and Eclipse.</li>
+  </ul></p>
+  <p>By default, the output selection will be based on the default output mode
+  of the derivation selected, which can be configured in the
+  <a href="#ProjectDerivations">Project Derivations</a> preferences page.</p>
+  </li>
+</ul>
+
+<p>If the console output mode is chosen the output produced by Eli while performing
+the derivation will be displayed in the Eli Console view. (Note that the Console
+View may not be shown by default. Use the &quot;Show View&quot; and then
+&quot;Other...&quot; items in the Window menu to enable it.). Use the
+<a href="#LogLevel">Log Level preference</a> and the
+<a href="#ErrLevelAndWarnLevel">Error and Warning Level preferences</a> to control
+how much information Eli prints as it performs a derivation. Each different launch
+configuration will get a new console; all consoles are selected from the drop-down
+at the top of the Console View so you can switch between them.</p>
+
+<p>In the editor view output mode the behaviour depends on whether the
+file to be viewed resides in the Eclipse workspace or not.  If it does, then
+the editor is opened on the actual file as would be expected.  If the file
+resides outside the workspace then a link to the file is created at the top
+level of the Eli project and the editor is opened on the link.</p>
+
+<p>In the file output mode the product produced by the derivation is sent to the
+file specified in the launch configuration.  The name of the file is relative
+to the Eclipse workspace.  A browse button can be used to help set the file name.</p>
+
+<p>If a derivation produces diagnostic output (error, warning, note etc) the messages
+are entered into the Eclipse Problems view.  (This view may not be visible by default
+in your Resource perspective.)  If errors are reported then other requested effects 
+(show, edit or send to file) are not performed.  Lines referred to by diagnostic
+output are marked in open editors. Finally, if you open the Package Explorer View
+it will annotate files containing errors or warnings with  a red cross (error) or
+a yellow exclamation mark (warning). </p>
+
+<p>The derivations that are available in a new Eli project are initially determined
+by a global list maintained by the EDT. You can edit the derivations via the
+<a href="#ProjectDerivations">Project Derivations</a> preferences page. When you
+exit Eclipse the derivations will be saved in your workspace. The workspace
+derivations will be loaded by the EDT when you next work on an Eli project. Thus
+all of your Eli projects in a single workspace will share the same set of derivations
+that you maintain. </p>
+
+<h3><a name="EliProjectProperties"></a>Eli Project Properties</h3>
+
+<p>The following properties apply to a specific Eli project. </p>
+
+<h4><a name="EliExecutable"></a>Eli Executable</h4>
+
+<p>On Unix-based systems, this property should be set to the executable to use to
+perform Eli derivations. It should be set to the &quot;eli&quot; script of an
+installed Eli system.</p>
+
+<p>On Windows systems, life is more complicated. Eli on Windows is supported by the
+Cygwin Unix-like software. Unfortunately, Eclipse (a Windows application) cannot call
+the &quot;eli&quot; script directly because it is a (Cygwin) shell script. For this 
+eason on Windows systems the Eli Executable should be set to the location of the
+Cygwin shell executable (usually C:\Cygwin\bin\sh.exe). The
+<a href="#EliArguments">Eli Arguments</a> property should also be set (see notes in
+the next section). </p>
+
+<p>See also the <a href="#DefaultEliExecutable	">Default Eli Executable</a> global
+preference. </p>
+
+<h4><a name="EliArguments"></a>Eli Arguments</h4>
+
+<p>This property can be used to pass extra arguments to the invocation of Eli. On
+Unix systems this is usually not needed so the arguments should be empty.</p>
+
+<p>On Windows systems, the arguments should be set to the location of the &quot;eli&quot;
+script of an installed Eli system. In conjunction with the appropriate setting for
+the <a href="#EliExecutable">Eli Executable</a> (see notes in the previous section)
+this will enable Eclipse to correctly invoke Eli. </p>
+
+<p>See also the <a href="#DefaultEliArguments">Default Eli Arguments</a> global preference. </p>
+
+<h4><a name="CacheFolder"></a>Cache Folder</h4>
+
+<p>Eli uses a cache directory to hold the results of derivations and the intermediate
+objects produced by those derivations. By default, the cache used for an Eli project
+is the .ODIN folder in the project folder. This means that objects will not be shared
+with other projects. </p>
+
+<p>The cache folder property can be changed if a different cache folder is desired.
+For example, you might set the cache folder for two Eil projects to be the same
+directory to enable those projects to share derived objects which can save some
+disk space.</p>
+
+<p>For convenience, the <a href="#ContextMenus">Eli context menu</a> for Eli projects
+provides a &quot;Reset Cache&quot; item which invokes Eli to reset the project cache. </p>
+
+<p>See also the <a href="#DefaultCacheFolder">Default Cache Folder</a> global preference.</p>
+
+<h4><a name="CacheView"></a>Cache View</h4>
+
+<p>Normally, Eli's cache contains a directory specific to the machine on which you
+are running.  If you wish to share caches between machines you can set the cache view
+property to a string which will be used instead of the machine name.</p>
+
+<p>Note: Normally Eli run under Eclipse control will inherit your environment
+settings from the parent process so the ODINVIEW environment variable will be
+available to Eli if you have set it in your environment.  However, at present
+the EDT needs to know the value of this variable and there is no portable way
+to obtain the value.  So, at present, you should make sure that the Cache View
+property is set to the same value as your ODINVIEW environment variable.  We
+plan to simplify this situation in future versions.</p>
+
+<p>See also the <a href="#DefaultCacheView">Default Cache View</a> global preference.</p>
+
+<h3><a name="EliGlobalPreferences"></a>Eli Global Preferences</h3>
+
+<p>The following preferences apply to all Eli projects.</p>
+
+<h4><a name="DefaultEliExecutable"></a>Default Eli Executable</h4>
+
+<p>This preference can be used to specify a default Eli executable which is particularly
+useful in the normal case where a single Eli installation is used for all projects. The
+setting of this preference will be used to initialise the
+<a href="#EliExecutable">Eli Executable</a> property of all new projects.</p>
+
+<h4><a name="DefaultEliArguments"></a>Default Eli Arguments</h4>
+
+<p>This preference can be used to specify a default Eli arguments which is particularly
+useful in the normal case where a single Eli installation is used for all projects. The
+setting of this preference will be used to initialise the
+<a href="#EliArguments">Eli Arguments</a> property of all new projects.</p>
+
+<h4><a name="DefaultCacheFolder"></a>Default Cache Folder</h4>
+
+<p>By default when an Eli project is created it uses a cache within the project directory
+(see the <a href="#CacheFolder">Cache Folder</a> project property). If you want all of
+your Eli projects to share the same cache you can enable the Default Cache Folder and
+set it to a directory to use for the common cache. Any new Eli projects created will
+use the common cache folder.</p>
+
+<h4><a name="DefaultCacheView"></a>Default Cache View</h4>
+
+<p>This preference is used as the cache view value for new projects (see the
+<a href="#CacheView">Cache View</a> project property).</p>
+
+<p>Note: Normally Eli run under Eclipse control will inherit your
+environment settings from the parent process so the ODINVIEW
+environment variable will be available to Eli if you have set it in
+your environment.  However, at present the EDT needs to know the value
+of this variable and there is no portable way to obtain the value.
+So, at present, you should make sure that the Default Cache View
+preference is set to the same value as your ODINVIEW environment
+variable.  We plan to simplify this situation in future versions.</p>
+
+<h4><a name="ClearConsole"></a>Clear Console</h4>
+
+<p>Output produced by Eli derivations can be sent to the Eclipse console view.
+When set (the default), this preference causes the console to be cleared before
+each derivation.</p>
+
+<h4><a name="LogLevel"></a>Log Level</h4>
+
+<p>The log level controls the verbosity of Eli while it is performing derivations.
+It defaults to causing each object generated by a tool script to be reported as it
+is derived, plus objects with errors, Odin commands and build commands.</p>
+
+<h4><a name="ErrLevelAndWarnLevel"></a>ErrLevel and WarnLevel</h4>
+
+<p>The error and warning levels control how much information Eli provides about
+errors and warnings associated with derivations, respectively. The options are
+to see no report at all, to see final status information, to see messages
+incrementally as they are produced by tool steps, or to see a summary of all
+relevant messages. The default is to produce no report. </p>
+
+<h4><a name="ProjectDerivations"></a>Project Derivations</h4>
+
+<p>The derivations available within all Eli projects can be edited via a
+preference page. The page presents two pulldown menus at the top for selecting
+a category, and within that category, a derivation. When a derivation is
+selected, the data defining the derivation will be shown below the pulldown menus.</p>
+
+<p>The derivation data fields apart from category and name are: the Eli product
+that is derived by this derivation (e.g., &quot;:exe&quot;), a documentation
+string describing the derivation, and the enabled flag. If the enabled flag
+is set then the derivation will be available for use (see
+<a href="#PerformingDerivations">Performing Derivations</a>).</p>
+
+<p>The product field of a derivation ordinarily contains a full Odin derivation
+command with placeholders for parts that depend on the specific derivation being
+performed.  The following placeholders are used:</p>
+
+<ul>
+<li>%a: the optional arguments from the launch configuration</li>
+<li>%d: the full pathname of the project directory in which the derivation is
+being performed</li>
+<li>%s: the full pathname of the source specification from which the derivation
+is being performed</li>
+</ul>
+
+<p>For example, the product "%s :exe" will turn into ".../foo.fw :exe" if it is
+applied to the specification file "foo.fw" where "..." is the full pathname of
+"foo.fw".  Similarly, "%d +cmd=(%s:exe) %a :run" specifies a derivation that
+is applied to the current project directory, supplies a +cmd parameter that is
+the executable derived from the source specification, appends any supplied
+arguments and derives the :run product.</p>
+
+<p>To change the definition of a derivation, first select it using the pulldown
+menus. Then edit the derivation data as appropriate and hit the Apply button. Any
+changes to the data fields will be lost if you do not hit Apply before you select
+another derivation or close the property page. </p>
+
+<p>To create a new derivation, hit the New button. This will create a new derivation
+in the current category with a default definition. You must edit the data fields
+and hit Apply to correctly define the derivation. Note that the category, name 
+nd product fields must not be blank. </p>
+
+<p>To delete a derivation, first select it. Then hit the Delete button. </p>
+
+<h2><a name="ReleaseNotes"></a>Release Notes</h2>
+
+The following summarises the major changes in each version of the Eli Development
+Tools.
+
+<h3>1.06 (FIXME) </h3><ul>
+  <li>Changed derivations to use placeholders so that more flexible derivations are
+  possible.</li>
+  <li>Added optional arguments to the launch configuration type.</li>
+  <li>Added a "Run" derivation that uses :run to execute a processor on arguments.</li>
+</ul>
+
+<h3>1.05 (November 10, 2006) </h3><ul>
+  <li>Numerous small bug fixes.</li>
+  <li>Fixed a bug in processing of messages that don't include a severity in the usual
+  place.</li>
+  <li>Support for ODINVIEW environment variable.</li>
+  <li>Eli context menu now available on folders and projects.</li>
+  <li>Changed derivation invocation to use the launch configuration mechanism (hence
+  Run action) rather than our home-grown Derive action.  This also means that history
+  is handled by the Run mechanism so the Rederive action is gone too.</li>
+  <li>Allow opening derivation products in editors.</li>
+  <li>Support for sending derivation products to files.</li>
+</ul>
+<h3>1.04 (July 28, 2004)</h3>
+<ul>
+  <li>Fixed derivation support on Windows with Eli installed under Cygwin. See the
+  Windows-specific notes for the <a href="#EliExecutable">Eli Executable</a> and
+  <a href="#EliArguments">Eli Arguments</a> properties and the corresponding global
+  preferences.</li>
+</ul>
+<h3>1.03 (July 23, 2004)</h3>
+<ul>
+  <li>Toolbar actions now only available in Eli projects. </li>
+  <li>Suggest that users use the Project Navigator view to manage their Eli projects
+  since this shows error and warning markers (unlike the Navigator view). </li>
+  <li>Remove most mentions of Odin in the documentation and plugins. </li>
+  <li>Added project derivations preference page to allow derivations to be created
+  and edited.</li>
+  <li>Added enable flag to derivations so they can be temporarily hidden without
+  requiring deletion.</li>
+  <li>All Eli file types can now be edited using the default Eclipse text editor. </li>
+</ul>
+
+<h3>1.0.2 (June 28, 2004)</h3>
+<ul>
+  <li>Wrote section introductions for the Eli documentation.</li>
+  <li>Eli nature and new Eli project wizard.</li>
+  <li>Eli context menu and toolbar support.</li>
+  <li>Basic Odin support for executing derivations.</li>
+  <li>Odin executable and cache properties/preferences.</li>
+  <li>History of derivations performed.</li>
+  <li>Command to reset project cache.</li>
+</ul>
+
+<h3>1.0.1 (Jan 5, 2004)</h3>
+
+<ul>
+  <li>Addition of some missing pieces from the initial version.</li>
+</ul>
+
+<h3>1.0.0 (Dec 2003)</h3>
+
+<ul>
+  <li>Initial version with just a help plugin containing the standard Eli
+  (from Eli version 4.4).</li>
+</ul>
+
+</body>
+</html>

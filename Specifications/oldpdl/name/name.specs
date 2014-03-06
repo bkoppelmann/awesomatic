@@ -1,0 +1,9 @@
+/* $Id: name.specs,v 1.2 1992/07/11 20:56:53 kadhim Exp $ */
+/* Specifications for PDL name analysis */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+name.pdl	/* Properties for name analysis */
+name.lido	/* Data flow properties of name analysis */
+name.c		/* Name analysis computation module */
+name.h		/* Exported definitions */
+name.head	/* Inclusion of exported definitions in global header */

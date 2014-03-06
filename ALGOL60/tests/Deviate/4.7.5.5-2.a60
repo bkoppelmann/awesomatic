@@ -1,0 +1,7 @@
+begin comment $Id: 4.7.5.5-2.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+A formal parameter whose type is Boolean restricts the corresponding
+actual parameter to be Boolean;
+
+procedure p(x); Boolean x; ;
+p(0);
+end

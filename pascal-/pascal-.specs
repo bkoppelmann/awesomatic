@@ -1,0 +1,10 @@
+/* $Id: pascal-.specs,v 1.1.1.1 1996/07/09 00:44:01 kadhim Exp $ */
+/* Specifications for the Pascal- compiler */
+
+
+Structure.fw		/* Lexical and Syntax Analysis */
+keyword.gla :kwd	/* Exclude keywords from the finite-state machine */
+Scope.fw		/* Scope Analysis */
+Type.fw			/* Type Analysis */
+Computer.fw		/* A Pascal Computer */
+Code.fw			/* Code Generation */

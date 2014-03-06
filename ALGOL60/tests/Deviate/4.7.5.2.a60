@@ -1,0 +1,8 @@
+begin comment $Id: 4.7.5.2.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+A formal parameter which occurs as a left part variable in an assignment
+statement within the procedure body and which is not called by value can
+only correspond to an actual parameter which is a variable;
+
+procedure p(x); integer x; x := 0;
+p(3);
+end

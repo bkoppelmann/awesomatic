@@ -1,0 +1,36 @@
+#! /usr/bin/env ruby
+# buildtocs
+# Build the Eclipse Help tables of contents for the EDT documentation.
+
+File.open('main_toc.xml','w+') { |toc|
+  toc.puts('<?xml version="1.0" encoding="UTF-8"?>')
+  toc.puts('<?NLS TYPE="org.eclipse.help.toc"?>')
+  toc.puts('<toc label="Eli Development User Guide">')
+  level = newlevel = 0
+  File.open('html/edtdoc.html') { |file|
+    file.each { |line|
+      if line =~ /^<h([1-4])><a name="([^)]+)"><\/a>([^<]+)<\/h[1-4]>$/ then
+        newlevel = $1.to_i
+        if newlevel == level then toc.puts('/>')
+        elsif newlevel == level + 1 then toc.puts('>')
+        elsif newlevel < level then
+          toc.print("/>\n")
+          while level > newlevel do
+            toc.print(' '*((level-1)*2-2),"</topic>\n")
+            level = level - 1
+          end
+        end
+        level = newlevel
+        toc.print(' '*(level*2-2),'<topic label="',$3,
+		  '" href="html/edtdoc.html#',$2,'"')
+      end
+    }
+  }
+  toc.puts('/>')
+  newlevel = newlevel - 1
+  while newlevel != 1
+    toc.print(' '*(newlevel*2-2),"</topic>\n")
+    newlevel = newlevel - 1
+  end
+  toc.puts('</toc>')
+}

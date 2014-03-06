@@ -1,0 +1,15 @@
+This document is an Eli specification from which an analyzer for ALGOL 60
+can be generated,
+or which can be used as one component of a complete ALGOL 60 compiler.
+Its structure mirrors that of the ALGOL 60 Revised Report,
+providing traceability and easing maintenance.
+
+The specification was originally developed in 1995 as a class project at the
+University of Colorado by
+J. Amundsen, B. D. Basham, S-C. Chiang, D. A. Ence,
+R. K. Hill, J. E. Kvamme, O. Lokkebo, H. Ma, R. S. Matthieu,
+M. T. Rupawalla and W. Wang.
+It was put into its present form while the author was a Visiting Fellow at
+Australian National University in 1996.
+A major rewrite in 2012 simplified the tree structure and updated the tree
+computations to make use of the Eli type analysis modules.

@@ -1,0 +1,7 @@
+begin comment $Id: 4.1.3-2.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+An entity represented outside a block by a local identifier is completely
+inaccessible inside the block;
+
+Boolean x;
+begin integer x; x := true; end;
+end

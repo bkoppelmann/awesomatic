@@ -1,0 +1,7 @@
+begin comment $Id: 4.7.5.4-1.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+A formal parameter which is called by value cannot correspond to a switch
+identifier;
+
+procedure p(x); value x; switch x; ;
+
+end

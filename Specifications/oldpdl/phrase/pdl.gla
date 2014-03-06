@@ -1,0 +1,9 @@
+/* $Id: pdl.gla,v 1.2 1995/04/27 03:07:22 waite Exp $ */
+/* Basic symbols and comments for the PDL compiler */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+Identifier:	C_IDENTIFIER
+String:		C_STRING_LIT
+Text:		$\{		(Ctext)		[mkidn]
+		AWK_COMMENT
+		C_COMMENT

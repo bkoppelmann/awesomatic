@@ -1,0 +1,9 @@
+begin comment $Id: 4.1.3-4.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+A label separated by a colon from a statement behaves as though declared at
+the head of the smallest embracing block.  In this context a procedure body
+must be considered as if it were enclosed by begin and end and treated as a
+block;
+
+procedure p; x: ;
+go to x;
+end

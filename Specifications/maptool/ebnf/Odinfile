@@ -1,0 +1,4 @@
+# $Id: Odinfile,v 1.1 2009/04/19 20:57:43 profw Exp $
+# Odinfile for ebnf
+
+%source == ebnf.fw :source :dir_of :vir_dir +copy_dest=(ebnf) :copy

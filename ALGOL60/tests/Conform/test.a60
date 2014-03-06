@@ -1,0 +1,19 @@
+begin
+procedure test(limit); value limit;
+integer limit; 
+
+begin 
+  integer i,j;
+  i := j := 0;
+
+ for j := 0 step 1 until limit do
+         begin
+             if (i < limit) then
+                i := limit
+             else
+                i := i+3;
+         end;
+      if (i = limit) then
+         i := limit;
+ end test;
+ end.

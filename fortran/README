@@ -1,0 +1,48 @@
+Eli specifications for Fortran.  The contents of this directory are:
+
+Specifications	Directory containing specifications for all Fortran
+		processors and documentation.  See the README file in
+		that directory for more detail.
+
+F77Tests	A collection of FORTRAN 77 test programs
+F90Tests	A collection of FORTRAN 90 test programs
+
+keywords	A processor for generating specifications from sets
+		of keywords.  Use this as a tutorial example of an
+		Eli specification, or as a tool for creating a set
+		of keywords for an extension of Fortran
+
+Odinfile	Commands that build and test several Fortran
+		processors
+
+You can request any of the following tests by invoking "eli" with the
+name of the test as its argument (e.g. "eli %try77"):
+
+%try77		Build a FORTRAN 77 "lint" program and test it by applying
+		it to all of the FORTRAN 77 programs in the test suite.
+		The executable version of the processor will be left as
+		file Specifications/f77.exe.
+
+%try90f		Build a FORTRAN 90 scanner/parser and test it by applying
+		it to all of the fixed-format FORTRAN 90 programs in the
+		test suite.  The executable version of the processor will
+		be left as file Specifications/f90.exe.
+
+%try90v		Build a FORTRAN 90 scanner/parser and test it by applying
+		it to all of the variable-format FORTRAN 90 programs in
+		the test suite.  The executable version of the processor
+		will be left as file Specifications/f90.exe.
+
+%try90i		Build a FORTRAN 90 scanner/parser and test it by applying
+		it to all of the variable-format FORTRAN 90 programs in
+		the test suite that have include files.  The executable
+		version of the processor will be left as file
+		Specifications/f90.exe.
+
+These tests will all produce nothing if they are successful.  If the
+generated processor detects errors when attempting to compile any program,
+the test will stop at that point.  The test program for which the errors
+were reported will be copied to file "input" in this directory, and the
+error reports will be written to file "ERR" in this directory.
+
+$Id: README,v 1.2 1998/01/01 00:54:05 waite Exp $

@@ -1,0 +1,40 @@
+Fortran semantic analysis specifications for Eli4.0 The contents of this
+directory are:
+
+F77Lint.specs	Specifications for the semantic analysis of FORTRAN 77
+F77Semantics.fw
+
+PrintSym.specs	Specifications for printing symbol information
+PrintSym.fw
+
+HtmlSemantics.fw Wrapper for the semantic analysis specification in HTML
+TexSemantics.fw	Wrapper for the semantic analysis specification in PostScript
+abstract.fwi	Abstract for the printed semantic analysis specification
+
+Odinfile	Commands that build some useful products
+
+You can request any of the following products by invoking "eli" with the
+name of the product as its argument (e.g. "eli f77.exe"):
+
+f77.exe		Executable "lint" program for FORTRAN 77
+
+%t		Execution of the "lint" program for FORTRAN 77 applied to
+		file "in"
+
+%p		Execution of the "lint" program for FORTRAN 77, augmented
+		with code to print symbol information, applied to file
+		"in"
+
+Semantics.html	HTML document defining the semantic analysis problem for
+		FORTRAN 77
+
+Semantics.ps	PostScript document defining the semantic analysis problem
+		for FORTRAN 77
+
+The following product should be redirected to a directory
+(e.g. "eli '%s77>src'").  It consists of all files, including a Makefile,
+needed to implement the corresponding processor:
+
+%s77		Source of a "lint" program for FORTRAN 77
+
+$Id: README,v 1.2 1998/02/03 18:44:09 waite Exp $

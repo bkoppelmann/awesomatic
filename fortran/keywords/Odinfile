@@ -1,0 +1,8 @@
+# $Id: Odinfile,v 1.2 1998/01/01 20:08:14 waite Exp $
+
+keywords.exe == keywords.fw :exe
+
+Keywd.html == HtmlKeywd.fw :fwHtml
+Keywd.ps == TexKeywd.fw :fwTex :ps
+
+%keywords.src == keywords.fw :source

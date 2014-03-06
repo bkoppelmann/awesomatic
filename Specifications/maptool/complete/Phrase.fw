@@ -1,0 +1,101 @@
+The input consists of text in three languages, plus a list of rule names:
+
+@O@<Phrase.con@>==@{@-
+Source: [Con] [Abs] [Map] [BottomUpRules] .
+
+Con: ConProd+ .
+ConProd: Identifier ':' ConAlt '.' .
+ConAlt: ConElement* .
+ConElement: Identifier /
+		Text /
+		'&' Text /
+		'@@' Identifier /
+		'@@' Text /
+		'$' Identifier /
+		'$' Text .
+
+Abs: AbsProd+ .
+AbsProd: 'RULE' Identifier ':' AbsSignature 'END' ';' .
+AbsSignature: Identifier '::=' AbsElements /
+		Identifier 'LISTOF' AbsAlts .
+AbsElements: AbsElement* .
+AbsElement: '$' Identifier / Identifier / Text .
+AbsAlts: AbsAlt // '|' .
+AbsAlt: Identifier .
+
+Map: ('MAPSYM' MapSymbol+ / 'MAPRULE' MapRule+ / MapChains)+ .
+MapSymbol: Identifier '::=' MapMembers '.' .
+MapMembers: MapMember+ .
+MapMember: Identifier .
+MapRule: MapProd MapReorder MapAbs '.' .
+MapProd: Identifier MapDelim MapAlt .
+MapDelim: ':' / '::=' .
+MapAlt: MapElement* .
+MapElement: Identifier / Text .
+MapReorder: '<' MapReorderAlt '>' .
+MapReorderAlt: (MapPosition / MapText)* .
+MapPosition: '$' Integer .
+MapText: Text .
+MapAbs: [ ':' RuleIdUse ] .
+RuleIdUse: Identifier .
+MapChains: 'MAPCHAINS' .
+
+BottomUpRules: '$BOTTOMUP' BottomUpRule* .
+BottomUpRule: Identifier .
+@}
+
+Identifiers and text are the same in all three of the input languages;
+integers are distinguished only in mapping rules.
+C comments can appear in the text, but the input is composed by cpp and
+therefore contains line directives that take the form of awk comments:
+
+@O@<Phrase.gla@>==@{@-
+Identifier:	C_IDENTIFIER
+Text:		$' (auxPascalString) [mkidn]
+Integer:	PASCAL_INTEGER
+		C_COMMENT
+		AWK_COMMENT
+@}
+
+The overall structure of each of the input components is irrelevant for the
+mapping.
+Thus we remove it in the abstract syntax by treating the source as a list
+of the relevant elements, regardless of language:
+
+@O@<Phrase.lido@>==@{@-
+RULE: Source LISTOF ConProd | AbsProd |
+                    MapSymbol | MapRule | MapChains |
+                    BottomUpRule END;
+RULE: ConAlt LISTOF ConElement END;
+RULE: AbsElements LISTOF AbsElement END;
+RULE: AbsAlts LISTOF AbsAlt END;
+RULE: MapMembers LISTOF MapMember END;
+RULE: MapAlt LISTOF MapElement END;
+RULE: MapReorderAlt LISTOF MapPosition | MapText END;
+
+RULE: ConLHS    ::= Identifier END;
+RULE: AbsRuleId ::= Identifier END;
+RULE: MaptoId   ::= Identifier END;
+
+ATTR Sym: int SYNT;
+SYMBOL IdentOcc COMPUTE SYNT.Sym = TERM; END;
+
+SYMBOL ConLHS       INHERITS IdentOcc, IdDefScope END;
+SYMBOL ConElement   INHERITS IdentOcc, IdDefScope END;
+SYMBOL AbsRuleId    INHERITS IdentOcc, IdDefScope END;
+SYMBOL AbsLHS       INHERITS IdentOcc, IdDefScope END;
+SYMBOL AbsElement   INHERITS IdentOcc, IdDefScope END;
+SYMBOL AbsAlt       INHERITS IdentOcc, IdDefScope END;
+SYMBOL MaptoId      INHERITS IdentOcc, IdDefScope END;
+SYMBOL MapLHS       INHERITS IdentOcc, IdUseEnv   END;
+SYMBOL MapMember    INHERITS IdentOcc, IdUseEnv   END;
+SYMBOL MapElement   INHERITS IdentOcc, IdUseEnv   END;
+SYMBOL MapText      INHERITS IdentOcc, IdDefScope END;
+SYMBOL RuleIdUse    INHERITS IdentOcc, IdUseEnv   END;
+SYMBOL BottomUpRule INHERITS IdentOcc, IdUseEnv   END;
+@}
+
+@O@<Phrase.specs@>==@{@-
+$/Name/AlgScope.gnrc :inst
+$/Prop/PropLib.fw
+@}

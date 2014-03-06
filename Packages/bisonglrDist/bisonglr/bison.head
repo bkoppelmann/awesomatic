@@ -1,0 +1,6 @@
+/* bison.head */
+#define STOPAFTERBADPARSE
+/* since the bison parser stops after the first
+   syntax error. so normally we don't have a 
+   reasonable structure tree for semantic analysis
+*/

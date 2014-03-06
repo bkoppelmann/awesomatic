@@ -1,0 +1,43 @@
+# $Id: Odinfile,v 1.1.1.1 2008/09/12 17:32:11 profw Exp $
+# Derive a Java processor
+
+%current == %Java.specs +debug +monitor +cc=gcc #+printtokens
+
+%Tree.specs == <<
+  Phrase.fw
+  FileStorage.fw
+  Tree.fw
+
+%Analysis.specs == <<
+  %Tree.specs
+  Name.fw
+  Type.fw
+
+%Java.specs == <<
+  Math.fw
+  %Analysis.specs
+  Context.fw
+
+%PDF.tex.vtd == <<
+  %base.tex  == wrapper.tex
+  %title.tex == title.tex
+  %toc.tex   == toc.tex
+  %parse.tex == Phrase.fw +chapter :fwTex
+  %ast.tex   == Tree.fw   +chapter :fwTex
+  %name.tex  == Name.fw   +chapter :fwTex
+  %type.tex  == Type.fw   +chapter :fwTex
+  %context.tex  == Context.fw   +chapter :fwTex
+  %file.tex  == FileStorage.fw   +chapter :fwTex
+  %tdbg.tex  == DebugName.fw   +chapter :fwTex
+
+elijava  == %current:exe
+Java.pdf == %PDF.tex.vtd +latex :pdf
+%source  == %current :source
+
+%Debug.specs == <<
+  %Java.specs
+  DebugName.fw
+  %Error.init
+
+%Error.init == <<
+  ErrorInit(1, 0, 0);

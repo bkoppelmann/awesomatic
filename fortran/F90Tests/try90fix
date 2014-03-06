@@ -1,0 +1,28 @@
+#! /bin/sh
+# $Id: try90fix,v 1.3 1996/04/17 03:33:19 waite Exp $
+# Test an Eli-generated FORTRAN 90 processor on fixed format input
+
+if test $# -lt 1 -o $# -gt 2
+then
+	echo "Usage: $0 dir [compiler]"
+	exit 1
+fi
+
+if test ! -d $1
+then
+	echo "Usage: $0 dir [compiler]"
+	exit 1
+fi
+
+for f in `ls $1/*.f90`
+do
+	rm -f ERRS
+	${2-./f.exe} -f -I$1 $f > ERRS 2>&1
+	if test -s ERRS
+	then
+		cp $f input
+		echo "Errors detected in $f"
+		echo "$f copied to \"input\""
+		exit 1
+	fi
+done

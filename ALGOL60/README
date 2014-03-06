@@ -1,0 +1,44 @@
+Eli specification implementing the "Revised Report on the Algorithmic
+Language ALGOL 69" (Communications of the Association for Computing
+Machinery, 6 (January, 1963) 1-17).  This example shows how an executable
+specification can be written to parallel a language standard, enhancing the
+verifiability of the resulting compiler.
+
+The contents of this directory are:
+
+ALGOL60.fw		The ALGOL 60 specification
+
+HtmlALGOL60.fw	Wrapper for the specification in HTML
+TexALGOL60.fw	Wrapper for the specification in PostScript
+abstract.fwi	Abstract for the printed specification
+
+tests		A collection of ALGOL 60 test programs
+
+Odinfile	Commands that build some useful products
+
+You can request any of the following products by invoking "eli" with the
+name of the product as its argument (e.g. "eli a60"):
+
+a60		Executable processor for ALGOL 60
+
+%source		All files, including a Makefile, needed to implement the
+		ALGOL 60 processor independent of Eli.  This product should
+		be redirected to a directory (e.g. "eli '%source>src'").
+
+a60.html	Formatted specification with hyperlinks
+a60.pdf		Formatted specification for printing
+
+%lint		Build a ALGOL 60 processor and test it by applying it to all
+		of the ALGOL 60 programs in the test suite.  The executable
+		version of the processor will be left as file "a60" in
+		this directory.
+
+		These tests will all produce nothing if they are successful.
+		If the generated processor detects errors when attempting to
+		compile any conforming program, or fails to detect errors in
+		any deviating program, the test will stop at that point.
+		The test program for which the errors were reported will be
+		copied to file "input" in this directory, and the error
+		reports will be written to file "ERR" in this directory.
+
+$Id: README,v 1.4 2012/11/28 21:15:25 profw Exp $

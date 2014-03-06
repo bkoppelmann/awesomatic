@@ -1,0 +1,50 @@
+@A@<Check the set of types defined in a compilation@>
+
+This is a debugging aid for the development of the Java specification.
+It outputs the fully-qualified names of all types defined during the
+compilation to @{stdout@}.
+
+@O@<checktypes.lido@>==@{
+SYMBOL Goal COMPUTE
+  PrintTypes(THIS.PkgEnv) BOTTOMUP;
+END;
+
+SYMBOL TypeDeclarationsOpt COMPUTE
+  PrintTypes(THIS.TypEnv) BOTTOMUP;
+END;
+@}
+
+@O@<checktypes.h@>==@{
+#ifndef CHECKTYPES_H
+#define CHECKTYPES_H
+
+#include "Java.h"
+
+extern void PrintTypes ELI_ARGS((Environment));
+
+#endif
+@}
+
+@O@<checktypes.c@>==@{
+#include <stdio.h>
+#include "checktypes.h"
+#include "envmod.h"
+#include "csm.h"
+
+void
+#ifdef PROTO_OK
+PrintTypes(Environment e)
+#else
+PrintTypes(e) Environment e;
+#endif
+{ Scope s;
+  printf("Types defined:\n");
+  for (s = DefinitionsOf(e); s; s = NextDefinition(s)) {
+    printf("%s\n", StringTable(IdnOf(s)));
+  }
+}
+@}
+
+@O@<checktypes.HEAD.phi@>==@{
+#include "checktypes.h"
+@}

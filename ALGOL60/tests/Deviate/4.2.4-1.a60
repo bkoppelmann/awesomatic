@@ -1,0 +1,7 @@
+begin comment $Id: 4.2.4-1.a60,v 1.2 2012/11/28 21:15:26 profw Exp $
+The type associated with all variables and procedure identifiers of a left
+part list must be the same;
+
+integer i; Boolean b; i := b := false;
+
+end

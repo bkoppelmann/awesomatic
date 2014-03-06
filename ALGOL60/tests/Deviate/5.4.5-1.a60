@@ -1,0 +1,7 @@
+begin comment $Id: 5.4.5-1.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+Formals must be declared in the specification part;
+
+integer x;
+procedure p(x); integer y; ;
+
+end

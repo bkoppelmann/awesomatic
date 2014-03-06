@@ -1,0 +1,13 @@
+This document describes the semantic analysis problem for FORTRAN 77.
+It is a part of an Eli specification from which a compiler for FORTRAN 77
+can be generated.
+
+Only the semantic analysis task (determining the properties of all
+entities appearing in a program and decorating the abstract syntax tree)
+is covered in this document.
+Modules specifying the lexical and syntactic analysis tasks are also
+available, and can be combined with this module to specify a processor that
+extracts symbol information from FORTRAN 77 programs.
+These specifications can also be used as the basis for processors that
+derive metrics characterizing FORTRAN 77 programs, convert FORTRAN 77
+programs into programs in other languages, or implement extensions.

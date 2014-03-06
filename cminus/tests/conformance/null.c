@@ -1,0 +1,5 @@
+int
+null(float x)
+{
+   ;
+}

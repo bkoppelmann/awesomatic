@@ -1,0 +1,380 @@
+@=~
+
+~A~<A Pascal Computer~>
+
+The Pascal computer is an operational definition of the model of
+computation underlying Pascal-.
+It is an abstract machine with a memory,
+a ~/base register~/ capable of addressing that memory,
+and a processor.
+The processor has an internal stack, and is capable of executing a sequence
+of operations that
+evaluate expressions,
+transmit values between the processor stack and memory,
+transmit values to and from an external device,
+and control the sequence of execution.
+
+Any program written in Pascal- can be expressed, without loss of
+information, as a program for the Pascal computer.
+This chapter describes the components of the model of computation defined
+by the Pascal computer, and shows how its operations are expressed as
+symbolic instructions.
+
+~B
+
+Variables in Pascal- exist only during an activation of the procedure in
+which they are declared.
+An ~/activation record~/ is defined for each procedure, and each time that
+procedure is invoked storage for a new instance of its activation record is
+allocated dynamically.
+When the procedure returns, the storage is freed.
+Each variable declared in a procedure becomes a field in the activation
+record for that procedure, and is accessed relative to the beginning of the
+activation record.
+Operations that access a variable must therefore specify two pieces of
+information: the address of the activation record holding that variable and
+the displacement of the variable's storage from the beginning of that
+activation record.
+The displacement of a variable's storage is known at compile time, because
+the compiler maps the variables declared in a procedure into fields in the
+activation record for that procedure.
+Because the activation records themselves are allocated dynamically,
+however, their addresses are not known until the program is executed.
+
+The scope rules of Pascal- guarantee that the only variables that can be
+accessed directly are those in the currently-executing procedure and any
+procedures containing the declaration of the currently-executing procedure.
+By convention, the base register of the Pascal- computer always holds the
+address of the activation record of the currently-executing procedure.
+In addition to the fields representing variables of the procedure, each
+activation record has a field called the ~/static chain~/ that represents
+the address of the activation record for the procedure in which the
+currently-executing procedure was declared.
+Therefore the address of any activation record can be found by starting at
+the activation record addressed by the base register and following the
+static chain a specific number of steps.
+The number of steps can be determined by the compiler: if the variable is
+local to the current procedure, 0 steps are required; if it is local to the
+procedure containing the current procedure's definition, 1 step is
+required, and so forth.
+
+Three operations are defined to place variable and parameter addresses
+onto the processor's stack:
+
+~$~<Variable access~>==~{
+Variable:
+  "Variable(" $/*Static chain steps*/ "," $/*Displacement*/ ")\n"
+
+ValParam:
+  "ValParam(" $/*Static chain steps*/ "," $/*Displacement*/ ")\n"
+
+VarParam:
+  "VarParam(" $/*Static chain steps*/ "," $/*Displacement*/ ")\n"
+
+~<Array element and record field access~>
+~}
+
+~{Variable~} obtains the address of the local activation record from the
+base register, follows the static chain the specified number of steps to
+find the address of the activation record containing the desired variable,
+and adds the specified displacement.
+The result, which is the address of the variable, is pushed onto the
+processor's stack.
+
+Parameters and variables are stored in different parts of the activation
+record, and therefore their displacements are interpreted differently.
+~{ValParam~} behaves like ~{Variable~}, except that it interprets the
+displacement as a parameter displacement rather than a variable
+displacement.
+
+The activation record field representing a variable parameter
+contains the address of the variable rather than its value.
+~{VarParam~} thus behaves like ~{ValParam~} except that instead of pushing
+the sum of the activation record address and the displacement onto the
+stack it pushes the contents of the field addressed by that sum.
+
+Brinch-Hansen does not provide a distinct ~{ValParam~} operation in his
+description of the Pascal computer.
+Instead, he fixes the relationship between the parameter and variable
+storage areas of the activation record and uses ~{Variable~} to access
+both.
+This tactic violates a basic rule of modularity: encapsulate design
+decisions that may change.
+A Pascal computer is an abstraction that must be realized on a variety of
+different real machines, and the layout of an activation record is
+something that depends strongly on the machine.
+
+Addresses of array elements and record fields must be computed in two
+steps, because the array or record itself might be a variable parameter.
+The first step places the address of the array or record onto the stack,
+the second uses the appropriate displacement to compute the address of the
+element or field.
+(In the case of an indexed reference, the value of the subscript expression
+is computed and placed on the stack before the second step.)
+
+~$~<Array element and record field access~>==~{
+Index:
+  $/*Indexed variable*/
+  $/*Index expression*/
+  "Index(" $/*Lower*/ "," $/*Upper*/ "," $/*Length*/ "," $/*Line*/ ")\n"
+
+Field:
+  $/*Record variable*/
+  "Field(" $/*Displacement*/ ")\n"
+~}
+
+~{Index~} first removes the address of the array variable and the value of
+the subscript expression from the processor's stack.
+If the subscript value is not in bounds, ~{Index~} reports an error at the
+specified source line.
+Otherwise it subtracts the value of the lower bound and multiplies by the
+length of an element to obtain the relative address of the element.
+This relative address is added to the address of the indexed variable and
+the result is pushed onto the processor's stack.
+
+~{Field~} removes the address of the record variable from the processor's
+stack, adds the specified displacement, and pushes the result.
+
+~B
+
+An expression may be a constant, the value of a variable, or a computation
+involving the values of other expressions.
+In each case, the process of expression evaluation leads to a value on the
+processor's stack.
+
+~$~<Expression evaluation~>==~{
+Constant:
+  "Constant(" $/*Integer*/ ")\n"
+
+Value:
+  $/*Variable address*/
+  "Value(" $/*Number of memory locations*/ ")\n"
+
+~<Computation~>
+~}
+
+~{Constant~} simply pushes the specified value onto the stack.
+~{Value~} first removes the address of the variable from the stack and then
+pushes the specified number of memory locations, starting at that address.
+
+There are two kinds of computation in Pascal-, those having one operand and
+those having two.
+In each case the operation removes the appropriate number of values from
+the processor's stack, uses them to compute a single result, and then pushes
+that result onto the processor's stack.
+
+~$~<Monadic~>~(~2~)~M==~{
+~1:
+  $/*Expression*/
+  "~2\n"
+~}
+
+~$~<Dyadic~>~(~2~)~M==~{
+~1:
+  $/*Expression*/
+  $/*Expression*/
+  "~2\n"
+~}
+
+~$~<Computation~>==~{
+~<Dyadic~>~(Lss~,Less~)
+~<Dyadic~>~(Leq~,NotGreater~)
+~<Dyadic~>~(Gtr~,Greater~)
+~<Dyadic~>~(Geq~,NotLess~)
+~<Dyadic~>~(Equ~,Equal~)
+~<Dyadic~>~(Neq~,NotEqual~)
+Nop:
+  $/*Expression*/
+
+~<Dyadic~>~(Add~,Add~)
+~<Dyadic~>~(Sub~,Subtract~)
+~<Dyadic~>~(Mul~,Multiply~)
+~<Dyadic~>~(Div~,Divide~)
+~<Dyadic~>~(Mod~,Modulo~)
+~<Monadic~>~(Neg~,Minus~)
+
+~<Dyadic~>~(And~,And~)
+~<Dyadic~>~(Or~,Or~)
+~<Monadic~>~(Not~,Not~)
+~}
+
+~B
+
+The simplest statements are those that transmit information between the
+processor, the memory and the external device.
+They consist of single processor operations, whereas control statements
+consist of sequences of processor operations.
+
+~$~<Statement execution~>==~{
+AssignmentStatement:
+  $/*Variable address*/
+  $/*Expression value*/
+  "Assign(" $/*Length*/ ")\n"
+
+ReadStatement:
+  $/*Variable address*/
+  "Read\n"
+
+WriteStatement:
+  $/*Expression value*/
+  "Write\n"
+
+~<Control statements~>
+~}
+
+~{AssignmentStatement~} stores the contents of a specified number of
+elements from the processor stack at a specified location in memory.
+Both the elements and the address are removed from the stack.
+~{ReadStatement~} removes the variable address from the processor's stack
+and reads a single integer value from the external device
+into that address in memory.
+~{WriteStatement~} removes a single integer from the processor's stack
+and writes it to the external device.
+
+Control statements use results obtained by the processor to control the
+execution sequence.
+Normally, operations are executed in the order in which they are given.
+Two operations, ~{Do~} and ~{Goto~}, are used to alter the normal order.
+Each of these operations nominates a specific operation to be executed next.
+They do so by giving a name.
+Names are associated with operations by the pseudo-operation ~{DefAddr~}.
+~{DefAddr~} associates the specified name with the next operation in the
+sequence.
+A sequence of ~{DefAddr~} pseudo-operations is allowed; in that case
+~/all~/ of the names are associated with the operation following the
+sequence of pseudo-operations.
+
+~{Do~} removes one element from the processor's stack.
+If that element's value is 0, then the next operation executed will be the
+operation whose name is specified by the ~{Do~} operation.
+Otherwise the next operation executed will be the next in sequence.
+
+The operation executed after a ~{Goto~} operation will always be the
+operation whose name is specified by the ~{Goto~} operation.
+
+~$~<Control statements~>==~{
+WhileStatement:
+  "DefAddr(L" $1/*Label*/ ")\n"
+  $2/*Expression*/
+  "Do(L" $4/*Label*/ ")\n"
+  $3/*Statement*/
+  "Goto(L" $1 ")\n"
+  "DefAddr(L" $4/*Label*/ ")\n"
+
+OneSided:
+  $1/*Expression*/
+  "Do(L" $3/*Label*/ ")\n"
+  $2/*Statement*/
+  "DefAddr(L" $3/*Label*/ ")\n"
+
+TwoSided:
+  $1/*Expression*/
+  "Do(L" $3/*Label*/ ")\n"
+  $2/*Statement*/
+  "Goto(L" $5 ")\n"
+  "DefAddr(L" $3/*Label*/ ")\n"
+  $4/*Statement*/
+  "DefAddr(L" $5/*Label*/ ")\n"
+~}
+
+~B
+
+Each procedure consists of a sequence of operations.
+Before executing these operations, a new activation record must be
+established for the procedure.
+The size of the parameter and variable storage areas in the activation
+record, and the amount of storage required by the procedure on the
+processor's stack are all known to the compiler.
+If the processor's stack does not have enough free storage,
+the ~{Procedure~} operation terminates execution of the program
+and reports an error at the source program line containing the procedure
+definition.
+
+In addition to allocating storage for the activation record, the field
+representing the static chain must be set to address the activation record
+of the procedure in which the new procedure was declared.
+This address is not known to the compiler, and must be supplied at run time
+by the ~{ProcCall~} operation.
+The procedure being called must be visible to the calling procedure,
+because Pascal- only allows direct calls (there are no procedure-valued
+variables or parameters).
+Because the called procedure is visible, the activation record of the
+procedure in which the called procedure is defined can be found by stepping
+along the static chain, and the compiler can determine the number of steps
+required.
+
+Before calling a procedure, the caller places the procedure's argument
+values onto the processor's stack in order from left to right.
+On return, the procedure deletes these values from the processor's stack.
+
+~$~<Procedure activation~>==~{
+ProcedureDefinition:
+  $6/*Nested procedure definitions*/
+  "Procedure(" $1/*Parameter size*/ "," $2/*Local size*/
+    "," $3/*Temp size*/ ",L" $4/*Label*/ "," $5/*Line*/ ")\n"
+  $7/*Statements*/
+  "EndProc(" $1/*Parameter size*/ ")\n"
+
+ProcedureStatement:
+  $/*Arguments*/
+  "ProcCall(" $/*Static chain steps*/ ",L" $/*Label*/ ")\n"
+
+~}
+
+Nested procedure definitions are separated in the Pascal- computer code
+because the only effect of procedure nesting in Pascal- is to provide
+scopes for variables.
+Once the variable accesses have been expressed in terms of activation
+records, the procedure nesting is redundant.
+
+~B
+
+A complete program acts like a procedure called by some external agency.
+It needs no name, however, because the operator that begins it is unique
+(~{Program~} rather than ~{Procedure~}).
+Also, because a program has no arguments, program termination does not
+require anything to be removed from the processor's stack.
+
+~$~<Program execution~>==~{
+Program:
+  "Program(" $/*AR size*/ "," $/*Temp size*/ "," $/*Line*/ ")\n"
+   $/*Statements*/
+   "EndProg\n"
+~}
+
+~B
+
+The fundamental relationship among the operations of the Pascal- computer
+is the sequence: one operation following another.
+Because execution begins with the program, its operations appear at the
+beginning of the program text.
+
+In order to facilitate testing of the compiler, the program for the Pascal
+computer is considered to be a sequence of C pre-processor macro calls.
+Each operation is defined by a C pre-processor macro, and these definitions
+are provided by including them in the program text when it is provided to
+the C compiler.
+
+~$~<Code syntax~>==~{
+Sequence:
+  $ $
+
+Text:
+  "#include \"pascal.h\"\n\n"
+  $/*Program text*/
+  $/*Procedure bodies*/
+~}
+
+~B~<Specification file for symbolic machine code~>
+
+Templates for producing structured output are specified in a type-~{ptg~}
+file.
+
+~O~<computer.ptg~>~{
+~<Variable access~>
+~<Expression evaluation~>
+~<Statement execution~>
+~<Procedure activation~>
+~<Program execution~>
+~<Code syntax~>
+~}

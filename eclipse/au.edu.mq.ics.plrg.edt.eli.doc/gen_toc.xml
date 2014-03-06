@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?NLS TYPE="org.eclipse.help.toc"?>
+<toc label="Eli Documentation" href="html/index.html">
+  <topic label="General information" href="html/gen.html">
+    <topic label="Frequently Asked Questions and Answers" href="html/faq_toc.html">
+      <topic label="Where to Find Eli Locally" href="html/faq_1.html#SEC1"/>
+      <topic label="How to Interact with Eli" href="html/faq_2.html#SEC2">
+        <topic label="Why is my cache so big?" href="html/faq_2.html#SEC3"/>
+        <topic label="How do I get new or improved components?" href="html/faq_2.html#SEC4"/>
+        <topic label="Is the file `.odinrc' still read?" href="html/faq_2.html#SEC5"/>
+        <topic label="Eli didn't notice that I changed my input file!" href="html/faq_2.html#SEC6"/>
+      </topic>
+      <topic label="Problems Reported by Implementors" href="html/faq_3.html#SEC7">
+        <topic label="Eli reports Remote IPC not available on this host" href="html/faq_3.html#SEC8"/>
+        <topic label="Eli reports Cannot connect to Odin server" href="html/faq_3.html#SEC9"/>
+        <topic label="Requirements of Eli" href="html/faq_3.html#SEC10"/>
+        <topic label="What restrictions are placed on the Usage of Eli?" href="html/faq_3.html#SEC11"/>
+        <topic label="Configuration does not find the X-Window-System." href="html/faq_3.html#SEC12"/>
+      </topic>
+      <topic label="Using Specifications Developed with Earlier Versions" href="html/faq_4.html#SEC13">
+        <topic label="Eli doesn't find module include files any more" href="html/faq_4.html#SEC14"/>
+        <topic label="Migrating the usage of Module IdPtg" href="html/faq_4.html#SEC15"/>
+        <topic label="Why does C_STRING_LIT not use c_mkstr?" href="html/faq_4.html#SEC16"/>
+      </topic>
+      <topic label="How to solve common problems in Eli" href="html/faq_5.html#SEC17">
+        <topic label="Is there Support for Intermediate Code in Eli?" href="html/faq_5.html#SEC18"/>
+        <topic label="C++" href="html/faq_5.html#SEC19"/>
+        <topic label="How does recognition of delimiters work in Eli?" href="html/faq_5.html#SEC20"/>
+        <topic label="How can I use external libraries with Eli?" href="html/faq_5.html#SEC21"/>
+      </topic>
+      <topic label="Index" href="html/faq_6.html#SEC22"/>
+    </topic>
+    <topic label="Eli System Administration Guide" href="html/sysadmin_toc.html">
+      <topic label="Installing Eli" href="html/sysadmin_1.html#SEC1"/>
+      <topic label="Procedure for reporting a problem with Eli" href="html/sysadmin_2.html#SEC2"/>
+      <topic label="Index" href="html/sysadmin_3.html#SEC3"/>
+    </topic>
+    <topic label="New Features of Eli Version 4.4" href="html/news4.4_toc.html">
+      <topic label="Eli can now run under Windows" href="html/news4.4_1.html#SEC1"/>
+      <topic label="New functionality for unparser generation" href="html/news4.4_2.html#SEC2"/>
+      <topic label="Eli-generated code as a component" href="html/news4.4_3.html#SEC3"/>
+      <topic label="Name analysis for declarators as in C" href="html/news4.4_4.html#SEC4"/>
+      <topic label="Scope Properties without Ordering Restrictions" href="html/news4.4_5.html#SEC5"/>
+      <topic label="Index" href="html/news4.4_6.html#SEC6"/>
+    </topic>
+    <topic label="New Features of Eli Version 4.3" href="html/news4.3_toc.html">
+      <topic label="Specification Module Library" href="html/news4.3_1.html#SEC1">
+        <topic label="Name Analysis Library" href="html/news4.3_1.html#SEC2"/>
+        <topic label="Abstract Data Types" href="html/news4.3_1.html#SEC3"/>
+        <topic label="Property Library" href="html/news4.3_1.html#SEC4"/>
+        <topic label="Solutions of Common Problems" href="html/news4.3_1.html#SEC5"/>
+      </topic>
+      <topic label="Lexical analysis" href="html/news4.3_2.html#SEC6">
+        <topic label="Detecting lexical errors explicitly" href="html/news4.3_2.html#SEC7"/>
+        <topic label="Scanning to, but not including, a newline" href="html/news4.3_2.html#SEC8"/>
+        <topic label="Auxiliary scanner and token processor definitions" href="html/news4.3_2.html#SEC9"/>
+        <topic label="Processing NUL characters during lexical analysis" href="html/news4.3_2.html#SEC10"/>
+      </topic>
+      <topic label="Definition table" href="html/news4.3_3.html#SEC11"/>
+      <topic label="Oil" href="html/news4.3_4.html#SEC12"/>
+      <topic label="Change in tree parser naming conventions" href="html/news4.3_5.html#SEC13"/>
+      <topic label="FunnelWeb" href="html/news4.3_6.html#SEC14"/>
+      <topic label="Monitoring" href="html/news4.3_7.html#SEC15">
+        <topic label="Monitoring products" href="html/news4.3_7.html#SEC16"/>
+        <topic label="Main window command changes" href="html/news4.3_7.html#SEC17"/>
+        <topic label="Trees" href="html/news4.3_7.html#SEC18"/>
+        <topic label="Attributes" href="html/news4.3_7.html#SEC19"/>
+        <topic label="File and handlers windows" href="html/news4.3_7.html#SEC20"/>
+        <topic label="Monitoring user-defined types" href="html/news4.3_7.html#SEC21"/>
+        <topic label="Configuring Noosa" href="html/news4.3_7.html#SEC22"/>
+      </topic>
+      <topic label="Index" href="html/news4.3_8.html#SEC23"/>
+    </topic>
+    <topic label="New Features of Eli Version 4.2" href="html/news4.2_toc.html">
+      <topic label="New FunnelWeb Typesetter Support" href="html/news4.2_1.html#SEC1"/>
+      <topic label="New token processor lexerr" href="html/news4.2_2.html#SEC2"/>
+      <topic label="OIL" href="html/news4.2_3.html#SEC3"/>
+      <topic label="Tree Parsing" href="html/news4.2_4.html#SEC4"/>
+      <topic label="ModLib" href="html/news4.2_5.html#SEC5"/>
+      <topic label="Caution Needed in Specifying a Compiler" href="html/news4.2_6.html#SEC6"/>
+      <topic label="Index" href="html/news4.2_7.html#SEC7"/>
+    </topic>
+    <topic label="New Features of Eli Version 4.1" href="html/news4.1_toc.html">
+      <topic label="LIDO Language and Liga System" href="html/news4.1_1.html#SEC1">
+        <topic label="CONSTITUENTS Restrictions Removed" href="html/news4.1_1.html#SEC2"/>
+        <topic label="CHAIN in Empty Rules" href="html/news4.1_1.html#SEC3"/>
+        <topic label="Grammar Root Symbol" href="html/news4.1_1.html#SEC4"/>
+        <topic label="Right-Hand Side Access" href="html/news4.1_1.html#SEC5"/>
+        <topic label="Bottom-up Evaluation" href="html/news4.1_1.html#SEC6"/>
+      </topic>
+      <topic label="Specification Module Library" href="html/news4.1_2.html#SEC7">
+        <topic label="Environment Module Enhancements" href="html/news4.1_2.html#SEC8"/>
+        <topic label="Module for Testing Name Analysis" href="html/news4.1_2.html#SEC9"/>
+        <topic label="Module ChainPtg obsolete" href="html/news4.1_2.html#SEC10"/>
+        <topic label="Module Sort added" href="html/news4.1_2.html#SEC11"/>
+        <topic label="Module Separator added" href="html/news4.1_2.html#SEC12"/>
+        <topic label="Instanciation of Modules with Filenames" href="html/news4.1_2.html#SEC13"/>
+      </topic>
+      <topic label="Command-line processing" href="html/news4.1_3.html#SEC14"/>
+      <topic label="Monitoring" href="html/news4.1_4.html#SEC15"/>
+      <topic label="Abstract Syntax Tree Unparsing" href="html/news4.1_5.html#SEC16"/>
+      <topic label="FunnelWeb Output Specification" href="html/news4.1_6.html#SEC17"/>
+      <topic label="Miscellaneous" href="html/news4.1_7.html#SEC18">
+        <topic label="Profile Support dropped" href="html/news4.1_7.html#SEC19"/>
+        <topic label="New Specification file-type eta" href="html/news4.1_7.html#SEC20"/>
+      </topic>
+      <topic label="Index" href="html/news4.1_8.html#SEC21"/>
+    </topic>
+    <topic label="New Features of Eli4.0" href="html/news4.0_toc.html">
+      <topic label="Changes to the Eli User-Interface" href="html/news4.0_1.html#SEC1"/>
+      <topic label="Lido News for Eli 4.0" href="html/news4.0_2.html#SEC2">
+        <topic label="Terminals" href="html/news4.0_2.html#SEC3"/>
+        <topic label="TRANSFER" href="html/news4.0_2.html#SEC4"/>
+        <topic label="Separators" href="html/news4.0_2.html#SEC5"/>
+        <topic label="Bottom-Up Evaluation" href="html/news4.0_2.html#SEC6"/>
+        <topic label="CLASS and TREE SYMBOLS" href="html/news4.0_2.html#SEC7"/>
+        <topic label="LIGAPragma" href="html/news4.0_2.html#SEC8"/>
+        <topic label="Terminals in LISTOF productions" href="html/news4.0_2.html#SEC9"/>
+        <topic label="DEPENDS_ON" href="html/news4.0_2.html#SEC10"/>
+        <topic label="LINE, COL, COORDREF" href="html/news4.0_2.html#SEC11"/>
+        <topic label="Chain Productions" href="html/news4.0_2.html#SEC12"/>
+        <topic label="Type Definitions" href="html/news4.0_2.html#SEC13"/>
+        <topic label="Separated CHAINSTART" href="html/news4.0_2.html#SEC14"/>
+        <topic label="LIDO Tokens" href="html/news4.0_2.html#SEC15"/>
+      </topic>
+      <topic label="Changes in Specification Module Library" href="html/news4.0_3.html#SEC16">
+        <topic label="General Modifications" href="html/news4.0_3.html#SEC17"/>
+        <topic label="New Modules" href="html/news4.0_3.html#SEC18"/>
+        <topic label="Modified Modules" href="html/news4.0_3.html#SEC19"/>
+      </topic>
+      <topic label="New specification types in PTG" href="html/news4.0_4.html#SEC20"/>
+      <topic label="New interface to monitoring" href="html/news4.0_5.html#SEC21"/>
+      <topic label="New command-line processing features" href="html/news4.0_6.html#SEC22"/>
+      <topic label="Index" href="html/news4.0_7.html#SEC23"/>
+    </topic>
+    <topic label="Global Index" href="html/gindex_toc.html">
+      <topic label="Global Index" href="html/gindex_1.html#SEC1"/>
+    </topic>
+  </topic>
+</toc>

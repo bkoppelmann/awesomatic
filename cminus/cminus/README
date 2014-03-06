@@ -1,0 +1,21 @@
+A definition of the C-- language defined by Waite in his book
+"An Introduction to Compiler Construction".  The contents of this
+directory are:
+
+cminus.fw	Specification of the C-- language
+paper.fw	Specification of a paper about the C-- language that
+		appeared in the February, 1993 issue of SIGPLAN Notices
+mac		Macros used in printing the paper with TeX
+Odinfile	Commands that build products as described below.
+
+You can request any of the following products by invoking "eli" with the
+name of the test as its argument (e.g. "eli cminus.exe"):
+
+cminus.exe	A "lint" processor for C-- programs
+
+%source		A source directory from which the "lint" processor for C--
+		programs can be implemented independent of Eli
+
+sigplan.tex	A TeX file for the paper
+
+$Id: README,v 1.1 1996/04/30 19:51:39 waite Exp $

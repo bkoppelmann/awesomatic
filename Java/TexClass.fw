@@ -1,0 +1,49 @@
+@p typesetter = tex
+
+% Sectioning
+\def\fwseca#1#2{\section{#2}}
+\def\fwsecb#1#2{\subsection{#2}}
+\def\fwsecc#1#2{\subsubsection{#2}}
+\def\fwsecd#1#2{\paragraph{#2}}
+\def\fwsece#1#2{\subparagraph{#2}}
+
+
+% The "new_page" pragma.
+\def\fwnewpage{\newpage}
+
+% The "vskip Nmm" pragma.
+\def\fwvskip#1{\vspace #1mm}
+
+\documentstyle[twoside]{article}
+
+% US letter - 8 1/2 x 11 in
+%\setlength{\textwidth}{7.0in}
+%\setlength{\oddsidemargin}{-0.0in}
+%\setlength{\evensidemargin}{-0.5in}
+
+% A4 - 211 x 297 mm
+\setlength{\textwidth}{173mm}
+\setlength{\oddsidemargin}{0mm}
+\setlength{\evensidemargin}{-12mm}
+\setlength{\topmargin}{0mm}
+\setlength{\headheight}{5mm}
+\setlength{\headsep}{7mm}
+\setlength{\textheight}{235mm}
+
+\begin{document}
+
+\title{The class File Format}
+\author{W. M. Waite}
+\maketitle
+
+\begin{abstract}
+@i class.fwi
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+@i Class.fw
+
+\end{document}

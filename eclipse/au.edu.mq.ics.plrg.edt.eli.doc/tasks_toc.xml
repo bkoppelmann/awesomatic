@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?NLS TYPE="org.eclipse.help.toc"?>
+<toc label="Eli Documentation" href="html/index.html">
+  <topic label="Translation tasks" href="html/tasks.html">
+    <topic label="Lexical Analysis" href="html/lex_toc.html">
+      <topic label="Specifications" href="html/lex_1.html#SEC1">
+        <topic label="Regular Expressions" href="html/lex_1.html#SEC2">
+          <topic label="Matching operator characters" href="html/lex_1.html#SEC3"/>
+          <topic label="Character classes" href="html/lex_1.html#SEC4"/>
+          <topic label="Building complex regular expressions" href="html/lex_1.html#SEC5"/>
+          <topic label="What happens if the specification is ambiguous?" href="html/lex_1.html#SEC6"/>
+        </topic>
+        <topic label="Auxiliary Scanners" href="html/lex_1.html#SEC7">
+          <topic label="Available scanners" href="html/lex_1.html#SEC8"/>
+          <topic label="Building scanners" href="html/lex_1.html#SEC9"/>
+        </topic>
+        <topic label="Token Processors" href="html/lex_1.html#SEC10">
+          <topic label="Available processors" href="html/lex_1.html#SEC11"/>
+          <topic label="Building processors" href="html/lex_1.html#SEC12"/>
+        </topic>
+/>
+      </topic>
+      <topic label="Canned Symbol Descriptions" href="html/lex_2.html#SEC13">
+        <topic label="Available Descriptions" href="html/lex_2.html#SEC14"/>
+        <topic label="Definitions of Canned Descriptions" href="html/lex_2.html#SEC15"/>
+      </topic>
+      <topic label="Spaces, Tabs and Newlines" href="html/lex_3.html#SEC16">
+        <topic label="Maintaining the Source Text Coordinates" href="html/lex_3.html#SEC17"/>
+        <topic label="Restoring the Default Behavior for White Space" href="html/lex_3.html#SEC18"/>
+        <topic label="Making White Space Illegal" href="html/lex_3.html#SEC19"/>
+      </topic>
+      <topic label="Literal Symbols" href="html/lex_4.html#SEC20">
+        <topic label="Overriding the Default Treatment of Literal Symbols" href="html/lex_4.html#SEC21"/>
+        <topic label="Using Literal Symbols to Represent Other Things" href="html/lex_4.html#SEC22"/>
+      </topic>
+      <topic label="Case Insensitivity" href="html/lex_5.html#SEC23">
+        <topic label="A Case-Insensitive Token Processor" href="html/lex_5.html#SEC24"/>
+        <topic label="Making Literal Symbols Case Insensitive" href="html/lex_5.html#SEC25"/>
+      </topic>
+      <topic label="The Generated Lexical Analyzer Module" href="html/lex_6.html#SEC26">
+        <topic label="Interaction Between the Lexical Analyzer and the Text" href="html/lex_6.html#SEC27"/>
+        <topic label="Resetting the Scan Pointer" href="html/lex_6.html#SEC28"/>
+        <topic label="The Classification Operation" href="html/lex_6.html#SEC29">
+          <topic label="Setting coordinate values" href="html/lex_6.html#SEC30"/>
+          <topic label="Deciding on a continuation after a classification" href="html/lex_6.html#SEC31"/>
+          <topic label="Returning a classification" href="html/lex_6.html#SEC32"/>
+        </topic>
+        <topic label="An Example of Interface Usage" href="html/lex_6.html#SEC33"/>
+      </topic>
+      <topic label="Index" href="html/lex_7.html#SEC34"/>
+    </topic>
+    <topic label="Syntactic Analysis" href="html/syntax_toc.html">
+      <topic label="Context-Free Grammars and Parsing" href="html/syntax_1.html#SEC1">
+        <topic label="How to describe a context-free grammar" href="html/syntax_1.html#SEC2">
+          <topic label="Using extended BNF to describe more complex rules" href="html/syntax_1.html#SEC3"/>
+        </topic>
+        <topic label="Using structure to convey meaning" href="html/syntax_1.html#SEC4">
+          <topic label="Operator precedence" href="html/syntax_1.html#SEC5"/>
+          <topic label="Operator associativity" href="html/syntax_1.html#SEC6"/>
+          <topic label="Scope rules for declarations" href="html/syntax_1.html#SEC7"/>
+        </topic>
+/>
+      </topic>
+      <topic label="The Relationship Between Phrases and Tree Nodes" href="html/syntax_2.html#SEC8">
+        <topic label="User mapping specifications" href="html/syntax_2.html#SEC9">
+          <topic label="Specifying symbolic equivalence classes" href="html/syntax_2.html#SEC10"/>
+          <topic label="Specifying rule mappings" href="html/syntax_2.html#SEC11"/>
+          <topic label="Preserving literal chain rules" href="html/syntax_2.html#SEC12"/>
+        </topic>
+        <topic label="Syntax mapping process" href="html/syntax_2.html#SEC13">
+          <topic label="Chain rule definitions" href="html/syntax_2.html#SEC14"/>
+          <topic label="Matching the LISTOF construct" href="html/syntax_2.html#SEC15"/>
+          <topic label="Matching remaining rules" href="html/syntax_2.html#SEC16"/>
+          <topic label="Complete generated concrete and abstract syntaxes" href="html/syntax_2.html#SEC17"/>
+        </topic>
+        <topic label="Influences of BOTTOMUP specifications on mapping" href="html/syntax_2.html#SEC18"/>
+        <topic label="Syntax development hints" href="html/syntax_2.html#SEC19">
+          <topic label="Typical patterns of syntax development" href="html/syntax_2.html#SEC20"/>
+          <topic label="Constraints on grammar mapping" href="html/syntax_2.html#SEC21"/>
+          <topic label="Abstracting information from literals" href="html/syntax_2.html#SEC22"/>
+          <topic label="Mapping expressions for overload resolution" href="html/syntax_2.html#SEC23"/>
+        </topic>
+/>
+      </topic>
+      <topic label="How to Resolve Parsing Conflicts" href="html/syntax_3.html#SEC24">
+        <topic label="How the generated parser determines phrase structure" href="html/syntax_3.html#SEC25"/>
+        <topic label="Conflict resolution by changing the grammar" href="html/syntax_3.html#SEC26"/>
+        <topic label="Conflict resolution by ignoring possible structures" href="html/syntax_3.html#SEC27"/>
+      </topic>
+      <topic label="Carrying Out Actions During Parsing" href="html/syntax_4.html#SEC28"/>
+      <topic label="Improving Error Recovery in the Generated Parser" href="html/syntax_5.html#SEC29"/>
+      <topic label="Grammars for the Specification Files" href="html/syntax_6.html#SEC30"/>
+      <topic label="Index" href="html/syntax_7.html#SEC31"/>
+    </topic>
+    <topic label="LIDO -- Computations in Trees" href="html/comptrees_toc.html">
+      <topic label="Tree Structure" href="html/comptrees_1.html#SEC1"/>
+      <topic label="Dependent Computations" href="html/comptrees_2.html#SEC2">
+        <topic label="Value Dependencies" href="html/comptrees_2.html#SEC3"/>
+        <topic label="State Dependencies" href="html/comptrees_2.html#SEC4"/>
+      </topic>
+      <topic label="Remote Dependencies in Trees" href="html/comptrees_3.html#SEC5">
+        <topic label="Access to a Subtree Root" href="html/comptrees_3.html#SEC6"/>
+        <topic label="Access to Contexts within a Subtree" href="html/comptrees_3.html#SEC7"/>
+        <topic label="Left-to-Right Dependencies" href="html/comptrees_3.html#SEC8"/>
+      </topic>
+      <topic label="Symbol Computations" href="html/comptrees_4.html#SEC9">
+        <topic label="Basic Symbol Computations" href="html/comptrees_4.html#SEC10"/>
+        <topic label="Reuse of Symbol Computations" href="html/comptrees_4.html#SEC11"/>
+      </topic>
+      <topic label="Early Computations During Tree Construction" href="html/comptrees_5.html#SEC12"/>
+      <topic label="Interactions within Eli" href="html/comptrees_6.html#SEC13">
+        <topic label="Supplying Tree Computation Specifications to Eli" href="html/comptrees_6.html#SEC14"/>
+        <topic label="Tree Construction" href="html/comptrees_6.html#SEC15"/>
+        <topic label="Implementing Tree Computations" href="html/comptrees_6.html#SEC16"/>
+        <topic label="Specification Errors" href="html/comptrees_6.html#SEC17"/>
+      </topic>
+      <topic label="Index" href="html/comptrees_7.html#SEC18"/>
+    </topic>
+  </topic>
+</toc>

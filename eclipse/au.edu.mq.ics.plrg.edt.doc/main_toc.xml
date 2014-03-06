@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?NLS TYPE="org.eclipse.help.toc"?>
+<toc label="Eli Development User Guide">
+  <topic label="Introduction" href="html/edtdoc.html#Introduction"/>
+  <topic label="Eli Projects" href="html/edtdoc.html#EliProjects">
+    <topic label="Context Menus" href="html/edtdoc.html#ContextMenus"/>
+    <topic label="Toolbar Commands " href="html/edtdoc.html#ToolbarCommands"/>
+  </topic>
+  <topic label="Odin Support" href="html/edtdoc.html#OdinSupport">
+    <topic label="Performing Derivations" href="html/edtdoc.html#PerformingDerivations"/>
+    <topic label="Derivation History" href="html/edtdoc.html#DerivationHistory"/>
+    <topic label="Eli Project Properties" href="html/edtdoc.html#EliProjectProperties">
+      <topic label="Eli Executable" href="html/edtdoc.html#EliExecutable"/>
+      <topic label="Eli Arguments" href="html/edtdoc.html#EliArguments"/>
+      <topic label="Cache Folder" href="html/edtdoc.html#CacheFolder"/>
+      <topic label="Cache View" href="html/edtdoc.html#CacheView"/>
+      <topic label="Project Derivation History" href="html/edtdoc.html#ProjectDerivationHistory"/>
+    </topic>
+    <topic label="Eli Global Preferences" href="html/edtdoc.html#EliGlobalPreferences">
+      <topic label="Default Eli Executable" href="html/edtdoc.html#DefaultEliExecutable"/>
+      <topic label="Default Eli Arguments" href="html/edtdoc.html#DefaultEliArguments"/>
+      <topic label="Default Cache Folder" href="html/edtdoc.html#DefaultCacheFolder"/>
+      <topic label="Default Cache View" href="html/edtdoc.html#DefaultCacheView"/>
+      <topic label="Displayed History Length" href="html/edtdoc.html#DisplayedHistoryLength"/>
+      <topic label="ErrLevel and WarnLevel" href="html/edtdoc.html#ErrLevelAndWarnLevel"/>
+      <topic label="Project Derivations" href="html/edtdoc.html#ProjectDerivations"/>
+    </topic>
+  </topic>
+  <topic label="Release Notes" href="html/edtdoc.html#ReleaseNotes"/>
+</toc>

@@ -1,0 +1,1559 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Lexical Structure@>
+\label{chap:lexical}
+
+To solve the lexical analysis subproblem, a Java processor must examine
+each character of the input text, recognizing character sequences as
+tokens, comments or white space.
+Regular expressions are used to classify these sequences.
+
+Once a character sequence has been classified, the sequence defined by the
+regular expression may be extended or shortened by an
+@/auxiliary scanner@/.
+An auxiliary scanner is associated with a regular expression by specifying
+it's name, enclosed in parentheses (e.g. @{(auxNewLine)@}).
+
+Identifiers and denotations must be retained for further processing.
+This is done in a uniform way by retaining one copy of each distinct input
+string appearing as an identifier or a denotation.
+Each identifier or denotation is represented internally by the index of its
+string in the string memory.
+If @{i@} is this index, then @{StringTable(i)@} is a pointer to the
+(null-terminated) string.
+
+A @/token processor@/ can be associated with each regular expression by
+specifying its name, enclosed in brackets (e.g. @{[mkidn]@}).
+The token processor is a C routine, the intent of which is to construct
+an integer-valued internal representation of the scanned string.
+Every token processor obeys the following interface:
+
+@$@<Token processor@>@(@1@)@M@{
+void
+#if PROTO_OK
+@1(char *c, int l, int *t, int *s)
+#else
+@1(c, l, t, s) char *c; int l, *t, *s;
+#endif
+/* On entry-
+ *   c points to the first character of the scanned string
+ *   l=length of the scanned string
+ *   *t=initial classification
+ * On exit-
+ *   *t=final classification
+ *   *s=internal representation
+ ***/
+@}
+
+A type-@{gla@} file specifies the lexical analysis subproblem:
+
+@O@<Phrase.gla@>==@{
+@<InputElement@>
+@}
+
+
+@B@<Unicode@>
+
+This document does not describe the handling of Unicode input.
+A source program is assumed to consist solely of ASCII characters, and
+contain no Unicode escapes.
+The issue of Unicode is orthogonal to the remainder of the specification,
+affecting only the input routine, the specification of the @{Identifier@}
+token, and the implementation of the lexical analyzer.
+
+@B@<Lexical Translation@>
+
+@B@<Unicode Escapes@>
+
+This provides a regular expression definition for Unicode escapes.  This is
+not the correct (or general) way to handle Unicode escapes.  It simply
+makes it possible to accept Unicode escapes inside character and string
+literals.
+
+@$@<Unicode Escape@>@M@{\\u@#H@#H@#H@#H@}
+
+@$@#H@M@{[0-9a-fA-F]@}
+
+@B@<Line Terminators@>
+
+Eli normally recognizes the ASCII LF, CR, and CRLF as input line
+terminators.
+
+@B@<Input Elements and Tokens@>
+
+Eli does not separate the specification of tokens from the specification of
+the language structure, so there is no specification here of @{Input@}
+or @{InputElements@}.
+The definition of @{InputElement@} given here simply collects all of the
+regular expressions defining those elements:
+
+@$@<InputElement@>==@{
+@<WhiteSpace@>
+@<Comment@>
+@<Token@>
+@}
+
+White space is defined in the next section.
+
+@$@<Token@>==@{
+@<Keyword@>
+@<Identifier@>
+@<Literal@>
+@}
+
+Separators and operators do not have individual lexical
+descriptions in an Eli specification.
+They appear as literal terminals in the grammar, and their lexical
+descriptions are extracted from the grammar by Eli.
+
+@B
+
+By default, Eli considers SP and HT characters to be white space.
+The FF character, however, must be added:
+
+@$@<WhiteSpace@>==@{
+	$\f
+@}
+
+@B@<Comments@>
+
+The three kinds of comment are specified by regular expressions and
+auxiliary scanners rather than a context-free grammar:
+
+@$@<Comment@>==@{
+	$"/*"	(auxCComment)
+	$"//"	(auxEOL)
+@}
+
+The auxiliary scanner @{auxCComment@} accumulates characters up to and
+including the next occurrence of the sequence @{*/@};
+@{auxNewLine@} was discussed above.
+
+@B@<Keywords@>
+
+Most of the Java keywords appear as literals in the grammar, and therefore
+do not need additional specifications.
+The keywords @{const@} and @{goto@} are reserved by Java, even though they
+are not currently used.
+This allows the processor to give a very specific error report if these C++
+keywords are incorrectly used in Java programs.
+
+@$@<Keyword@>==@{
+	$const		[KeyErr]
+	$goto		[KeyErr]
+@}
+
+Here the token processor @{KeyErr@} makes the error report:
+
+@$@<Report a keyword error@>==@{
+@<Token processor@>@(KeyErr@)
+{ message(ERROR, "Illegal keyword -- ignored", 0, &curpos); }
+@}
+
+When scanning of a character sequence begins, the scanner sets the variable
+@{curpos@} (exported by the error module) to the coordinates of the first
+character of the sequence.
+By using the address of this variable in the @{message@} call,
+@{KeyErr@} places the report at the start of the incorrect keyword.
+
+@B@<Identifiers@>
+
+This definition reflects the assumption discussed earlier that the input
+text would be ASCII rather than Unicode.
+A change to Unicode requires modification of the sets given here.
+
+@$@<Identifier@>==@{
+Identifier:	$[A-Za-z$_][A-Za-z0-9$_]*	[mkidn]
+@}
+
+The token processor @{mkidn@} encodes the string matched by the regular
+expression with a unique integer value.
+Every occurrence of a given string will be encoded with the same integer.
+A pointer to the characters of the string can be obtained by applying
+@{StringTable@} to the integer encoding.
+
+@B@<Literals@>
+
+A @/literal@/ is the source code representation of a value of a primitive
+type or the @{String@} type or the null type.
+All literals are represented internally by integers.
+The literal string represented by the integer @{i@} is the value of
+@{StringTable(i)@}.
+Every instance of a particular literal is represented by the same integer.
+
+@$@<Literal@>==@{
+@<Integer Literal@>
+@<Floating-Point Literal@>
+@<Character Literal@>
+@<String Literal@>
+@}
+
+The Boolean and null literals appear in the grammar as keywords and
+therefore have no separate lexical definition.
+
+Numeric literals are converted to standard normalized forms and checked for
+validity before their integer representations are determined.
+This conversion is performed by Eli's string arithmetic module, which is
+also used to evaluate constant expressions:
+
+@O@<Phrase.specs@>==@{
+$/Tech/strmath.specs
+@<Instantiate necessary modules@>
+@}
+
+By default, Eli's string arithmetic module will represent a value whose
+exponent is @{-1@} with a leading @{0@}.
+This avoids the need for an explicit exponent, but does not conform to the
+definition of a normalized number.
+We therefore instruct the module not to perform such ``de-normalization'':
+
+@O@<Phrase.head@>==@{
+#include "strmath.h"
+@}
+
+@O@<Phrase.init@>==@{
+(void)strmath(STRM_DENORMALIZE, 0);
+@}
+
+@C@<Integer Literals@>
+
+Integer literals are decomposed by type in order to preserve type
+information gleaned during lexical analysis.
+If this information were not preserved, later components of the compiler
+would be forced to re-scan the characters of the literal to obtain it.
+
+@$@<Integer Literal@>==@{
+IntLiteral:	$0|[1-9][0-9]*		[mkint10]
+		$0[xX][0-9a-fA-F]+	[mkint16]
+		$0[0-7]+		[mkint8]
+LongLiteral:	$(0|[1-9][0-9]*)[lL]	[mklng10]
+		$0[xX][0-9a-fA-F]+[lL]	[mklng16]
+		$0[0-7]+[lL]		[mklng8]
+@}
+
+The grammar symbol @{IntegerLiteral@} is expanded to retain the type
+information:
+
+@$@<IntegerLiteral@>==@{IntLiteral / LongLiteral@}
+
+The token processors normalize the integer to decimal form to guarantee that
+integer literals with the same value have the same internal representation.
+Thus if @{i@} is the internal representation of an integer literal,
+@{StringTable(i)@} is always a null-terminated sequence of decimal digits from
+the set @{[0-9]@}.
+
+@$@<Normalize a literal value@>+=@{
+@<Token processor@>@(mkint10@)
+{ NormInt(c, l, t, s, 10); *t = IntLiteral; }
+
+@<Token processor@>@(mkint16@)
+{ NormInt(c + 2, l - 2, t, s, 16); *t = IntLiteral; }
+
+@<Token processor@>@(mkint8@)
+{ NormInt(c, l, t, s, 8); *t = IntLiteral; }
+
+@<Token processor@>@(mklng10@)
+{ NormInt(c, l - 1, t, s, 10); *t = LongLiteral; }
+
+@<Token processor@>@(mklng16@)
+{ NormInt(c + 2, l - 3, t, s, 16); *t = LongLiteral; }
+
+@<Token processor@>@(mklng8@)
+{ NormInt(c, l - 1, t, s, 8); *t = LongLiteral; }
+@}
+
+The actual normalization is performed by invoking the string arithmetic
+package from the Eli library:
+
+@$@<NormInt(char *c, int l, int *t, int *s, int r)@>==@{
+/* On entry-
+ *   c points to the first character of the scanned string
+ *   l=length of the scanned string
+ *   *t=initial classification
+ *   r=radix of the number to be normalized
+ * On exit-
+ *   *t=final classification
+ *   *s=internal representation
+ ***/
+{ char save, *num, *temp, complement[ARITH_SIZE*2];
+  int error;
+
+  save = c[l]; c[l] = '\0';
+
+  /* Maximum values taken from section 3.10.1 of the language specification */
+  if (*t == IntLiteral) {
+    if (r == 8) {
+      temp = strsub(c, "40000000000", 8);
+      error = (!temp || temp[0] != '-');
+      if (!error) {
+        strcpy(complement, temp);
+        num = strsub("17777777777", c, 8);
+        if (num[0] == '-')
+          num = strnorm(complement, 8, 10, "");
+        else
+          num = strnorm(c, 8, 10, "");
+      }
+    } else if (r == 10) {
+      temp = strsub(c, "2147483649", 10);
+      error = (!temp || temp[0] != '-');
+      if (!error)
+        num = strnorm(c, 10, 10, "");
+    } else {    /* r == 16 */
+      temp = strsub(c, "100000000", 16);
+      error = (!temp || temp[0] != '-');
+      if (!error) {
+        strcpy(complement, temp);
+        num = strsub("7fffffff", c, 16);
+        if (num[0] == '-')
+          num = strnorm(complement, 16, 10, "");
+        else
+          num = strnorm(c, 16, 10, "");
+      }
+    }
+  } else {        /* *t == LongLiteral */
+    if (r == 8) {
+      temp = strsub(c, "2000000000000000000000", 8);
+      error = (!temp || temp[0] != '-');
+      if (!error) {
+        strcpy(complement, temp);
+        num = strsub("777777777777777777777", c, 8);
+        if (num[0] == '-')
+          num = strnorm(complement, 8, 10, "");
+        else
+          num = strnorm(c, 8, 10, "");
+      }
+    } else if (r == 10) {
+      temp = strsub(c, "9223372036854775809", 10);
+      error = (!temp || temp[0] != '-');
+      if (!error)
+        num = strnorm(c, 10, 10, "");
+    } else {    /* r == 16 */
+      temp = strsub(c, "10000000000000000", 16);
+      error = (!temp || temp[0] != '-');
+      if (!error) {
+        strcpy(complement, temp);
+        num = strsub("7fffffffffffffff", c, 16);
+        if (num[0] == '-')
+          num = strnorm(complement, 16, 10, "");
+        else
+          num = strnorm(c, 16, 10, "");
+      }
+    }
+  }
+
+  if (error) {
+    message(ERROR, "Integer overflow", 0, &curpos);
+    *s = 0; return;
+  }
+
+  c[l] = save;
+  mkidn(num, strlen(num), t, s);
+}
+@}
+
+If an overflow is detected, the internal representation is set to @{0@}.
+@{StringTable[0]@} is the internal representation of a null string, and is
+therefore different from the representation of any valid integer.
+
+@C@<Floating-Point Literals@>
+
+Floating-point literals are decomposed by type in order to preserve type
+information gleaned during lexical analysis.
+If this information were not preserved, later components of the compiler
+would be forced to re-scan the characters of the literal to obtain it.
+
+A floating-point literal has the following parts:
+a whole-number part,
+a decimal point,
+a fractional part,
+an exponent,
+and a type suffix.
+The exponent, if present, is indicated by the letter @{e@} or @{E@}
+followed by an optionally signed integer.
+
+At least one digit, in either the whole number or the fractional part, and
+either a decimal point, an exponent, or a float type suffix are required.
+All other parts are optional.
+
+@$@<Floating-Point Literal@>==@{
+DoubleLiteral:	$((@#N@#E?|@#D+@#E)[dD]?|@#D+@#E?[dD])	[mkflt]
+FloatLiteral:	$(@#N@#E?[fF]?|@#D+(@#E[fF]?|[fF]))	[mkflt]
+@}
+
+The @{D@} macro represents a single digit:
+
+@$@#D@M@{[0-9]@}
+
+The @{N@} macro represents a sequence of digits with a leading, trailing or
+embedded decimal point:
+
+@$@#N@M@{(@#D+\.@#D*|\.@#D+)@}
+
+The @{E@} macro represents an exponent:
+
+@$@#E@M@{([eE][+-]?@#D+)@}
+
+The grammar symbol @{FloatingPointLiteral@} is expanded to retain the type
+information:
+
+@$@<FloatingPointLiteral@>==@{FloatLiteral / DoubleLiteral@}
+
+The token processor @{mkflt@} converts the value to IEEE 754 format,
+expressed as a character string.
+Thus if @{i@} is the internal representation of a floating point literal,
+@{StringTable(i)@} is always in normalized IEEE 754 format.
+Digits of single-precision values are binary, those of double-precision
+values are hexadecimal.
+Exponents are always sequences of decimal digits.
+
+@$@<Normalize a literal value@>+=@{
+@<Token processor@>@(mkflt@)
+{ char save, *temp; int DomainError;
+
+  /* If there is a type specifier on the end, remove it since we don't */
+  /* need it anymore. */
+  if (*t == FloatLiteral || c[l-1] == 'd' || c[l-1] == 'D') l--;
+
+  (void)strmath(STRM_EXP_SYMBOLS, "eE");
+  (void)strmath(STRM_INTEGER_SIZE, 1);
+  (void)strmath(STRM_ROUND_SIZE, ARITH_SIZE-1);
+  save = c[l]; c[l] = '\0';
+  @<Convert a Floating-Point Literal@>
+  if (*t == FloatLiteral) {
+    @<Check for over- or underflow in a FloatLiteral@>
+  } else {
+    @<Check for over- or underflow in a DoubleLiteral@>
+  }
+  c[l] = save;
+  (void)strmath(STRM_ROUND_SIZE, 0);
+  (void)strmath(STRM_INTEGER_SIZE, ARITH_SIZE);
+
+  if (!CsmStrPtr || DomainError) {
+    message(ERROR, "Value out of range", 0, &curpos);
+    obstack_free(Csm_obstk, CsmStrPtr); *s = 0; return;
+  }
+
+  mkidn(CsmStrPtr, strlen(CsmStrPtr), t, s);
+}
+@}
+
+If an overflow is detected, the internal representation is set to @{0@}.
+@{StringTable[0]@} is the internal representation of a null string, and is
+therefore different from the representation of any valid number.
+
+A @{FloatingPointLiteral@} is regarded as representing an exact decimal value
+in the usual ``computerized scientific notation''.
+
+@$@<Convert a Floating-Point Literal@>==@{
+temp = strnorm(c, 10, 10, "e");
+CsmStrPtr = obstack_copy0(Csm_obstk, temp, strlen(temp));
+@}
+
+Overflow is detected by subtracting the converted value from the maximum
+possible value; underflow is detected by subtracting the minimum possible
+value from the converted value.  In both cases, a negative value represents
+the error condition.  The constants for minimum and maximum values for float
+and double are taken from section 3.10.2 of the language specification.
+
+@$@<Check for over- or underflow in a FloatLiteral@>==@{
+temp = strsub("3.40282347e38", CsmStrPtr, 10);
+DomainError  = (!temp || temp[0] == '-');
+if (CsmStrPtr[0] != '0') {
+  /*
+   * Fib on this one, since the JDK appears to have a smaller MIN_VALUE.
+   *   temp = strsub(CsmStrPtr, "1.40239846e-45", 10);
+   */
+  temp = strsub(CsmStrPtr, "1.40129846432481707e-45", 10);
+  DomainError |= (!temp || temp[0] == '-');
+}
+@}
+
+@$@<Check for over- or underflow in a DoubleLiteral@>==@{
+temp = strsub("1.79769313486231570e308", CsmStrPtr, 10);
+DomainError  = (!temp || temp[0] == '-');
+if (CsmStrPtr[0] != '0') {
+  temp = strsub(CsmStrPtr, "4.94065645841246544e-324", 10);
+  DomainError |= (!temp || temp[0] == '-');
+}
+@}
+
+@C@<Boolean Literals@>
+
+The @{boolean@} type has two values, specified by keywords:
+
+@$@<BooleanLiteral@>==@{'true' / 'false'@}
+
+@C@<Character Literals@>
+
+A literal of type @{char@} is expressed as a character or an escape
+sequence, enclosed in apostrophes:
+
+@$@<Character Literal@>==@{
+CharacterLiteral: $'([^\\\n\015]|@<Escape@>|@<Unicode Escape@>)' [mkchar]
+@}
+
+@$@<Normalize a literal value@>+=@{
+@<Token processor@>@(mkchar@)
+{ char strval[6], *p;
+  int charval;
+
+  if (c[1] != '\\') {
+    strval[0] = c[1]; strval[1] = '\0';
+    p = strval;
+  } else if (c[2] == 'u') {
+    p = strnorm(c + 3, 16, 10, "");
+  } else if (c[2] >= '0' && c[2] <= '7') {
+    p = strnorm(c + 2, 8, 10, "");
+  } else {
+    switch (c[2]) {
+    case 'b': charval = '\b'; break;
+    case 't': charval = '\t'; break;
+    case 'n': charval = '\n'; break;
+    case 'f': charval = '\f'; break;
+    case 'r': charval = '\r'; break;
+    case '"': charval = '"'; break;
+    case '\'': charval = '\''; break;
+    case '\\': charval = '\\'; break;
+    default: {
+      charval = c[2];
+      message(ERROR, "Illegal escape", 0, &curpos);
+      }
+    }
+    snprintf(strval, 6, "%d", charval);
+    p = strval;
+  }
+    
+  mkidn(p, strlen(p), t, s);
+  *t = CharacterLiteral;
+}
+@}
+
+@C
+
+A string literal is zero or more characters enclosed in double quotes:
+
+@$@<String Literal@>==@{
+StringLiteral:	$\"([^\\\n\r\"]|@<Escape@>|@<Unicode Escape@>)*\"	[mkidn]
+@}
+
+@C@<Escape Sequences for Character and String Literals@>
+
+The character and string @/escape sequences@/ allow for the representation
+of some nongraphic characters as well as the single quote, double quote,
+and backslash characters in character literals and string literals:
+
+@$@<Escape@>@M@{\\([btnfr\"'\\]|@#O|@#O@#O|@#T@#O@#O)@}
+
+@$@#O@M@{[0-7]@}
+
+@$@#T@M@{[0-3]@}
+
+@C@<The Null Literal@>
+
+The null type has one value, the null reference, denoted by a keyword:
+
+@$@<NullLiteral@>==@{'null'@}
+
+@B@<Separators@>
+
+Separators do not have individual lexical descriptions in an Eli Specification.
+They appear as literal terminals in the grammar, and their lexical
+descriptions are extracted from the grammar by Eli.
+
+@B@<Operators@>
+
+Operators do not have individual lexical descriptions in an Eli Specification.
+They appear as literal terminals in the grammar, and their lexical
+descriptions are extracted from the grammar by Eli.
+
+@B@<Support code@>
+
+@O@<Scanner.c@>==@{
+#include "strmath.h"
+#include "err.h"
+#include "csm.h"
+#include "termcode.h"
+
+static void
+#if PROTO_OK
+NormInt(char *c, int l, int *t, int *s, int r)
+#else
+NormInt(c, l, t, s, r) char *c; int l, *t, *s, r;
+#endif
+@<NormInt(char *c, int l, int *t, int *s, int r)@>
+
+@<Report a keyword error@>
+
+@<Normalize a literal value@>
+@}
+
+@A@<Phrase Structure@>
+\label{chap:syntax}
+
+To solve the syntactic analysis subproblem, a Java processor must examine
+the sequence of tokens resulting from lexical analysis, grouping those
+tokens into a hierarchy of phrases.
+A context-free grammar is used to describe the phrase structure.
+
+Character sequences that must appear exactly as specified are @{'quoted'@}
+in grammar rules.
+No additional lexical specification of these @/literal terminals@/ is
+given.
+Non-literal terminals of the grammar are represented by symbols, and the
+form of the character strings acceptable as instances of these terminals is
+described by separate regular expressions.
+
+The definition of a nonterminal is introduced by the name
+of the nonterminal being defined, followed by a colon.
+One or more alternative expansions for the nonterminal then follow,
+separated by slashes (@{/@}).
+The entire set of alternatives is terminated by a period.
+
+Eli's notation for an optional symbol in a context-free grammar is to
+surround that symbol with square brackets (@{[ ]@}).
+In a regular expression, square brackets indicate a set of characters
+rather than an option.
+This corresponds to the ``one of'' notation found in the Java
+specification, but it cannot be used in context-free grammars.
+
+A type-@{con@} file specifies the syntactic analysis subproblem:
+
+@O@<Phrase.con@>==@{
+@<Productions from 3: Lexical Structure@>
+@<Productions from 4: Types, Values, and Variables@>
+@<Productions from 6: Names@>
+@<Productions from 7: Packages@>
+@<Productions Only in the LALR(1) Grammar@>
+@<Productions from 8.1: Class Declaration@>
+@<Productions from 8.3: Field Declarations@>
+@<Productions from 8.4: Method Declarations@>
+@<Productions from 8.6 and 8.7: Class Initializers@>
+@<Productions from 8.8: Constructor Declarations@>
+@<Productions from 9.1: Interface Declarations@>
+@<Productions from 10: Arrays@>
+@<Productions from 14: Blocks and Statements@>
+@<Productions from 15: Expressions@>
+@<Compiling multiple compilation units@>
+@}
+
+@B
+
+@$@<Productions from 3: Lexical Structure@>==@{
+Literal:
+  @<IntegerLiteral@> /
+  @<FloatingPointLiteral@> /
+  @<BooleanLiteral@> /
+  CharacterLiteral /
+  StringLiteral /
+  @<NullLiteral@> .
+@}
+
+@B
+
+@$@<Productions from 4: Types, Values, and Variables@>==@{
+Type:
+  PrimitiveType /
+  TypeName /
+  ArrayType .
+
+TypeName:
+  Name .
+
+PrimitiveType:
+  NumericType /
+  'boolean' .
+
+NumericType:
+  IntegralType /
+  FloatingPointType .
+
+IntegralType:
+  'byte' / 'short' / 'int' / 'long' / 'char' .
+
+FloatingPointType:
+  'float' / 'double' .
+
+ArrayType:
+  PrimitiveType '[' ']' /
+  Name '[' ']' /
+  ArrayType '[' ']' .
+
+ClassType:
+  TypeName .
+
+InterfaceType:
+  InhName .
+@}
+
+@B
+
+@$@<Productions from 6: Names@>==@{
+Name:
+  Identifier /
+  Name '.' Identifier .
+
+PackageName: QualInhName .
+InhName: QualInhName .
+
+QualInhName:
+  Identifier &'GotNameId(T_ATTR(TokenStack(0)));' /
+  QualInhName '.' Identifier &'GotNameId(T_ATTR(TokenStack(2)));' .
+@}
+
+@B
+
+@$@<Productions from 7: Packages@>==@{
+CompilationUnit:
+  PackageDeclarationOpt
+  ImportJavaLang ImportDeclarationsOpt TypeDeclarationsOpt .
+
+ImportJavaLang: .
+
+ImportDeclarationsOpt: (&'StartName();' ImportDeclaration)* .
+
+TypeDeclarationsOpt: TypeDeclaration* [';'] .
+
+PackageDeclarationOpt:
+  [&'StartName();' 'package' PackageName &'GotPackageImport();' ';'] .
+
+ImportDeclaration:
+  SingleTypeImportDeclaration ';' /
+  TypeImportOnDemandDeclaration ';' .
+
+SingleTypeImportDeclaration:
+  'import' QualInhName &'GotTypeImport();' .
+
+TypeImportOnDemandDeclaration:
+  'import' QualInhName '.' '*' &'GotPackageImport();' .
+
+TypeDeclaration:
+  ClassDeclaration /
+  InterfaceDeclaration .
+@}
+
+@B
+
+@$@<Productions Only in the LALR(1) Grammar@>==@{
+Modifiers:
+  / ModifierList .
+
+ModifierList:
+  Modifier / ModifierList Modifier .
+
+Modifier:
+  'public' / 'protected' / 'private' /
+  'static' /
+  'abstract' / 'final' / 'native' / 'synchronized' / 'transient' / 'volatile' /
+  'strictfp' .
+@}
+
+@B@<Productions from 8: Class Declarations@>
+
+@C
+
+@$@<Productions from 8.1: Class Declaration@>==@{
+ClassDeclaration:
+  Modifiers 'class' Identifier Super Interfaces ClassBody .
+
+Super:
+  'extends' InhName / .
+
+Interfaces:
+  ['implements' InterfaceTypeList] .
+
+InterfaceTypeList:
+  InterfaceType /
+  InterfaceTypeList ',' InterfaceType .
+
+ClassBody:
+  '{' ClassBodyDeclarations '}' .
+
+ClassBodyDeclarations:
+  / ClassBodyDeclarationList .
+
+ClassBodyDeclarationList:
+  ClassBodyDeclaration /
+  ClassBodyDeclarationList ClassBodyDeclaration .
+
+ClassBodyDeclaration:
+  ClassMemberDeclaration /
+  ClassInitializer /
+  ConstructorDeclaration .
+
+ClassMemberDeclaration:
+  FieldDeclaration /
+  MethodDeclaration /
+  TypeDeclaration .
+@}
+
+@C
+
+Declarations of fields and local variables have the same form, and the
+published grammar uses the same set of rules for both.
+The scope rules for fields are completely different from those for local
+variables, however, so it makes sense to distinguish their declarations
+syntactically.
+
+@$@<Productions from 8.3: Field Declarations@>==@{
+FieldDeclaration:
+  Modifiers Type FieldDeclarators ';' .
+
+FieldDeclarators:
+  FieldDeclarator /
+  FieldDeclarators ',' FieldDeclarator .
+
+FieldDeclarator:
+  FieldDeclaratorId /
+  FieldDeclaratorId '=' Initializer .
+
+FieldDeclaratorId:
+  FieldIdDef /
+  FieldDeclaratorId '[' ']' .
+
+FieldIdDef:
+  Identifier .
+
+Initializer:
+  Expression /
+  ArrayInitializer .
+@}
+
+@C
+
+@$@<Productions from 8.4: Method Declarations@>==@{
+MethodDeclaration:
+  MethodHeader MethodBody .
+
+MethodHeader:
+  Modifiers Type MethodDeclarator Throws /
+  Modifiers Void MethodDeclarator Throws .
+
+Void: 'void' .
+
+MethodDeclarator:
+  MethodIdDef '(' FormalParameters ')' /
+  MethodDeclarator '[' ']' .
+
+MethodIdDef:
+  Identifier .
+
+FormalParameters:
+  [FormalParameterList] .
+
+FormalParameterList:
+  FormalParameter /
+  FormalParameterList ',' FormalParameter .
+
+FormalParameter:
+  ['final'] Type VariableDeclaratorId .
+
+Throws:
+  / 'throws' ThrownTypeList .
+
+ThrownTypeList:
+  ThrownType /
+  ThrownTypeList ',' ThrownType .
+
+ThrownType: TypeName .
+
+MethodBody:
+  '{' StatementsOpt '}' /
+  ';' .
+@}
+
+@C
+
+@$@<Productions from 8.6 and 8.7: Class Initializers@>==@{
+ClassInitializer:
+  ['static'] Block .
+@}
+
+@C
+
+@$@<Productions from 8.8: Constructor Declarations@>==@{
+ConstructorDeclaration:
+  Modifiers TypeName '(' FormalParameters ')' Throws 
+  '{' ConstructorStatements '}' .
+
+ConstructorStatements:
+  [ExplicitConstructorInvocation] [BlockStatements] .
+
+ExplicitConstructorInvocation:
+  'this' '(' Arguments ')' ';' /
+  'super' '(' Arguments ')' ';' /
+  Primary '.' 'super' '(' Arguments ')' ';' /
+  Name '.' 'super' '(' Arguments ')' ';' .
+@}
+
+@B@<Productions from 9: Interface Declarations@>
+
+@C
+
+@$@<Productions from 9.1: Interface Declarations@>==@{
+InterfaceDeclaration:
+  Modifiers 'interface' Identifier ExtendsInterfaces InterfaceBody .
+
+ExtendsInterfaces: ['extends' (InterfaceType // ',') ] .
+
+InterfaceBody:
+  '{' InterfaceMembers '}' .
+
+InterfaceMembers:
+  / InterfaceMemberDeclarations .
+
+InterfaceMemberDeclarations:
+  InterfaceMemberDeclaration /
+  InterfaceMemberDeclarations InterfaceMemberDeclaration .
+
+InterfaceMemberDeclaration:
+  ConstantDeclaration /
+  AbstractMethodDeclaration /
+  TypeDeclaration .
+
+ConstantDeclaration:
+  FieldDeclaration .
+
+AbstractMethodDeclaration:
+  MethodHeader ';' .
+@}
+
+@B
+
+@$@<Productions from 10: Arrays@>==@{
+ArrayInitializer:
+  '{' Initializers '}' .
+  
+Initializers: [InitializerList] [','] .
+
+InitializerList:
+  Initializer /
+  InitializerList ',' Initializer .
+@}
+
+@B
+
+@$@<Productions from 14: Blocks and Statements@>==@{
+Block:
+  '{' StatementsOpt '}' .
+
+Statements:
+  BlockStatements .
+
+StatementsOpt:
+  / BlockStatements .
+
+BlockStatements:
+  BlockStatement /
+  BlockStatements BlockStatement .
+
+BlockStatement:
+  LocalVariableDeclarationStatement /
+  Statement /
+  TypeDeclaration .
+
+LocalVariableDeclarationStatement:
+  LocalVariableDeclaration ';' .
+
+LocalVariableDeclaration:
+  ['final'] Type VariableDeclarators .
+
+VariableDeclarators:
+  VariableDeclarator /
+  VariableDeclarators ',' VariableDeclarator .
+
+VariableDeclarator:
+  VariableDeclaratorId /
+  VariableDeclaratorId '=' Initializer .
+
+VariableDeclaratorId:
+  VariableIdDef /
+  VariableDeclaratorId '[' ']' .
+
+VariableIdDef:
+  Identifier .
+
+Statement:
+  StatementWithoutTrailingSubstatement /
+  LabeledStatement /
+  IfThenStatement /
+  IfThenElseStatement /
+  WhileStatement /
+  ForStatement .
+
+StatementNoShortIf:
+  StatementWithoutTrailingSubstatement /
+  LabeledStatementNoShortIf /
+  IfThenElseStatementNoShortIf /
+  WhileStatementNoShortIf /
+  ForStatementNoShortIf .
+
+StatementWithoutTrailingSubstatement:
+  Block /
+  EmptyStatement /
+  ExpressionStatement /
+  SwitchStatement /
+  DoStatement /
+  BreakStatement /
+  ContinueStatement /
+  ReturnStatement /
+  SynchronizedStatement /
+  ThrowStatement /
+  TryStatement /
+  AssertStatement .
+
+EmptyStatement:
+    ';' .
+
+LabeledStatement:
+  Identifier ':' Statement .
+
+LabeledStatementNoShortIf:
+  Identifier ':' StatementNoShortIf .
+
+ExpressionStatement:
+  StatementExpression ';' .
+
+StatementExpression:
+  Assignment /
+  PreIncrementExpression /
+  PreDecrementExpression /
+  PostIncrementExpression /
+  PostDecrementExpression /
+  MethodInvocation /
+  ClassInstanceCreationExpression .
+
+IfThenStatement:
+  'if' '(' Expression ')' Statement .
+
+IfThenElseStatement:
+  'if' '(' Expression ')' StatementNoShortIf 'else' Statement .
+
+IfThenElseStatementNoShortIf:
+  'if' '(' Expression ')' StatementNoShortIf 'else' StatementNoShortIf .
+
+SwitchStatement:
+  'switch' '(' Expression ')' SwitchBlock .
+
+SwitchBlock:
+  '{' [SwitchBlockStatements] [SwitchLabels] '}' .
+
+SwitchBlockStatements:
+  SwitchBlockStatement /
+  SwitchBlockStatements SwitchBlockStatement .
+
+SwitchBlockStatement:
+  SwitchLabels Statements .
+
+SwitchLabels:
+  SwitchLabel /
+  SwitchLabels SwitchLabel .
+
+SwitchLabel:
+  'case' ConstantExpression ':' /
+  'default' ':' .
+
+WhileStatement:
+  'while' '(' Expression ')' Statement .
+
+WhileStatementNoShortIf:
+  'while' '(' Expression ')' StatementNoShortIf .
+
+DoStatement:
+  'do' Statement 'while' '(' Expression ')' ';' .
+
+ForStatement:
+  'for' '(' ForInit ';' ForTest ';' ForUpdate ')'
+    Statement .
+
+ForStatementNoShortIf:
+  'for' '(' ForInit ';' ForTest ';' ForUpdate ')'
+    StatementNoShortIf .
+
+ForInit:
+  ExpressionList /
+  LocalVariableDeclaration .
+
+ForTest:
+  / Expression .
+
+ForUpdate:
+  ExpressionList .
+
+ExpressionList: / StatementExpressionList .
+
+StatementExpressionList:
+  StatementExpression /
+  StatementExpressionList ',' StatementExpression .
+
+BreakStatement:
+  'break' [Identifier] ';' .
+
+ContinueStatement:
+  'continue' [Identifier] ';' .
+
+ReturnStatement:
+  'return' [Expression] ';' .
+
+ThrowStatement:
+  'throw' Expression ';' .
+
+SynchronizedStatement:
+  'synchronized' '(' Expression ')' Block .
+
+TryStatement:
+  'try' Block Catches .
+
+Catches:
+  CatchList /
+  CatchesOpt Finally .
+
+CatchesOpt:
+  / CatchList .
+
+CatchList:
+  CatchClause /
+  CatchList CatchClause .
+
+CatchClause:
+  'catch' '(' FormalParameter ')' Block .
+
+Finally:
+  'finally' Block .
+
+AssertStatement:
+  'assert' Expression ';' /
+  'assert' Expression ':' Expression ';' .
+@}
+
+@B
+
+@$@<Productions from 15: Expressions@>==@{
+Primary:
+  PrimaryNoNewArray /
+  ArrayCreationExpression .
+
+PrimaryNoNewArray:
+  Literal /
+  Name '.' 'class' /
+  'this' /
+  Name '.' 'this' /
+  '(' Expression ')' /
+  ClassInstanceCreationExpression /
+  FieldAccess /
+  MethodInvocation /
+  ArrayAccess .
+
+ClassInstanceCreationExpression:
+  Primary '.' 'new' Identifier '(' Arguments ')' AnonymousClass /
+              'new' ClassType  '(' Arguments ')' AnonymousClass .
+
+Arguments: [ Argument // ',' ] .
+
+Argument: Expression .
+
+AnonymousClass: ['{' ClassBodyDeclarations '}'] .
+
+ArrayCreationExpression:
+  'new' PrimitiveType Dimensions /
+  'new' ClassType Dimensions .
+
+Dimensions:
+  DimExprList /
+  DimExprList Dims .
+
+DimExprList:
+  DimExpr /
+  DimExprList DimExpr .
+
+DimExpr:
+  '[' Expression ']' .
+
+Dims:
+  Dimension /
+  Dims Dimension .
+
+Dimension: '[' ']' .
+
+FieldAccess:
+  Primary '.' Identifier /
+  'super' '.' Identifier /
+  Name '.' 'super' '.' Identifier .
+
+MethodInvocation:
+  MethodName '(' Arguments ')' /
+  Primary '.' Identifier '(' Arguments ')' /
+  'super' '.' Identifier '(' Arguments ')' /
+  Name '.' 'super' '.' Identifier '(' Arguments ')' .
+
+MethodName:
+  Name .
+
+ArrayAccess:
+  Name '[' Expression ']' /
+  PrimaryNoNewArray '[' Expression ']' .
+
+PostfixExpression:
+  Primary /
+  Name /
+  PostIncrementExpression /
+  PostDecrementExpression .
+
+PostIncrementExpression:
+  PostfixExpression '++' .
+
+PostDecrementExpression:
+  PostfixExpression '--' .
+
+UnaryExpression:
+  PreIncrementExpression /
+  PreDecrementExpression /
+  '+' UnaryExpression /
+  '-' UnaryExpression /
+  UnaryExpressionNotPlusMinus .
+
+PreIncrementExpression:
+  '++' UnaryExpression .
+
+PreDecrementExpression:
+  '--' UnaryExpression .
+
+UnaryExpressionNotPlusMinus:
+  PostfixExpression /
+  '~' UnaryExpression /
+  '!' UnaryExpression /
+  CastExpression .
+
+CastExpression:
+  '(' PrimitiveType ')' UnaryExpression /
+  '(' ArrayType ')'     UnaryExpressionNotPlusMinus /
+  '(' Expression ')'    UnaryExpressionNotPlusMinus .
+
+MultiplicativeExpression:
+  UnaryExpression /
+  MultiplicativeExpression '*' UnaryExpression /
+  MultiplicativeExpression '/' UnaryExpression /
+  MultiplicativeExpression '%' UnaryExpression .
+
+AdditiveExpression:
+  MultiplicativeExpression /
+  AdditiveExpression '+' MultiplicativeExpression /
+  AdditiveExpression '-' MultiplicativeExpression .
+
+ShiftExpression:
+  AdditiveExpression /
+  ShiftExpression '<<' AdditiveExpression /
+  ShiftExpression '>>' AdditiveExpression /
+  ShiftExpression '>>>' AdditiveExpression .
+
+RelationalExpression:
+  ShiftExpression /
+  RelationalExpression '<' ShiftExpression /
+  RelationalExpression '>' ShiftExpression /
+  RelationalExpression '<=' ShiftExpression /
+  RelationalExpression '>=' ShiftExpression /
+  RelationalExpression 'instanceof' Type .
+
+EqualityExpression:
+  RelationalExpression /
+  EqualityExpression '==' RelationalExpression /
+  EqualityExpression '!=' RelationalExpression .
+
+AndExpression:
+  EqualityExpression /
+  AndExpression '&' EqualityExpression.
+
+ExclusiveOrExpression:
+  AndExpression /
+  ExclusiveOrExpression '^' AndExpression.
+
+InclusiveOrExpression:
+  ExclusiveOrExpression /
+  InclusiveOrExpression '|' ExclusiveOrExpression.
+
+ConditionalAndExpression:
+  InclusiveOrExpression /
+  ConditionalAndExpression '&&' InclusiveOrExpression .
+
+ConditionalOrExpression:
+  ConditionalAndExpression /
+  ConditionalOrExpression '||' ConditionalAndExpression .
+
+ConditionalExpression:
+  ConditionalOrExpression /
+  ConditionalOrExpression '?' Expression ':' ConditionalExpression .
+
+AssignmentExpression:
+  ConditionalExpression /
+  Assignment .
+
+Assignment:
+  LeftHandSide AssignmentOperator AssignmentExpression .
+
+LeftHandSide:
+  Name /
+  FieldAccess /
+  ArrayAccess .
+
+AssignmentOperator:
+  '=' / '*=' / '/=' / '%=' / '+=' / '-=' / '<<=' / '>>=' / '>>>=' / '&=' /
+  '^=' / '|=' .
+
+Expression:
+  AssignmentExpression .
+
+ConstantExpression:
+  Expression .
+@}
+
+@B
+
+A @{Cluster@} is a set of compilation units that is complete with
+respect to inheritance:
+
+@$@<Compiling multiple compilation units@>==@{@-
+Goal:
+  Cluster .
+
+Cluster:
+  ClusterElement / Cluster ClusterElement .
+
+ClusterElement:
+  (CompilationUnit 'EndOfFile')+ 'NoFilesPending' .
+@}
+
+No compilation unit in the @{Cluster@} may inherit from a type available
+only in source form unless it is also a member of the @{Cluster@}.
+Unfortunately, the cluster is defined dynamically.
+If name analysis of the cluster reveals undefined types,
+the compiler must seek additional compilation units defining those types.
+In order to avoid this feedback from the name analysis, we obtain @/all@/
+files from packages mentioned in import declarations.
+
+@{NameStack@} holds the components of a (qualified) name that might appear
+in a package or import declaration.
+
+@$@<Instantiate necessary modules@>+=@{
+$/Adt/Stack.gnrc +instance=Name +referto=int :inst
+@}
+
+@{InName@} is true when the parser is within an interesting name, and false
+otherwise:
+
+@$@<State of import name collection@>==@{
+static int InName = 0;
+@}
+
+Two routines collect each name:
+
+@$@<void StartName(void)@>==@{@-
+/* Start collecting the identifiers of a (qualified) name
+ *   On entry-
+ *     The next identifier is the first in an interesting name
+ *   On exit-
+ *     NameStack is empty
+ *     InName is true
+ ***/
+{ while (!NameStackEmpty) NameStackPop;
+  InName = 1;
+}
+@}
+
+@$@<void GotNameId(int id)@>==@{@-
+/* Collect an identifier if necessary
+ *   If InName on entry-
+ *     NameStack contains the previous identifiers of the name
+ *   If InName on exit-
+ *     The name indexed by id has been added to NameStack
+ ***/
+{ if (InName) NameStackPush(id);
+}
+@}
+
+When the parser reaches the end of the name, it is handled in a manner
+dependent on the context:
+
+@$@<GotPackageImport(void)@>==@{@-
+/* Handle a package import
+ *   On entry-
+ *     NameStack contains the complete sequence of identifiers for a name
+ *   On exit-
+ *     InName is false
+ ***/
+{ if (NameStackSize >= 1) {
+    int idn = FQName();
+    Binding bind = BindInScope(PkgRootEnv, idn);
+    if (!HasTypScope(KeyOf(bind)))
+      ImportPackage(StringTable(idn), KeyOf(bind));
+  }
+  
+  InName = 0;
+}
+@}
+
+@{PkgRootEnv@} is defined as an environment with Algol scope rules, because
+each package is visible throughout the compilation:
+
+@$@<Instantiate necessary modules@>+=@{
+$/Name/AlgScope.gnrc +instance=Pkg +referto=Pkg :inst
+@}
+
+The @{Package@} property of a package is an environment with one binding
+for each type defined in the package.
+That binding's identifier is the simple name of the type, and its key is
+the key for the fully-qualified type.
+
+@$@<Properties and access functions@>+=@{
+TypScope: Environment [Has];	"envmod.h"
+@}
+
+@$@<void GotTypeImport(void)@>==@{@-
+/* Handle a type import
+ *   On entry-
+ *     NameStack contains the complete sequence of identifiers for a name
+ *   On exit-
+ *     InName is false
+ ***/
+{ if (NameStackSize >= 2) {
+    int idn = FQName();
+    Binding bind = BindInScope(TypRootEnv, idn);
+    ImportType(StringTable(idn));
+  }
+
+  InName = 0;
+}
+@}
+
+In both cases, the content of the name stack must be used to construct a
+fully-qualified name:
+
+@$@<int FQName(void)@>==@{@-
+{ int i;
+
+  for (i = 0; i < NameStackSize; i++) {
+    char *s = StringTable(NameStackArray(i));
+
+    if (i > 0) obstack_1grow(Csm_obstk,'.');
+    obstack_grow(Csm_obstk, s, strlen(s));
+  }
+  obstack_1grow(Csm_obstk,'\0');
+  CsmStrPtr = (char *)obstack_finish(Csm_obstk);
+
+  return MakeName(CsmStrPtr);
+}
+@}
+
+The @{EndOfFile@} and @{NoFilesPending@} markers do not actually appear in
+the source text; they are deduced from conditions checked when the current
+input is exhausted.
+Therefore the corresponding literals must not be recognized as usual by the
+lexical analyzer:
+
+@O@<Phrase.delit@>==@{
+$EndOfFile	EndOfFile
+$NoFilesPending	NoFilesPending
+@}
+
+A token procesor that replaces the library end-of-file token processor
+recognizes these two markers:
+
+@$@<void EndOfText(char *c, int l, int *t, int *s)@>==@{@-
+/* On entry-
+ *   c points to the first character of the scanned string
+ *   l=length of the scanned string
+ *   *t=initial classification
+ * On exit-
+ *   *t=final classification
+ *   *s=internal representation
+ ***/
+
+{ switch (EOTstate) {
+  case 0:
+    *t = EndOfFile; EOTstate = 1; return;
+  case 1:
+    if (AnotherCompilationUnit()) break;
+    *t = NoFilesPending; EOTstate = 2; return;
+  case 2:
+    if (AnotherCompilationUnit()) break;
+    return;
+  }
+  ResetScan = 1;
+  *t = NORETURN; EOTstate = 0; return;
+}
+@}
+
+@O@<Phrase.pdl@>==@{
+IsDone: int;
+@<Properties and access functions@>
+@}
+
+@$@<Instantiate necessary modules@>+=@{
+$/Input/CoordMap.gnrc :inst
+$/Tech/MakeName.gnrc +instance=Identifier :inst
+@}
+
+@B@<Support code@>
+
+@O@<Parser.c@>==@{
+#include "csm.h"
+#include "gla.h"
+#include "litcode.h"
+#include "pdl_gen.h"
+#include "MakeName.h"
+#include "NameStack.h"
+#include "FilAlgScope.h"
+#include "PkgAlgScope.h"
+#include "TypAlgScope.h"
+
+@<State of import name collection@>
+
+static int EOTstate = 0;
+
+static int
+#if PROTO_OK
+FQName(void)
+#else
+FQName()
+#endif
+@<int FQName(void)@>
+
+void
+#if PROTO_OK
+StartName(void)
+#else
+StartName()
+#endif
+@<void StartName(void)@>
+
+void
+#if PROTO_OK
+GotNameId(int id)
+#else
+GotNameId(id) int id;
+#endif
+@<void GotNameId(int id)@>
+
+void
+#if PROTO_OK
+GotPackageImport(void)
+#else
+GotPackageImport()
+#endif
+@<GotPackageImport(void)@>
+
+void
+#if PROTO_OK
+GotTypeImport(void)
+#else
+GotTypeImport()
+#endif
+@<void GotTypeImport(void)@>
+
+void
+#if PROTO_OK
+EndOfText(char *c, int l, int *t, int *s)
+#else
+EndOfText(c, l, t, s) char *c; int l, *t, *s;
+#endif
+@<void EndOfText(char *c, int l, int *t, int *s)@>
+@}

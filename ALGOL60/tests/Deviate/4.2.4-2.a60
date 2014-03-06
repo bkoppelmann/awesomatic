@@ -1,0 +1,7 @@
+begin comment $Id: 4.2.4-2.a60,v 1.2 2012/11/28 21:15:26 profw Exp $
+If the type of the left part is Boolean, the expression must likewise be
+Boolean;
+
+Boolean b; b := 3;
+
+end

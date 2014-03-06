@@ -1,0 +1,12 @@
+bisonglr implements the Bison GLR parser generator.  It can be used
+to create processors for some languages whose concrete grammars are
+not LALR(1).  File bisonglr/nonlr.fw illustrates such a grammar.
+After building a cache with the bisonglr package, you can test it by
+generating an analyzer from file bisonglr/nonlr.fw:
+
+  -> nonlr.fw :exe
+  -> nonlr.fw +parser=bisonglr :exe
+
+The first request will fail with the report "Grammar is not LALR(1)",
+because it uses the default parser generator.  The second request,
+which invokes the Bison GLR parser generator, will succeed.

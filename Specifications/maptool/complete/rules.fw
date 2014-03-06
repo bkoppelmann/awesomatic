@@ -1,0 +1,763 @@
+@$@<Instantiate modules@>+=@{
+$/Adt/Stack.gnrc +instance=Action +referto=PTGNode :inst
+$/Adt/LidoList.gnrc +instance=SymbolP +referto=symbol :inst
+$/Adt/LidoList.gnrc +instance=DefTableKey +referto=deftbl :inst
+$/Adt/List.gnrc +instance=int :inst
+$/Adt/PtrList.gnrc +instance=tOilTypeSet +referto=oiladt2 :inst
+$/Tech/MakeName.gnrc +instance=Identifier :inst
+@}
+
+@$@<Rule Database Creation@>==@{
+/* The attribution in this file serves two purposes.  The first is to	*/
+/* create data structures representing each rule in the user's input.	*/
+/* Each rule is represented by a key.  These keys have the following    */
+/* properties:								*/
+/*	LHS - a key representing the left hand side of the rule		*/
+/*	Str - the string table index of the name of the rule (if it	*/
+/*		has one).						*/
+/*	RHS - a List (see MODLIB) of symbols representing each		*/
+/*		component of the right hand side of the production	*/
+/*		Symbols are structures consisting of keys and the class	*/
+/*	NTCount - the number of nonterminals on the right hand side of  */
+/*		the rule						*/
+/*      ArgCount - the number of symbols on the rhs not including	*/
+/*		parsing modifications and computed subtrees		*/
+/*	Type - This property is only for abstract rules and denotes	*/
+/*		whether it is a normal rule (T_NONLISTOF) or a LISTOF	*/
+/*		(T_LISTOF) rule						*/
+/* In addition, all keys which represent the left hand side of a rule   */
+/* have two properties:							*/
+/*	ConRules - a List of keys representing the concrete rules       */
+/*		which have this left hand side				*/
+/*	AbsRules - a List of keys representing the abstract rules	*/
+/*		which have this left hand side				*/
+/*									*/
+/* The other primary purpose is to create an OIL database representing	*/
+/* the rules in the abstract grammar.  This is done so that concrete	*/
+/* rules can be matched to abstract rules at a later point.  Chain	*/
+/* productions (for our purposes, this simply means one element on the  */
+/* lhs and one on the right, except if the right is a terminal symbol	*/
+/* in the grammar) are entered as coercion sequences.  The general	*/
+/* form for placing abstract rules in the OIL database is as follows:	*/
+/*	For a rule:							*/
+/*		RULE p: A ::= B C END;					*/
+/*	An operation with the name 'p' is entered with a signature	*/
+/*	which looks like:						*/
+/*		A ::= B C						*/
+
+ATTR Env: Environment;
+ATTR Key: DefTableKey;
+ATTR Symbol: SymbolP;
+ATTR SymbolPElem: SymbolP;
+ATTR Sym: int;
+ATTR ntcount: int;
+ATTR argcount: int;
+ATTR GotRule, GotOper: VOID;
+
+SYMBOL Source COMPUTE
+  /* Initialize creates the empty type and returns a new environment */
+  SYNT.Env = Initialize();
+
+  /* GotRule guarantees that the following properties of rule keys have */
+  /* been set:								*/
+  /*	RHS - the list of keys representing the rhs			*/
+  /*    LHS - the key for the left-hand-side of the production		*/
+  /*    NTCount - the number of nonterminals on the rhs of the		*/
+  /*			production					*/
+  /*    ArgCount - the number of rhs symbols for an abstract rule that  */
+  /*			are not part of parsing modifications or	*/
+  /*			computed subtrees				*/
+  /*    Type - for abstract productions: either T_LISTOF or T_NONLISTOF	*/
+  /* It also guarantees that the list of ConRules and AbsRules		*/
+  /* associated with the lhs keys are complete.				*/
+  /* Lists for the RHSConRules property are also established here.	*/
+  /* These are the lists of concrete rules associated with each right	*/
+  /* hand side symbol.							*/
+  SYNT.GotRule = CONSTITUENTS (ConLHS.GotRule, AbsLHS.GotRule,
+				ConElement.GotRule);
+
+  /* Guarantees that the OIL database of abstract rules has been	*/
+  /* initialized							*/
+  SYNT.GotOper = CONSTITUENTS AbsProd.GotOper;
+END;
+
+RULE: ConProd ::=  ConLHS ':' ConAlt '.' COMPUTE
+  /* Create a key for the concrete production and set its rhs, lhs, and	*/
+  /* nonterminal count							*/
+  .Key = NewKey();
+  ConProd.argcount = CONSTITUENTS ConElement.argcount
+			WITH(int, ADD, IDENTICAL, ZERO);
+  ConProd.Key = ORDER(ResetRHS(.Key, ConProd.SymbolPList), 
+			ResetLHS(.Key, ConLHS.Key),
+			ResetArgCount(.Key, ConProd.argcount),
+			ResetNTCount(.Key, CONSTITUENTS ConElement.ntcount
+					WITH(int, ADD, IDENTICAL, ZERO)),
+			.Key);
+END;
+
+/* Tells whether a right hand side element is a literal (TEXT) or an	*/
+/* identifier (IDENTIFIER).						*/
+ATTR Class: int;
+
+/* Create a list of definition table keys which represent the right	*/
+/* hand side of the production.						*/
+SYMBOL ConProd INHERITS SymbolPListRoot END;
+
+SYMBOL ConElement INHERITS SymbolPListElem COMPUTE
+  SYNT.Symbol = CreateSymbol();
+  SYNT.SymbolPElem = ORDER(SymbolKeySet(THIS.Symbol, THIS.Key),
+			SymbolClassSet(THIS.Symbol, THIS.Class),
+			ResetStr(THIS.Key, THIS.Sym),
+                        THIS.Symbol);
+END;
+
+SYMBOL ConLHS COMPUTE
+  /* Add this concrete rule to the list of concrete rules which share	*/
+  /* this left hand side.						*/
+  SYNT.GotRule = ORDER(ResetStr(THIS.Key, THIS.Sym),
+                         ResetConRules(THIS.Key,
+			   AppElDefTableKeyList(GetConRules(THIS.Key,
+					NULLDefTableKeyList),
+					INCLUDING ConProd.Key)));
+END;
+
+RULE: ConElement ::= Identifier COMPUTE
+  ConElement.Class = IDENTIFIER;
+  ConElement.ntcount = 1;
+  ConElement.argcount = 1;
+
+  /* Add the rule that contains this identifier to the list of concrete	*/
+  /* rules that have this identifier on their right hand side.		*/
+  ConElement.GotRule = ResetRHSConRules(ConElement.Key,
+			AddToSetDefTableKeyList(INCLUDING ConProd.Key,
+				GetRHSConRules(ConElement.Key,
+						NULLDefTableKeyList),
+				DefTableKeyCmp));
+END;
+
+RULE: ConElement ::= Text COMPUTE
+  ConElement.Class = TEXT;
+  ConElement.ntcount = 0;
+  ConElement.argcount = 1;
+
+  /* We don't care about which rules have text symbols on their rhs. */
+  ConElement.GotRule = 0;
+END;
+
+RULE: ConElement ::= '&' Text COMPUTE
+  ConElement.ntcount = 0;
+  ConElement.argcount = 0;
+  ConElement.Class = ACTION;
+
+  ConElement.GotRule = 0;
+END;
+
+RULE: ConElement ::= '@@' Identifier COMPUTE
+  ConElement.ntcount = 0;
+  ConElement.argcount = 0;
+  ConElement.Class = ATMODIDN;
+
+  ConElement.GotRule = 0;
+END;
+
+RULE: ConElement ::= '@@' Text COMPUTE
+  ConElement.ntcount = 0;
+  ConElement.argcount = 0;
+  ConElement.Class = ATMODTXT;
+
+  ConElement.GotRule = 0;
+END;
+
+RULE: ConElement ::= '$' Identifier COMPUTE
+  ConElement.ntcount = 0;
+  ConElement.argcount = 0;
+  ConElement.Class = DOLLARMODIDN;
+
+  ConElement.GotRule = 0;
+END;
+
+RULE: ConElement ::= '$' Text COMPUTE
+  ConElement.ntcount = 0;
+  ConElement.argcount = 0;
+  ConElement.Class = DOLLARMODTXT;
+
+  ConElement.GotRule = 0;
+END;
+
+RULE: AbsProd ::=  'RULE' AbsRuleId ':' AbsSignature 'END' ';' COMPUTE
+  /* Set the string and left hand side properties of the rule key.	*/
+  AbsProd.Key =
+    KResetLHS(
+      KResetStr(AbsRuleId.Key, AbsRuleId.Sym),
+      CONSTITUENT AbsLHS.Key);
+
+  /* Create an operation in the OIL database which represents the 	*/
+  /* signature of this rule.  If the rule is a LISTOF (this is the	*/
+  /* case in which AbsSignature.argsig == NullArgSig), then don't add	*/
+  /* it to the OIL database.						*/
+  AbsProd.GotOper = IF(NE(AbsSignature.argsig, NullArgSig),
+		       CreateOper(AbsSignature.argcount,
+				AbsProd.Key,
+				AbsSignature.argsig))
+			DEPENDS_ON INCLUDING Source.GotRule;
+END;
+
+/* Attribute to ensure that the 'Type', 'NTCount', and 'RHS' properties	*/
+/* have been set.							*/
+ATTR SetAttrs: VOID;
+
+RULE: AbsLHS ::=  Identifier COMPUTE
+  /* Finish building the rule data structure by setting the 'Str'	*/
+  /* property for the lhs and add this rule key to the list of rules	*/
+  /* with this lhs							*/
+  AbsLHS.GotRule = ORDER(ResetStr(AbsLHS.Key, Identifier),
+                         ResetAbsRules(AbsLHS.Key,
+			   AppElDefTableKeyList(GetAbsRules(AbsLHS.Key,
+					NULLDefTableKeyList),
+					INCLUDING AbsProd.Key)))
+			DEPENDS_ON INCLUDING AbsSignature.SetAttrs;
+END;
+
+/* This chain is used to collect the signature of the abstract rule */
+CHAIN sig: tOilArgSig;
+
+ATTR argsig: tOilArgSig;
+
+/* Build up a List of the rhs elements of the rule */
+/* Set the 'Type' and 'RHS' properties of the rule key.  Note that	*/
+/* the chain which builds up the rhs sets the 'NTCount' property.	*/
+SYMBOL AbsSignature INHERITS SymbolPListRoot COMPUTE
+  SYNT.SetAttrs = ORDER(
+    ResetType(INCLUDING AbsProd.Key, T_NONLISTOF),
+    ResetRHS(INCLUDING AbsProd.Key, THIS.SymbolPList),
+    ResetArgCount(INCLUDING AbsProd.Key, THIS.argcount),
+    ResetNTCount(
+      INCLUDING AbsProd.Key,
+      CONSTITUENTS AbsElement.ntcount WITH(int, ADD, IDENTICAL, ZERO)));
+END;
+
+SYMBOL AbsElement INHERITS SymbolPListElem COMPUTE
+  SYNT.Symbol = CreateSymbol();
+  SYNT.SymbolPElem = ORDER(SymbolKeySet(THIS.Symbol, THIS.Key),
+			SymbolClassSet(THIS.Symbol, THIS.Class),
+                          ResetStr(THIS.Key, THIS.Sym),
+                          THIS.Symbol);
+END;
+
+RULE: AbsSignature ::=  AbsLHS '::=' AbsElements COMPUTE
+  /* argcount counts the number of rhs symbols there are in the		*/
+  /* signature.  It doesn't count symbols preceded by '$'.		*/
+  AbsSignature.argcount =
+    CONSTITUENTS AbsElement.argcount WITH(int, ADD, IDENTICAL, ZERO);
+
+  /* Create the signature from the rhs signature elements and the lhs key */
+  CHAINSTART AbsElements.sig = OilNewArgSig();
+  AbsSignature.argsig =
+    SigAppend(
+      IF(EQ(AbsSignature.argcount,0),
+        SigAppend(AbsElements.sig, OilTypeName(EmptyType)),
+	AbsElements.sig),
+      AbsLHS.Key);
+END;
+
+RULE: AbsElement ::=  Identifier COMPUTE
+  AbsElement.Class = IDENTIFIER;
+  AbsElement.ntcount = 1;
+
+  /* Append the current symbol to the signature and count it */
+  AbsElement.sig = SigAppend(AbsElement.sig, AbsElement.Key);
+  AbsElement.argcount = 1;
+END;
+
+RULE: AbsElement ::=  Text COMPUTE
+  AbsElement.Class = TEXT;
+  AbsElement.ntcount = 0;
+
+  /* Append the current symbol to the signature and count it */
+  AbsElement.sig = SigAppend(AbsElement.sig, AbsElement.Key);
+  AbsElement.argcount = 1;
+END;
+
+RULE: AbsElement ::=  '$' Identifier COMPUTE
+  AbsElement.Class = GEN_IDENT;
+  AbsElement.ntcount = 0;
+
+  /* Attribution generated trees are not matched against concrete rules	*/
+  /* so this symbol is not included in the signature			*/
+  AbsElement.argcount = 0;
+END;
+
+RULE: AbsSignature ::=  AbsLHS 'LISTOF' AbsAlts COMPUTE
+  AbsSignature.SetAttrs = ORDER(ResetType(INCLUDING AbsProd.Key, T_LISTOF),
+				ResetRHS(INCLUDING AbsProd.Key,
+					AbsSignature.SymbolPList));
+
+  /* We don't put LISTOF constructs in the OIL database, because they	*/
+  /* are matched separately						*/
+  AbsSignature.argsig = NullArgSig;
+  AbsSignature.argcount = 0;
+END;
+
+SYMBOL AbsAlt INHERITS SymbolPListElem COMPUTE
+  SYNT.Symbol = CreateSymbol();
+  SYNT.SymbolPElem = ORDER(SymbolKeySet(THIS.Symbol, THIS.Key),
+			SymbolClassSet(THIS.Symbol, IDENTIFIER),
+			ResetStr(THIS.Key, THIS.Sym),
+			THIS.Symbol);
+END;
+@}
+
+@$@<BottomUp Handling@>==@{
+ATTR GotBottomUp: int;
+
+SYMBOL Source COMPUTE
+  SYNT.GotBottomUp = CONSTITUENTS BottomUpRule.GotBottomUp
+                       WITH(int, ADD, IDENTICAL, ZERO);
+END;
+
+ATTR BottomUpSet: VOID;
+
+RULE: BottomUpRule ::= Identifier COMPUTE
+  BottomUpRule.Key = KeyInEnv(INCLUDING Source.Env, Identifier)
+                       DEPENDS_ON INCLUDING Source.GotRule;
+  IF(EQ(BottomUpRule.Key, NoKey),
+    message(FATAL, "Rule name must appear in the abstract syntax.",
+            0, COORDREF));
+  BottomUpRule.GotBottomUp = 1 <- .BottomUpSet;
+  .BottomUpSet = ResetBottomUp(BottomUpRule.Key, 1);
+END;
+@}
+
+@$@<BottomUp Properties@>==@{
+BottomUp: int;
+@}
+
+@$@<Attribution Headers@>==@{
+#include "rules.h"
+@}
+
+@$@<Rule Definitions@>==@{
+#include "envmod.h"
+#include "deftbl.h"
+#include "oiladt2.h"
+#include "eliproto.h"
+
+/* Constants for the Class property */
+#define IDENTIFIER	0
+#define TEXT		1
+#define GEN_IDENT	2
+#define ACTION		3
+#define ATMODIDN	4
+#define ATMODTXT	5
+#define DOLLARMODIDN	6
+#define DOLLARMODTXT	7
+
+/* Constants for the Type property */
+#define T_NONLISTOF     0
+#define T_LISTOF        1
+
+typedef char *charp;
+
+/* Given a key for a rule, return the name of the rule if it	*/
+/* already exists or generate a unique name for the rule and	*/
+/* return it.							*/
+extern void GenRuleName ELI_ARG((DefTableKey key));
+
+extern int QChain ELI_ARG((DefTableKey key));
+extern int Trivial ELI_ARG((DefTableKey key));
+extern Environment Initialize ELI_ARG((void));
+
+extern tOilType EmptyType;
+extern tOilArgSig NullArgSig;
+
+extern tOilArgSig SigAppend ELI_ARG((tOilArgSig sig, DefTableKey key));
+extern void CreateOper ELI_ARG((int argcount, DefTableKey prodkey,
+				tOilArgSig opsig));
+@}
+
+@$@<Output Functions@>==@{
+#include "err.h"
+#include "csm.h"
+#include "idn.h"
+#include "pdl_gen.h"
+#include "oiladt2.h"
+#include "obstack.h"
+#include "deftbl.h"
+#include "MakeName.h"
+#include "map.h"
+#include "symbol.h"
+#include "rules.h"
+
+/* On Entry:
+ *   env - the global environment
+ *   key - is a key for a rule
+ * On Exit:
+ *   The Str property of key has a value
+ */
+void
+#ifdef PROTO_OK
+GenRuleName (DefTableKey key)
+#else
+GenRuleName (key) DefTableKey key;
+#endif
+{ if (GetStr(key, NoStrIndex) == NoStrIndex) {
+    ResetStr(key, GenerateName("rule_0"));
+  }
+}
+
+/* On Entry:
+ *   key - a rule key
+ * On Exit:
+ *   QChain returns non-zero if key represents a QChain
+ *   production and zero otherwise.
+ *   A QChain production is defined as a rules in which the right hand
+ *   side has a single nonterminal (with any number of literal symbols) and
+ *   that nonterminal is symbolically equivalent to the left hand side symbol.
+ */
+#ifdef PROTO_OK
+int
+QChain (DefTableKey key)
+#else
+int
+QChain (key)
+DefTableKey key;
+#endif
+{
+  DefTableKey lhs;
+  SymbolP rhs;
+
+  lhs = GetLHS(key, NoKey);
+  rhs = GetNthNT(GetRHS(key, NULLSymbolPList), 1);
+  if (GetNTCount(key, 0) == 1 &&
+	GetMap(lhs, lhs) == GetMap(SymbolKeyGet(rhs), SymbolKeyGet(rhs)))
+    return 1;
+  else
+    return 0;
+}
+
+/* On Entry:
+ *   key - a rule key
+ * On Exit:
+ *   Trivial returns non-zero if key represents a trivial chain production
+ *   and zero otherwise.
+ *   A trivial chain production is defined as a rules in which the right hand
+ *   side has a single nonterminal and that nonterminal is symbolically
+ *   equivalent to the left hand side symbol.
+ */
+#ifdef PROTO_OK
+int
+Trivial (DefTableKey key)
+#else
+int
+Trivial (key)
+DefTableKey key;
+#endif
+{
+  DefTableKey lhs;
+  SymbolP rhs;
+
+  lhs = GetLHS(key, NoKey);
+  rhs = GetNthNT(GetRHS(key, NULLSymbolPList), 1);
+  if (GetArgCount(key, 0) == 1 && GetNTCount(key, 0) == 1 &&
+	GetMap(lhs, lhs) == GetMap(SymbolKeyGet(rhs), SymbolKeyGet(rhs)))
+    return 1;
+  else
+    return 0;
+}
+
+/* A special type index representing an empty right hand side of a */
+/* production and the corresponding OIL type			   */
+tOilType EmptyType;
+
+/* A special argument signature used in attribution to detect	*/
+/* LISTOF constructs, for which signatures are not built	*/
+tOilArgSig NullArgSig=((tOilArgSig)0);
+
+/* On Exit:
+ *   EmptyTypeIndex and EmptyType are initialized
+ *   The global environment is returned
+ */
+#ifdef PROTO_OK
+Environment
+Initialize (void)
+#else
+Environment
+Initialize ()
+#endif
+{
+  DefTableKey key;
+  key = NewKey();
+  ResetStr(key, stostr("", 0));
+  EmptyType = OilNewType(key);
+  return NewEnv();
+}
+
+/* On Entry:
+ *   sig - the signature built up so far (the result of OilNewArgSig
+ *		represents an empty signature
+ *   key - the key representing the symbol to be added to the
+ *		signature
+ * On Exit:
+ *   The new signature is returned after appending the symbol
+ *   represented by key to the signature, sig.  If an
+ *   OIL type has not yet been created for the symbol to be
+ *   added then such an OIL type is created.
+ */
+#ifdef PROTO_OK
+tOilArgSig
+SigAppend (tOilArgSig sig, DefTableKey key)
+#else
+tOilArgSig
+SigAppend (sig, key)
+  tOilArgSig sig;
+  DefTableKey key;
+#endif
+{
+  tOilType type;
+
+  type = GetOilType(key, OilErrorType());
+  if (type == OilErrorType()) {
+    type = OilNewType(key);
+    ResetOilType(key, type);
+  }
+  return OilAddArgSig(type, sig);
+}
+
+/* On Entry:
+ *   argcount - the number of symbols on the rhs of the rule
+ *   key - the key representing the rule
+ *   opsig - the OIL signature of the rule
+ * On Exit:
+ *   The rule is entered into the OIL database.  Rules with
+ *   one rhs symbol are entered as coercions and all others
+ *   are entered as normal operations.  The name of the
+ *   operation is the rule name and the indication is given
+ *   by the lhs of the rule.
+ */
+#ifdef PROTO_OK
+void
+CreateOper (int argcount, DefTableKey prodkey, tOilArgSig opsig)
+#else
+void
+CreateOper (argcount, prodkey, opsig)
+int argcount;
+DefTableKey prodkey;
+tOilArgSig opsig;
+#endif
+{
+  DefTableKey indkey;
+  tOilOp op, indication;
+
+  indkey = GetLHS(prodkey, NoKey);
+
+  /* Create the new operation, using the name of the rule */
+  op = OilNewOp(prodkey, opsig, 1);
+
+  /* If it is a chain production, add it as a coercion */
+  if (argcount == 1) OilAddCoercion(op);
+
+  /* Get the OIL indication for this lhs */
+  indication = GetOilOp(indkey, OilErrorOp());
+
+  /* If it hasn't been created yet, create it */
+  if (!OilIsValidOp(indication)) {
+    indication = OilNewOp(indkey, (tOilArgSig)0, 0);
+    ResetOilOp(indkey, indication);
+  }
+  OilAddIdentification(indication, op);
+}
+@}
+
+@$@<Property Definitions@>==@{
+"deftbl.h"
+"DefTableKeyList.h"
+"SymbolPList.h"
+
+/* A list of all concrete rules which have the key as their lhs */
+ConRules: DefTableKeyList;
+
+/* A list of all abstract rules which have the key as their lhs */
+AbsRules: DefTableKeyList;
+
+/* A list of all concrete rules that have the key as their rhs */
+RHSConRules: DefTableKeyList;
+
+/* The lhs of a rule key */
+LHS: DefTableKey [KReset];
+
+/* A list of Symbols representing the rhs of a rule */
+RHS: SymbolPList;
+
+/* T_LISTOF or T_NONLISTOF */
+Type: int;
+
+/* Should be able to remove these soon */
+"oiladt2.h"
+OilOp: tOilOp;
+OilType: tOilType;
+
+"csm.h"
+"rules.h"
+/* Number of rhs nonterminals for a rule */
+NTCount: int [Inc];
+
+/* Number of rhs symbols for an abstract rule not counting	*/
+/* symbols preceded by a '$'					*/
+ArgCount: int;
+
+/* Increments the integer property if it exists and returns 1 	*/
+/* if it doesn't						*/
+int Inc(DefTableKey key)
+{ if (key == NoKey) return 0;
+  if (ACCESS) ++VALUE;
+  else VALUE = 1;
+  return VALUE;
+}
+
+/* String table index for symbol and rule keys */
+Str: int [KReset,Str];
+
+/* Returns the char * for symbol and rule keys */
+charp Str(DefTableKey key)
+{ if (key == NoKey) return ((char *)0);
+  if (PRESENT) return StringTable(VALUE);
+  else return ((char *)0);
+}
+
+@<BottomUp Properties@>
+@}
+
+@O@<rules.specs@>==@{
+@<Instantiate modules@>
+@}
+
+@O@<rules.lido@>==@{
+@<Rule Database Creation@>
+@<BottomUp Handling@>
+@}
+
+@O@<rules.head@>==@{
+@<Attribution Headers@>
+@}
+
+@O@<rules.pdl@>==@{
+@<Property Definitions@>
+@}
+
+@O@<rules.h@>==@{
+#ifndef RULES_H
+#define RULES_H
+
+#include "eliproto.h"
+
+@<Rule Definitions@>
+
+#endif
+@}
+
+@O@<rules.c@>==@{
+@<Output Functions@>
+@}
+
+@O@<symbol.init@>==@{
+obstack_init(MapObstack);
+@}
+
+@O@<symbol.head@>==@{
+#include "symbol.h"
+@}
+
+@O@<symbol.h@>==@{
+#ifndef SYMBOL_H
+#define SYMBOL_H
+
+#include "obstack.h"
+#include "deftbl.h"
+#include "eliproto.h"
+
+extern Obstack mapobstack;
+
+#define MapObstack	(&mapobstack)
+
+typedef struct Symbol {
+	int Class;
+	DefTableKey Key;
+} *SymbolP;
+
+#define SymbolKeySet(s,k)	(((SymbolP)(s))->Key = (k))
+#define SymbolKeyGet(s)		(((SymbolP)(s))->Key)
+#define SymbolClassSet(s,c)	(((SymbolP)(s))->Class = (c))
+#define SymbolClassGet(s)	(((SymbolP)(s))->Class)
+#define DAPTO_RESULTSymbolP(e)	DAPTO_RESULT_PTR(e)
+#define DAPTO_ARGSymbolP(e)	DAPTO_ARG_PTR(e, SymbolP)
+
+extern SymbolP CreateSymbol ELI_ARG((void));
+
+#endif
+@}
+
+@O@<symbol.c@>==@{
+#include "obstack.h"
+#include "symbol.h"
+#include "eliproto.h"
+
+Obstack mapobstack;
+
+/* On Exit:
+ *   CreateSymbol creates and returns a newly allocated symbol structure.
+ */
+#ifdef PROTO_OK
+SymbolP
+CreateSymbol (void)
+#else
+SymbolP
+CreateSymbol ()
+#endif
+{
+  return (SymbolP)obstack_alloc(MapObstack, sizeof(struct Symbol));
+}
+@}
+
+@O@<rules.dapto@>==@{
+aspect symbol;
+"symbol.h"
+
+operation get_symbol_info "Return the content of a symbol"
+  (SymbolP symp "The symbol to be returned") : str
+{ DAPTO_RESULT_INT(SymbolClassGet(symp));
+  DAPTO_RESULT_PTR(SymbolKeyGet(symp));
+}
+end;
+@}
+
+@O@<rules.tcl@>==@{
+set n(SymbolP,desc) "Symbol descriptor"
+
+proc n_SymbolP_say {symp} {
+  n_say "SymbolP:0x[n_dectohex $symp]"
+}
+     
+proc n_SymbolP_open {text symp} {
+  n_say "$text"
+  if {$symp == 0} {
+    n_say "\n  NoSymbolP\n"
+  } else {
+    set symp [n_hextodec $symp]
+    set r [n_send get_symbol_info $symp]
+    n_say " Class: "
+    switch [lindex $r 0] {
+    0 {n_say "IDENTIFIER"}
+    1 {n_say "TEXT"}
+    2 {n_say "GEN_IDENT"}
+    3 {n_say "ACTION"}
+    4 {n_say "ATMODIDN"}
+    5 {n_say "ATMODTXT"}
+    6 {n_say "DOLLARMODIDN"}
+    7 {n_say "DOLLARMODTXT"}
+    }
+    n_say ", Key: "
+    n_DefTableKey_say [lindex $r 1]
+    n_say "\n"
+  }
+}
+@}

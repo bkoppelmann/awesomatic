@@ -1,0 +1,18 @@
+pascal == %Pascal.specs:exe
+
+Pascal.pdf == %Pascal.tex.vtd :pdf
+
+%Pascal.specs == <<
+  Structure.fw
+  Name.fw
+  Type.fw
+  Context.fw
+  Debug.fw
+
+%Pascal.tex.vtd == <<
+  %base.tex  == wrapper.tex
+  %title.tex == title.tex
+  %struc.tex == Structure.fw :fwTex
+  %names.tex == Name.fw :fwTex
+  %types.tex == Type.fw :fwTex
+  %check.tex == Context.fw :fwTex

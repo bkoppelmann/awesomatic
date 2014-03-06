@@ -1,0 +1,6 @@
+/* $Id: F77Phrase.specs,v 1.4 1998/01/01 18:28:17 waite Exp $ */
+/* Specifications for a FORTRAN 77 scanner/parser */
+
+F77Phrase.fw		/* Selection of the FORTRAN 77 scanner/parser */
+F77/keywds.delit	/* FORTRAN 77 keywords */
+F77/keywds.h

@@ -1,0 +1,20 @@
+@A@<Check the Inheritance Relation@>
+
+@O@<CheckInherit.FINL.phi@>==@{
+{ Scope p;
+  for (p = DefinitionsOf(FullyQualifiedTypeEnv); p; p = NextDefinition(p)) {
+    DefTableKey key = KeyOf(p);
+
+    if (GetDisp(key, InvalidType) != InvalidType) {
+      DefTableKey super = GetDirectSuper(key, NoKey);
+      if (super != NoKey)
+        printf(
+          "%s inherits from %s\n",
+          StringTable(GetId(key, 0)),
+          StringTable(GetId(super, 0)));
+      else
+        printf("%s\n", StringTable(GetId(key, 0)));
+    }
+  }
+}
+@}

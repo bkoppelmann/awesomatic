@@ -1,0 +1,26 @@
+FORTRAN keywords are not reserved, and in the fixed input format
+they need not be separated from other text by white space.
+The combination of these properties strongly suggests that
+the scanner should lump identifiers and literal keywords together,
+and let a processor sort out the
+situation once the character sequence is known.
+The processor would determine whether some prefix of the scanned string
+matches a keyword, and then select the longest such keyword.
+(For example, if the scanned string were @{ENDTYPEFOO@} then the processor
+should select the keyword @{ENDTYPE@} rather than the keyword @{END@}.)
+
+A processor can easily make the keyword selection
+if it is given a sorted table of the literal keywords,
+and if the normal recognition of keywords by the scanner is inhibited.
+The table can be defined by a C header file to be included in the
+processor, and normal recognition of the keywords can be suppressed by
+providing an additional specification to Eli.
+
+Because of the large number of keywords used in FORTRAN, and the
+possibility that people will wish to add more keywords when extending the
+language, it is best to generate the necessary files from the grammar being
+used.
+This document defines the file generation problem
+and provides a solution for it.
+It is a complete Eli specification; the printed form and the processor
+described were both generated from the same file.

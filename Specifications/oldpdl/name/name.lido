@@ -1,0 +1,85 @@
+/* $Id: name.lido,v 1.3 1993/05/28 21:16:34 kadhim Exp $ */
+/* PDL name analysis */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+
+ATTR def: VOID;
+ATTR key: DefTableKey;
+ATTR openv: Environment;	/* environment for operation declarations */
+
+NONTERM Source: env: Environment, GotAllDefs: VOID, GotAllOps: VOID;
+TERM Identifier: sym: int;
+
+RULE Axiom: Source ::= Range '$LIBRARY' LibraryList 
+COMPUTE
+  /* Return a new environment and define the reserved word 'TYPE' */
+  Source.env=InitEnv();
+
+  /* Create a new scope for the users' declarations */
+  Source.openv=NewScope(LibraryList.openv);
+
+  /* global ordering dependencies */
+  Source.GotAllDefs=CONSTITUENTS (TypeIdent.def,PropertyNameDecl.def);
+  Source.GotAllOps=CONSTITUENTS OperationDecl.def
+END;
+
+RULE LibrarySpec: LibraryList IS OperationList
+COMPUTE
+  /* Creates the environment and creates the identifiers "Get" and "Set" */
+  /* and "Reset" for later use */
+  LibraryList.openv=InitOpEnv();
+END;
+
+RULE TypeName: TypeIdent IS Identifier
+COMPUTE
+  TypeIdent.key=DefineIdn(INCLUDING Source.env, Identifier.sym);
+
+  /* Set the kind of the identifier to Type and detect any name clashes */
+  TypeIdent.def=ORDER(SetSym(TypeIdent.key, Identifier.sym, Identifier.sym),
+			KindIs(TypeIdent.key, TypeClass));
+
+  /* if the identifier has already been used for a property name, then */
+  /* give an error */
+  IF(EQ(GetKind(TypeIdent.key,Undefined),NameClash),
+  Message(FATAL, "Property and Type names must be different"))
+  DEPENDS_ON INCLUDING Source.GotAllDefs;
+END;
+
+RULE PropertyName: PropertyNameDecl ::= Identifier
+COMPUTE
+  PropertyNameDecl.key=DefineIdn(INCLUDING Source.env, Identifier.sym);
+
+  /* Set the kind of the identifier to Property and detect any name clashes */
+  PropertyNameDecl.def=KindIs(PropertyNameDecl.key, PropertyClass); 
+
+  /* Give an error if this identifier has already been used as a type name */
+  IF(EQ(GetKind(PropertyNameDecl.key,Undefined),NameClash),
+  Message(FATAL,"Property and Type names must be different"))
+  DEPENDS_ON INCLUDING Source.GotAllDefs;
+END;
+
+RULE OperationSpec: OperationDecl ::=
+                        TypeSpecifier Identifier '(' ParameterList ')' Text
+COMPUTE
+  /* Set all the properties associated with an operation declaration key */
+  OperationDecl.def=OpDefine(OperationDecl.key, OperationDecl.opout, 
+				OperationDecl.arglist, OperationDecl.formallist,
+				OperationDecl.extstruct, Identifier.sym);
+
+  OperationDecl.key=DefineIdn(INCLUDING(LibraryList.openv,Source.openv),
+				Identifier.sym);
+
+  /* Detect if the operation has been multiply defined */
+  IF(EQ(GetDefine(OperationDecl.key, Undefined), MultDefined),
+  Message(FATAL,"Operation is multiply defined"))
+  DEPENDS_ON INCLUDING Source.GotAllOps;
+END;
+
+RULE OperationName: OperationNameDecl ::= Identifier
+COMPUTE
+  /* Detect if the named operation does not have an associated declaration */
+  IF(EQ(KeyInEnv(INCLUDING Source.openv, Identifier.sym), NoKey),
+  Message(FATAL,"Operation not defined"))
+  DEPENDS_ON INCLUDING Source.GotAllOps;
+END;
+

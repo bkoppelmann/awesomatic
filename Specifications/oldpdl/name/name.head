@@ -1,0 +1,6 @@
+/* $Id: name.head,v 1.1 1992/06/20 19:13:56 kadhim Exp $ */
+/* PDL name analysis computation interface */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+#include "name.h"
+

@@ -1,0 +1,696 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Tree Structure@>
+\label{chap:tree}
+
+An attribute grammar is used to describe both the abstract syntax tree and
+the computations carried out over it.
+The fragment describing the overall structure of a Java AST serves to
+illustrate the notation:
+
+@O@<Tree.lido@>==@{
+RULE: Goal    ::=    Cluster         END;
+RULE: Cluster LISTOF CompilationUnit END;
+
+RULE: CompilationUnit ::=
+  PackageDeclarationOpt ImportJavaLang
+  ImportDeclarationsOpt TypeDeclarationsOpt
+END;
+
+RULE: ImportJavaLang ::= END;
+
+RULE pknm: PackageDeclarationOpt ::= 'package' PackageName ';' END;
+RULE nonm: PackageDeclarationOpt ::=                           END;
+
+RULE: ImportDeclarationsOpt LISTOF
+  SingleTypeImportDeclaration | TypeImportOnDemandDeclaration
+END;
+
+RULE: TypeDeclarationsOpt LISTOF TypeDeclaration END;
+
+RULE: TypeImportOnDemandDeclaration ::= 'import' QualInhName '.' '*' END;
+RULE: SingleTypeImportDeclaration   ::= 'import' QualInhName         END;
+
+RULE: QualInhName ::=                 InhBaseId END;
+RULE: QualInhName ::= QualInhName '.' InhQualId END;
+
+RULE: InhBaseId ::= Identifier END;
+RULE: InhQualId ::= Identifier END;
+
+@<Abstract syntax@>
+@}
+
+Each rule describes a node of the AST, and corresponds to a class in an
+object-oriented implementation.
+The identifier following the keyword @{RULE@} names the class of the object
+that would represent such a node.
+These are the only classes that can be instantiated.
+(It is not necessary to name the rules in a LIDO specification, because
+Eli will generate unique names if none are given,
+but rules can be named to make it easier to discuss them.)
+
+An identifier that precedes @{::=@} or @{LISTOF@} in some rule is called a
+@/nonterminal@/; all other identifiers are @/terminals@/.
+Nonterminals following @{::=@} represent subtrees, while terminals
+represent values that are not subtrees.
+(For example, @{Identifier@} is a terminal representing
+an identifier appearing in the source program.)
+
+Terminals can also be thought of as class names, but these classes are
+defined outside of the LIDO specification.
+They do not represent tree nodes, but rather values that are components of
+a rule's object.
+Objects of class @{pgpr@} therefore have no children, but each stores a
+representation of an identifier appearing in the source program.
+
+A nonterminal
+(such as @{PackageDeclarationOpt@})
+names the abstract class that characterizes the contexts
+in which the construct can appear.
+Each rule class
+(such as @{pknm@} and @{nonm@})
+is a subclass of the abstract class named by the nonterminal preceding
+@{::=@} or @{LISTOF@}.
+
+Each rule containing @{::=@} describes a node with a fixed number of
+children and/or component values.
+Nonterminals following the @{::=@} specify children, in left-to-right
+order.
+Each child must be represented by an object belonging to a subclass of the
+abstract class named by the nonterminal.
+
+Each rule containing @{LISTOF@} describes a node with an arbitrary number
+of children (including none at all).
+Nonterminals following @{LISTOF@} (separated  by vertical bars) specify
+the possible children.
+There may be any number of children corresponding to each nonterminal.
+
+Literals do not represent information present in the abstract syntax tree;
+they are used solely to establish a correspondence between
+the abstract syntax tree nodes and the phrase structure of the input.
+
+A @{CompilationUnit@} constitutes the text in a single file.
+Types declared in different compilation units can depend on each other,
+circularly.
+The compiler must compile such types all at the same time, which implies
+that it must deal with an arbitrary number of compilation units:
+
+@B
+
+@$@<Abstract syntax@>==@{@-
+RULE: TypeDeclaration ::=
+        Modifiers 'class'     TypeIdDef Super Interfaces ClassBody     END;
+RULE: TypeDeclaration ::=
+        Modifiers 'interface' TypeIdDef       Interfaces InterfaceBody END;
+
+RULE: Modifiers LISTOF Modifier       END;
+RULE: Modifier  ::=    'abstract'     END;
+RULE: Modifier  ::=    'final'        END;
+RULE: Modifier  ::=    'native'       END;
+RULE: Modifier  ::=    'private'      END;
+RULE: Modifier  ::=    'protected'    END;
+RULE: Modifier  ::=    'public'       END;
+RULE: Modifier  ::=    'static'       END;
+RULE: Modifier  ::=    'synchronized' END;
+RULE: Modifier  ::=    'transient'    END;
+RULE: Modifier  ::=    'volatile'     END;
+RULE: Modifier  ::=    'strictfp'     END;
+
+RULE: Super ::= 'extends' InhName END;
+RULE: Super ::=                    END;
+
+RULE: Interfaces LISTOF InterfaceType END;
+
+RULE: InterfaceType ::= InhName     END;
+RULE: InhName       ::= QualInhName END;
+
+RULE: ClassBody             ::=    '{' ClassBodyDeclarations '}' END;
+RULE: ClassBodyDeclarations LISTOF FieldDeclaration |
+                                   MethodDeclaration |
+				   TypeDeclaration |
+                                   ConstructorDeclaration |
+                                   ClassInitializer             END;
+
+RULE: ConstructorDeclaration ::=
+        Modifiers TypeName '(' FormalParameters ')' Throws
+	'{' Statements '}' END;
+
+RULE: InterfaceBody ::= '{' InterfaceMembers '}' END;
+RULE: InterfaceMembers LISTOF AbstractMethodDeclaration |
+			      TypeDeclaration |
+                              ConstantDeclaration END;
+
+RULE: AbstractMethodDeclaration ::= MethodHeader ';' END;
+RULE: ConstantDeclaration       ::= FieldDeclaration END;
+
+RULE: Statements LISTOF LocalVariableDeclaration |
+                        Statement |
+			TypeDeclaration END;
+
+RULE: FieldDeclaration  ::=    Modifiers Type FieldDeclarators ';' END;
+RULE: FieldDeclarators  LISTOF FieldDeclarator                     END;
+RULE: FieldDeclarator   ::=    FieldDeclaratorId                   END;
+RULE: FieldDeclarator   ::=    FieldDeclaratorId '=' Initializer   END;
+RULE: FieldDeclaratorId ::=    FieldIdDef                          END;
+
+RULE: MethodDeclaration ::=    MethodHeader MethodBody                END;
+RULE: MethodHeader      ::=    Modifiers Type MethodDeclarator Throws END;
+RULE: MethodDeclarator  ::=    MethodIdDef '(' FormalParameters ')'   END;
+RULE: MethodDeclarator  ::=    MethodDeclarator '[' ']'               END;
+RULE: FormalParameters  LISTOF FormalParameter                        END;
+RULE: FormalParameter   ::=   'final' Type VariableDeclaratorId       END;
+RULE: FormalParameter   ::=           Type VariableDeclaratorId       END;
+RULE: MethodBody        ::=    '{' Statements '}'                     END;
+RULE: MethodBody        ::=    ';'                                    END;
+
+RULE: LocalVariableDeclaration ::= 'final' Type VariableDeclarators END;
+RULE: LocalVariableDeclaration ::=         Type VariableDeclarators END;
+
+RULE: Expression ::= CharacterLiteral END;
+RULE: Expression ::= DoubleLiteral END;
+RULE: Expression ::= '(' PrimitiveType ')' Expression END;
+RULE: Expression ::= '(' ArrayType ')'     Expression END;
+RULE: Expression ::=            Operator Expression END;
+RULE: Expression ::= Expression Operator            END;
+RULE: Expression ::= Expression Operator Expression END;
+RULE: Expression ::= Expression '?' Expression ':' Expression END;
+RULE: Expression ::= Expression 'instanceof' Type END;
+RULE: Expression ::= Expression '.' MethodIdUse '(' Arguments ')' END;
+RULE: Expression ::= Expression '.' FieldIdUse END;
+RULE: Expression ::= 'false' END;
+RULE: Expression ::= FloatLiteral END;
+RULE: Expression ::= IntLiteral END;
+RULE: Expression ::= LeftHandSide AssignmentOperator RightHandSide END;
+RULE: Expression ::= LongLiteral END;
+RULE: Expression ::= MethodName '(' Arguments ')' END;
+RULE: Expression ::=
+  Expression '.' 'new' TypeIdUse '(' Arguments ')' AnonymousClass END;
+RULE: Expression ::= 'new' TypeName '(' Arguments ')' AnonymousClass END;
+RULE: Expression ::= 'new' PrimitiveType Dimensions END;
+RULE: Expression ::= 'new' TypeName      Dimensions END;
+RULE: Expression ::= 'null' END;
+RULE: Expression ::= StringLiteral END;
+RULE: Expression ::= 'super' '.' MethodIdUse '(' Arguments ')' END;
+RULE: Expression ::= 'super' '.' FieldIdUse END;
+RULE: Expression ::=              'this' END;
+RULE: Expression ::= 'true' END;
+RULE: LeftHandSide ::= Expression END;
+RULE: RightHandSide ::= Expression END;
+RULE: Arguments LISTOF Argument END;
+RULE: Argument ::= Expression END;
+
+RULE: AnonymousClass ::= '{' ClassBodyDeclarations '}' END;
+RULE: AnonymousClass ::=                               END;
+RULE: Dimensions LISTOF Dimension END;
+RULE: Dimension ::= '[' Expression ']' END;
+RULE: Dimension ::= '[' ']' END;
+
+RULE: ExpressionStatement ::= Expression                ';' END;
+RULE: ExpressionStatement ::= 'this'  '(' Arguments ')' ';' END;
+RULE: ExpressionStatement ::= Expression '.' 'super' '(' Arguments ')' ';' END;
+RULE: ExpressionStatement ::=                'super' '(' Arguments ')' ';' END;
+
+RULE: Block ::= '{' Statements '}' END;
+
+RULE: LabeledStatement ::= LabelIdDef ':' Statement END;
+
+RULE: Statement ::= AssertStatement END;
+RULE: Statement ::= Block END;
+RULE: Statement ::= ExpressionStatement END;
+RULE: Statement ::= 'break' ';' END;
+RULE: Statement ::= 'break' LabelIdUse ';' END;
+RULE: Statement ::= 'continue' ';' END;
+RULE: Statement ::= 'continue' LabelIdUse ';' END;
+RULE: Statement ::= LoopStatement END;
+RULE: Statement ::= ';' END;
+RULE: Statement ::= 'if' '(' Expression ')' Statement 'else' Statement END;
+RULE: Statement ::= 'if' '(' Expression ')' Statement END;
+RULE: Statement ::= LabeledStatement END;
+RULE: Statement ::= 'return' ';' END;
+RULE: Statement ::= 'return' Expression ';' END;
+RULE: Statement ::= SwitchStatement END;
+RULE: Statement ::= 'synchronized' '(' Expression ')' Block END;
+RULE: Statement ::= 'throw' Expression ';' END;
+RULE: Statement ::= 'try' Block Catches END;
+
+RULE: LoopStatement ::= WhileStatement END;
+RULE: LoopStatement ::= DoStatement END;
+RULE: LoopStatement ::= ForStatement END;
+
+RULE: AssertStatement ::= 'assert' Expression ';' END; 
+RULE: AssertStatement ::= 'assert' Expression ':' Expression ';' END;
+
+RULE: DoStatement ::= 'do' Statement 'while' '(' Expression ')' ';' END;
+
+RULE: ForStatement ::= 'for' '(' ForInit ';' ForTest ';' ForUpdate ')' Statement END;
+RULE: ForInit ::= LocalVariableDeclaration END;
+RULE: ForInit ::= ExpressionList END;
+RULE: ForTest ::= Expression END;
+RULE: ForTest ::= END;
+RULE: ForUpdate ::= ExpressionList END;
+
+RULE: ExpressionList LISTOF Expression END;
+
+RULE: SwitchStatement ::= 'switch' '(' Expression ')' SwitchBlock END;
+RULE: SwitchBlock ::= '{' '}' END;
+RULE: SwitchBlock ::= '{' SwitchBlockStatements '}' END;
+RULE: SwitchBlock ::= '{' SwitchBlockStatements SwitchLabels '}' END;
+RULE: SwitchBlock ::= '{' SwitchLabels '}' END;
+RULE: SwitchBlockStatements ::= SwitchBlockStatement END;
+RULE: SwitchBlockStatements ::= SwitchBlockStatements SwitchBlockStatement END;
+RULE: SwitchBlockStatement ::= SwitchLabels Statements END;
+RULE: SwitchLabels LISTOF SwitchLabel END;
+RULE: SwitchLabel ::= 'case' Expression ':' END;
+RULE: SwitchLabel ::= 'default' ':' END;
+
+RULE: WhileStatement ::= 'while' '(' Expression ')' Statement END;
+
+RULE: Catches LISTOF CatchClause | Finally END;
+RULE: CatchClause ::= 'catch' '(' FormalParameter ')' Block END;
+RULE: Finally ::= 'finally' Block END;
+
+RULE: ClassInitializer ::= 'static' Block END;
+RULE: ClassInitializer ::=          Block END;
+
+RULE: Throws LISTOF ThrownType END;
+RULE: ThrownType ::= TypeName END;
+
+RULE: PrimitiveType ::= 'boolean' END;
+RULE: PrimitiveType ::= 'byte'    END;
+RULE: PrimitiveType ::= 'char'    END;
+RULE: PrimitiveType ::= 'double'  END;
+RULE: PrimitiveType ::= 'float'   END;
+RULE: PrimitiveType ::= 'int'     END;
+RULE: PrimitiveType ::= 'long'    END;
+RULE: PrimitiveType ::= 'short'   END;
+
+RULE: ArrayType ::= PrimitiveType '[' ']' END;
+RULE: ArrayType ::= ArrayType     '[' ']' END;
+
+RULE: Type ::= PrimitiveType END;
+RULE: Type ::= TypeName      END;
+RULE: Type ::= ArrayType     END;
+RULE: Type ::= 'void'        END;
+
+RULE: VariableDeclarators LISTOF VariableDeclarator END;
+
+RULE: VariableDeclarator ::= VariableDeclaratorId END;
+RULE: VariableDeclarator ::= VariableDeclaratorId '=' Initializer END;
+
+RULE: VariableDeclaratorId ::= VariableDeclaratorId '[' ']' END;
+RULE: VariableDeclaratorId ::= VariableIdDef                END;
+
+RULE: Initializer ::= Expression       END;
+RULE: Initializer ::= '{' Initializers '}' END;
+
+RULE: Initializers LISTOF InitialElement END;
+RULE: InitialElement ::= Initializer END;
+
+RULE: AssignmentOperator ::= '^='   END;
+RULE: AssignmentOperator ::= '<<='  END;
+RULE: AssignmentOperator ::= '='    END;
+RULE: AssignmentOperator ::= '>>='  END;
+RULE: AssignmentOperator ::= '>>>=' END;
+RULE: AssignmentOperator ::= '|='   END;
+RULE: AssignmentOperator ::= '-='   END;
+RULE: AssignmentOperator ::= '/='   END;
+RULE: AssignmentOperator ::= '*='   END;
+RULE: AssignmentOperator ::= '&='   END;
+RULE: AssignmentOperator ::= '%='   END;
+RULE: AssignmentOperator ::= '+='   END;
+RULE: Operator ::= '^' END;
+RULE: Operator ::= '<<' END;
+RULE: Operator ::= '<=' END;
+RULE: Operator ::= '<' END;
+RULE: Operator ::= '==' END;
+RULE: Operator ::= '>=' END;
+RULE: Operator ::= '>>>' END;
+RULE: Operator ::= '>>' END;
+RULE: Operator ::= '>' END;
+RULE: Operator ::= '||' END;
+RULE: Operator ::= '|' END;
+RULE: Operator ::= '+' END;
+RULE: Operator ::= '-' END;
+RULE: Operator ::= '!=' END;
+RULE: Operator ::= '/' END;
+RULE: Operator ::= '*' END;
+RULE: Operator ::= '&' END;
+RULE: Operator ::= '&&' END;
+RULE: Operator ::= '%' END;
+RULE: Operator ::= '++' END;
+RULE: Operator ::= '--' END;
+RULE: Operator ::= '~' END;
+RULE: Operator ::= '!' END;
+
+RULE: VariableIdDef ::= Identifier END;
+RULE: MethodIdDef ::= Identifier END;
+RULE: MethodIdUse ::= Identifier END;
+RULE: LabelIdDef ::= Identifier END;
+RULE: LabelIdUse ::= Identifier END;
+RULE: FieldIdDef ::= Identifier END;
+RULE: FieldIdUse ::= Identifier END;
+RULE: TypeIdDef ::= Identifier END;
+RULE: TypeIdUse ::= Identifier END;
+
+@<Disambiguating names@>
+@}
+
+@B
+
+@$@<Disambiguating names@>+=@{@-
+RULE: Name ::=          Identifier END;
+RULE: Name ::= Name '.' Identifier END;
+
+@<Type names@>
+@<Expression names@>
+@<Method names@>
+@<Ambiguous names@>
+@}
+
+@C
+
+@$@<Type names@>+=@{@-
+RULE: TypeName ::= Name $pTypeName COMPUTE
+  pTypeName.GENTREE=TP_tpTypeName(Name.tp);
+END;
+
+RULE: Expression ::= Name $pTypeName '.' 'class' COMPUTE
+  pTypeName.GENTREE=TP_tpTypeName(Name.tp);
+END;
+
+RULE: Expression ::= Name $pTypeName '.' 'super'
+	'.' MethodIdUse '(' Arguments ')'
+COMPUTE
+  pTypeName.GENTREE=TP_tpTypeName(Name.tp);
+END;
+
+RULE: Expression ::= Name $pTypeName '.' 'super'
+	'.' FieldIdUse
+COMPUTE
+  pTypeName.GENTREE=TP_tpTypeName(Name.tp);
+END;
+
+RULE: Expression ::= Name $pTypeName '.' 'this' COMPUTE
+  pTypeName.GENTREE=TP_tpTypeName(Name.tp);
+END;
+
+RULE: Expression ::= '(' Expression $pTypeName ')' Expression COMPUTE
+  pTypeName.GENTREE=TP_tpTypeName(Expression[2].tp);
+  Expression[2].IsCastType=1;
+END;
+
+RULE stypnm: pTypeName ::=               sTypeIdUse END;
+RULE qtypnm: pTypeName ::= pPkgOrTypName qTypeIdUse END;
+
+RULE spotnm: pPkgOrTypName ::= sTypeIdUse END;
+RULE qpotnm: pPkgOrTypName ::= pPkgOrTypName qTypeIdUse END;
+
+RULE stypid: sTypeIdUse ::= Identifier END;
+RULE qtypid: qTypeIdUse ::= Identifier END;
+@}
+
+@$@<Tree parsing rules@>+=@{@-
+tpTypeName ::= tpId(int): mkstypnm;
+tpTypeName ::= tpDot(tpPkgOrTypName,int): mkqtypnm;
+
+tpPkgOrTypName ::= tpId(int): mkspotnm;
+tpPkgOrTypName ::= tpDot(tpPkgOrTypName,int): mkqpotnm;
+@}
+
+@$@<Tree parsing actions@>+=@{@-
+#define mkstypnm(x)\
+  Mkstypnm(NoPosition,Mkstypid(NoPosition,x))
+#define mkqtypnm(x,y)\
+  Mkqtypnm(NoPosition,x,Mkqtypid(NoPosition,y))
+
+#define mkspotnm(x)\
+  Mkspotnm(NoPosition,Mkstypid(NoPosition,x))
+#define mkqpotnm(x,y)\
+  Mkqpotnm(NoPosition,x,Mkqtypid(NoPosition,y))
+@}
+
+@$@<Type names@>+=@{@-
+RULE: ArrayType ::= Name $pTypeName '[' ']' COMPUTE
+  pTypeName.GENTREE=TP_tpTypeName(Name.tp);
+END;
+@}
+
+@C
+
+@$@<Expression names@>==@{@-
+RULE: ExpressionStatement ::= Name $pExpressionName
+	'.' 'super' '(' Arguments ')' ';' COMPUTE
+  pExpressionName.GENTREE=TP_tpExpressionName(Name.tp);
+END;
+
+RULE: Expression ::= Name $pExpressionName '[' Expression ']' COMPUTE
+  pExpressionName.GENTREE=TP_tpExpressionName(Name.tp);
+END;
+
+TREE SYMBOL Expression:
+  IsCastType: int,
+  tp: TPNode;
+
+TREE SYMBOL Expression COMPUTE
+  SYNT.tp=TPNULL;
+  INH.IsCastType=0;
+END;
+
+RULE: Expression ::= Name $pExpressionName COMPUTE
+  Expression.tp=IF(Expression.IsCastType,Name.tp,TPNULL);
+  pExpressionName.GENTREE=
+    IF(Expression.IsCastType,
+      Mknexpnm(COORDREF),
+      TP_tpExpressionName(Name.tp));
+END;
+
+RULE: LeftHandSide ::= Name $pExpressionName COMPUTE
+  pExpressionName.GENTREE=TP_tpExpressionName(Name.tp);
+END;
+
+RULE nexpnm: pExpressionName ::=                           END;
+RULE sexpnm: pExpressionName ::=                sExprIdUse END;
+RULE qexpnm: pExpressionName ::= pAmbiguousName qExprIdUse END;
+
+RULE sexpid: sExprIdUse ::= Identifier END;
+RULE qexpid: qExprIdUse ::= Identifier END;
+@}
+
+@$@<Tree parsing rules@>+=@{@-
+tpExpressionName ::= tpId(int): mksexpnm;
+tpExpressionName ::= tpDot(tpAmbiguousName,int): mkqexpnm;
+@}
+
+@$@<Tree parsing actions@>+=@{@-
+#define mksexpnm(x)\
+  Mksexpnm(NoPosition,Mksexpid(NoPosition,x))
+#define mkqexpnm(x,y)\
+  Mkqexpnm(NoPosition,x,Mkqexpid(NoPosition,y))
+@}
+
+@C
+
+@$@<Method names@>==@{@-
+RULE: MethodName ::= Name $pMethodName COMPUTE
+  pMethodName.GENTREE=TP_tpMethodName(Name.tp);
+END;
+
+RULE smthnm: pMethodName ::= sMethIdUse END;
+RULE qmthnm: pMethodName ::= pAmbiguousName qMethIdUse END;
+
+RULE smthid: sMethIdUse ::= Identifier END;
+RULE qmthid: qMethIdUse ::= Identifier END;
+@}
+
+@$@<Tree parsing rules@>+=@{@-
+tpMethodName ::= tpId(int): mksmthnm;
+tpMethodName ::= tpDot(tpAmbiguousName,int): mkqmthnm;
+@}
+
+@$@<Tree parsing actions@>+=@{@-
+#define mksmthnm(x)\
+  Mksmthnm(NoPosition,Mksmthid(NoPosition,x))
+#define mkqmthnm(x,y)\
+  Mkqmthnm(NoPosition,x,Mkqmthid(NoPosition,y))
+@}
+
+@C
+
+@$@<Ambiguous names@>==@{@-
+RULE sambnm: pAmbiguousName ::= sAmbgIdUse END;
+RULE qambnm: pAmbiguousName ::= pAmbiguousName qAmbgIdUse END;
+
+RULE sambid: sAmbgIdUse ::= Identifier END;
+RULE qambid: qAmbgIdUse ::= Identifier END;
+@}
+
+@$@<Tree parsing rules@>+=@{@-
+tpAmbiguousName ::= tpId(int): mksambnm;
+tpAmbiguousName ::= tpDot(tpAmbiguousName,int): mkqambnm;
+@}
+
+@$@<Tree parsing actions@>+=@{@-
+#define mksambnm(x)\
+  Mksambnm(NoPosition,Mksambid(NoPosition,x))
+#define mkqambnm(x,y)\
+  Mkqambnm(NoPosition,x,Mkqambid(NoPosition,y))
+@}
+
+@$@<Disambiguating names@>+=@{@-
+ATTR tp: TPNode;
+
+RULE: Name ::= Identifier COMPUTE
+  Name.tp=TP_0_int(tpId,Identifier);
+END;
+
+RULE: Name ::= Name '.' Identifier COMPUTE
+  Name[1].tp=TP_1_int(tpDot,Name[2].tp,Identifier);
+END;
+@}
+
+@O@<Tree.tp@>==@{@-
+@<Tree parsing rules@>
+tpAmbiguousName ::= tpNever(tpAmbiguousName,tpAmbiguousName): nop;
+@}
+
+@$@<Tree parsing rules@>+=@{@-
+tpTypeName, tpExpressionName, tpMethodName, tpPkgOrTypName,
+tpAmbiguousName: NODEPTR;	"treecon.h"
+@}
+
+@O@<Tree.head@>==@{@-
+#include "Tree.h"
+@}
+
+@O@<Tree.h@>==@{@-
+#ifndef TREE_H
+#define TREE_H
+
+#include "treecon.h"
+
+#define nop(x,y)
+
+@<Tree parsing actions@>
+
+#endif
+@}
+
+@B@<Relating Phrase Structure to Tree Structure@>
+\label{sec:mapping}
+
+Although the phrase structure specified by the context-free grammar and the
+tree structure implicit in the attribute grammar are related, they are not
+identical.
+Eli determines their relationship by comparing the structures of the
+specifications and taking account of additional information provided by the
+user in a special mapping language.
+
+The phrase structure of Java is completely specified by the context-free
+grammar contained in @{Phrase.con@} (defined above).
+A user can obtain this grammar from Eli by requesting the @{consyntax@}
+product.
+@{Tree.lido@} (defined above), on the other hand, specifies only those
+contexts in which computations take place.
+Eli deduces the remainder of the tree structure from @{Phrase.con@} and 
+@{Tree.map@} (defined below).
+A user can obtain the complete set of rules describing the tree structure
+from Eli by requesting the @{abstree@} product.
+
+There are two kinds of descriptions in the mapping language: symbol
+mappings and rule mappings.
+Symbol mappings specify that a number of symbols representing distinct
+phrases correspond to a single symbol representing a distinct tree node.
+Only the tree node symbol may appear in the attribute grammar.
+Rule mappings specify that a given phrase corresponds to a particular tree
+fragment.
+Only the tree fragments may appear in the attribute grammar.
+
+A type-@{map@} file describes correspondences between the phrase structure
+of the input text and the tree that represents the program internally.
+
+@O@<Tree.map@>==@{
+MAPSYM
+@<Types@>
+@<Statements@>
+@<Expressions@>
+@}
+
+@C
+
+Some type errors can be detected when the program is parsed, by using
+distinct grammar symbols to represent different subsets of the type
+universe.
+Once parsing is complete, however, there is no need to retain these
+distinctions as different kinds of tree node.
+Every type name is therefore represented in the tree by a @{Type@} node
+that has a @{TypeKey@} attribute to hold the definition table key
+representing that type internally:
+
+@$@<Types@>==@{
+PrimitiveType ::= NumericType IntegralType FloatingPointType .
+
+Type ::= Void .
+
+TypeName ::= ClassType .
+
+TypeDeclaration ::= ClassDeclaration InterfaceDeclaration .
+
+Interfaces ::= ExtendsInterfaces .
+@}
+
+@C
+
+Precedence and association are expressed in the phrase structure by
+distinct nonterminals.
+These concepts have to do with the relationship between the linear text and
+the semantic structure, and are no longer relevant once the AST has been
+built.
+Retaining distinctions between semantically-equivalent nonterminals in the
+AST is counterproductive:
+
+@$@<Expressions@>==@{
+Expression ::=
+  Primary PrimaryNoNewArray ArrayCreationExpression Literal
+  ClassInstanceCreationExpression FieldAccess MethodInvocation ArrayAccess
+  PostfixExpression PostIncrementExpression PostDecrementExpression
+  UnaryExpression PreIncrementExpression PreDecrementExpression
+  UnaryExpressionNotPlusMinus CastExpression MultiplicativeExpression
+  AdditiveExpression ShiftExpression RelationalExpression EqualityExpression
+  AndExpression ExclusiveOrExpression InclusiveOrExpression
+  ConditionalAndExpression ConditionalOrExpression ConditionalExpression
+  AssignmentExpression Assignment StatementExpression ConstantExpression .
+
+Initializer ::= ArrayInitializer .
+Dimension  ::= DimExpr .
+@}
+
+@C
+
+The concrete syntax for Java introduces a large number of nonterminals for
+the purpose of removing the ``dangling else'' ambiguity, and also to
+differentiate statements for the purposes of exposition.
+In most of these cases no special semantics are associated with these
+nonterminals, and therefore there is no need to distinguish them in the
+tree:
+
+@$@<Statements@>==@{
+Statements ::= StatementsOpt ConstructorStatements .
+
+Statement ::=
+  StatementWithoutTrailingSubstatement StatementNoShortIf
+  IfThenStatement IfThenElseStatement IfThenElseStatementNoShortIf
+  BreakStatement ContinueStatement
+  EmptyStatement
+  ReturnStatement
+  SynchronizedStatement
+  ThrowStatement
+  TryStatement .
+
+ExpressionStatement ::=
+  ExplicitConstructorInvocation .
+
+LabeledStatement ::= LabeledStatementNoShortIf .
+WhileStatement   ::= WhileStatementNoShortIf .
+ForStatement     ::= ForStatementNoShortIf .
+@}

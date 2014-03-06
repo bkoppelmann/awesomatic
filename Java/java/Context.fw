@@ -1,0 +1,815 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Check Context Conditions@>
+\label{context}
+
+@O@<Context.lido@>==@{@-
+#define IsReferenceType(x)\
+  OR(OR(EQ(x,classType),GetIsInterfaceType(x,0)),IsCoercible(x,objectType))
+@<Types, values, and variables@>
+@<Names@>
+@<Classes@>
+@<Blocks and statements@>
+@<Expressions@>
+@}
+
+@O@<Context.specs@>==@{@-
+@<Instantiate required modules@>
+@}
+
+@O@<Context.pdl@>==@{@-
+@<Property definitions@>
+@}
+
+@B
+
+@$@<Types, values, and variables@>==@{@-
+@}
+
+@B
+
+@$@<Names@>==@{@-
+TREE SYMBOL TypeIdDef INHERITS ChkTypeDefDefId END;
+
+RULE: TypeName ::= Name $pTypeName COMPUTE
+  TypeName.Sym=pTypeName.Sym;
+  TypeName.Type=pTypeName.Type;
+END;
+
+TREE SYMBOL TypeName INHERITS ChkTypeDefUseId COMPUTE
+  IF(EQ(THIS.Type,NoKey),
+    message(
+      ERROR,
+      CatStrInd("Invalid type name: ",THIS.Sym),
+      0,
+      COORDREF));
+END;
+
+RULE: Expression ::= Name $pExpressionName COMPUTE
+  IF(AND(
+      NE(pExpressionName.Sym,NoStrIndex),
+      EQ(pExpressionName.Key,NoKey)),
+    message(
+      ERROR,
+      CatStrInd(
+	"Invalid variable or field name: ",
+	pExpressionName.Sym),
+      0,
+      COORDREF));
+END;
+
+RULE: MethodName ::= Name $pMethodName COMPUTE
+  MethodName.Sym=pMethodName.Sym;
+END;
+
+TREE SYMBOL MethodName COMPUTE
+  IF(EQ(THIS.Key,NoKey),
+    message(
+      ERROR,
+      CatStrInd("Invalid method name: ",THIS.Sym),
+      0,
+      COORDREF))
+    <- INCLUDING Goal.GotAllConstants;
+END;
+
+TREE SYMBOL InhName COMPUTE
+  IF(EQ(THIS.Key,NoKey),
+    message(
+      ERROR,
+      CatStrInd("Invalid Type name: ",THIS.Sym),
+      0,
+      COORDREF))
+    <- INCLUDING Goal.GotAllConstants;
+END;
+
+RULE: SingleTypeImportDeclaration ::= 'import' QualInhName COMPUTE
+  IF(EQ(QualInhName.Key,NoKey),
+    message(
+      ERROR,
+      CatStrInd("Invalid Type name: ",QualInhName.Sym),
+      0,
+      COORDREF))
+    <- INCLUDING Goal.GotAllConstants;
+END;
+
+@<Multiple definition errors@>
+@}
+
+@C
+
+When an identifier or label has a defining point for a region, another
+identifier or label with the same spelling can't have a defining point for
+that region.
+
+@$@<Multiple definition errors@>+=@{
+CLASS SYMBOL MultDefChk INHERITS Unique COMPUTE
+  IF(NOT(THIS.Unique),
+    message(
+      ERROR,
+      CatStrInd("Multiply defined identifier ",THIS.Sym),
+      0,
+      COORDREF));
+END;
+@}
+
+@{MultDefChk@} requires the Eli @{Unique@} module, and the error reporting
+requires the string concatenation module:
+
+@$@<Instantiate required modules@>+=@{
+$/Prop/Unique.gnrc :inst
+$/Tech/Strings.specs
+@}
+
+Type, field, and variable identifiers can have only one defining occurrence
+in their scope.
+Method identifiers, on the other hand, can be overloaded and therefore may
+have several defining occurrences.
+
+@$@<Multiple definition errors@>+=@{
+TREE SYMBOL TypeIdDef     INHERITS IdentOcc, TypIdDefScope, MultDefChk COMPUTE
+  SYNT.Key=THIS.TypKey;
+END;
+
+TREE SYMBOL FieldIdDef    INHERITS IdentOcc, FldIdDefScope, MultDefChk COMPUTE
+  SYNT.Key=THIS.FldKey;
+END;
+
+TREE SYMBOL VariableIdDef INHERITS IdentOcc, VarIdDefScope, MultDefChk COMPUTE
+  SYNT.Key=THIS.VarKey;
+END;
+
+TREE SYMBOL MethodIdDef   INHERITS IdentOcc, MthIdDefScope             COMPUTE
+  SYNT.Key=THIS.MthKey;
+END;
+@}
+
+The definition of a legal assignment can be found in Section 5.2 of the
+Java specification.
+
+@$@<int NoAssign(DefTableKey from, DefTableKey to, int v)@>==@{@-
+/* Determine whether assignment is legal
+ *   On entry-
+ *     from=type of the value
+ *     to=type of the variable
+ *     v=constant
+ *   If the assignment is legal then on exit-
+ *     NoAssign=0
+ *   Else on exit-
+ *     NoAssign=1
+ ***/
+{ if (IsCoercible(from, to)) return 0;
+  if (IsCoercible(from, intType) && IsCoercible(to, intType)) {
+    char *vs;
+
+    if (v == NoStrIndex) return 1;
+    vs = strsub(GetUpperBound(to, "0"),StringTable(v),10);
+    if (vs[0] == '-') return 1;
+    vs = strsub(StringTable(v),GetLowerBound(to, "0"),10);
+    if (vs[0] == '-') return 1;
+    return 0;
+  }
+  return 1;
+}
+@}
+
+@$@<Property definitions@>+=@{@-
+LowerBound, UpperBound: CharPtr;
+
+byteType  -> LowerBound={"-128"},   UpperBound={"127"};
+shortType -> LowerBound={"-32768"}, UpperBound={"32767"};
+charType  -> LowerBound={"0"},      UpperBound={"65535"};
+@}
+
+@B
+
+@$@<Classes@>==@{@-
+@<Initializers@>
+@<Method throws@>
+@}
+
+@C
+
+@$@<Method throws@>==@{@-
+RULE: ThrownType ::= TypeName COMPUTE
+  IF(NOT(IsCoercible(FinalType(TypeName.Type),throwableType)),
+    message(
+     ERROR,
+     CatStrInd("Must be throwable: ",TypeName.Sym),
+     0,
+     COORDREF))
+    <- INCLUDING Goal.GotAllConstants;
+END;
+@}
+
+@C
+
+@$@<Initializers@>==@{@-
+ATTR ElementType: DefTableKey;
+ATTR ComponentTypes: DefTableKeyList;
+
+RULE: Initializer ::= Expression COMPUTE
+  RootContext(Initializer.ElementType,,Expression);
+  Indication(castInd);
+  IF(NoAssign(Expression.Type,Initializer.ElementType,Expression.Constant),
+    message(ERROR,"Incorrect type for this context",0,COORDREF));
+END;
+
+RULE: Initializer ::= '{' Initializers '}' COMPUTE
+  .ComponentTypes=
+    GetComponentTypes(Initializer.ElementType,NULLDefTableKeyList);
+  Initializers.ElementType=
+    IF(EQ(.ComponentTypes,NULLDefTableKeyList),
+      NoKey,
+      HeadDefTableKeyList(.ComponentTypes));
+  IF(AND(
+      NE(Initializer.ElementType,NoKey),
+      EQ(Initializers.ElementType,NoKey)),
+    message(ERROR,"Invalid initializer for this array",0,COORDREF));
+END;
+
+RULE: InitialElement ::= Initializer COMPUTE
+  Initializer.ElementType=INCLUDING Initializers.ElementType;
+END;
+
+RULE: FieldDeclarator ::= FieldDeclaratorId '=' Initializer COMPUTE
+  Initializer.ElementType=FieldDeclaratorId.ElementType;
+END;
+
+RULE: VariableDeclarator ::= VariableDeclaratorId '=' Initializer COMPUTE
+  Initializer.ElementType=VariableDeclaratorId.ElementType;
+END;
+
+RULE: FieldDeclaratorId ::= FieldIdDef COMPUTE
+  FieldDeclaratorId.ElementType=FieldIdDef.Type;
+END;
+
+RULE: VariableDeclaratorId ::= VariableDeclaratorId '[' ']' COMPUTE
+  VariableDeclaratorId[1].ElementType=VariableDeclaratorId[2].ElementType;
+END;
+
+RULE: VariableDeclaratorId ::= VariableIdDef COMPUTE
+  VariableDeclaratorId.ElementType=VariableIdDef.Type;
+END;
+@}
+
+@B
+
+@$@<Blocks and statements@>==@{@-
+@<Labeled statements@>
+@<The switch statement@>
+@<The break statement@>
+@<The continue statement@>
+@<The return statement@>
+@<The synchronized statement@>
+@<The try statement@>
+@}
+
+@C
+
+@$@<Labeled statements@>==@{@-
+ATTR LblDepth: int;
+CLASS SYMBOL LabelTree COMPUTE
+  SYNT.LblDepth=ADD(INCLUDING LabelTree.LblDepth,1);
+END;
+
+TREE SYMBOL MethodDeclaration      INHERITS LabelTree END;
+TREE SYMBOL ConstructorDeclaration INHERITS LabelTree END;
+TREE SYMBOL ClassInitializer       INHERITS LabelTree END;
+TREE SYMBOL Goal                   INHERITS LabelTree COMPUTE
+  SYNT.LblDepth=0;
+  SYNT.GotLblDepth="yes";
+END;
+
+TREE SYMBOL LabeledStatement: Sym: int;
+
+TREE SYMBOL LabeledStatement INHERITS LblIdUseEnv COMPUTE
+  IF(EQ(GetLblDepth(THIS.LblKey,0),INCLUDING LabelTree.LblDepth),
+    message(
+      ERROR,
+      CatStrInd("Shadows another label: ",THIS.Sym),
+      0,
+      COORDREF))
+  <- INCLUDING (LabeledStatement.GotLblDepth,Goal.GotLblDepth);
+END;
+
+RULE: LabeledStatement ::= LabelIdDef ':' Statement COMPUTE
+  LabeledStatement.Sym=LabelIdDef.Sym;
+  LabeledStatement.GotLblDepth=
+    ResetLblDepth(LabelIdDef.LblKey,INCLUDING LabelTree.LblDepth);
+END;
+@}
+
+@$@<Property definitions@>+=@{@-
+LblDepth: int;
+@}
+
+@C
+
+@$@<The switch statement@>+=@{@-
+SYMBOL SwitchStatement INHERITS CaseRangeScope END;
+SYMBOL SwitchStatement: SwitchExpType: DefTableKey;
+
+RULE: SwitchStatement ::= 'switch' '(' Expression ')' SwitchBlock COMPUTE
+  SwitchStatement.SwitchExpType=Expression.Type;
+  Expression.Required=intType;
+END;
+
+RULE: SwitchLabel ::= 'case' Expression ':' COMPUTE
+  IF(EQ(Expression.Constant,NoStrIndex),
+    message(ERROR,"Selector must be a constant",0,COORDREF),
+  IF(NoAssign(
+      Expression.Type,
+      INCLUDING SwitchStatement.SwitchExpType,
+      Expression.Constant),
+    message(ERROR,"Selector not assignable to switch",0,COORDREF)))
+  <- INCLUDING Goal.GotAllConstants;
+END;
+@}
+
+@$@<The switch statement@>+=@{@-
+SYMBOL SwitchLabel INHERITS CaseIdDefScope, MultDefChk END;
+SYMBOL SwitchLabel: Sym: int;
+
+RULE: SwitchLabel ::= 'case' Expression ':' COMPUTE
+  SwitchLabel.Sym=
+    CastPrimitive(
+      Expression.Constant,
+      Expression.Type,
+      INCLUDING SwitchStatement.SwitchExpType);
+END;
+
+RULE: SwitchLabel ::= 'default' ':' COMPUTE
+  SwitchLabel.Sym=MakeName("default");
+END;
+@}
+
+@$@<Instantiate required modules@>+=@{@-
+$/Name/AlgScope.gnrc +instance=Case :inst
+@}
+
+@C
+
+@$@<The break statement@>==@{@-
+ATTR CannotBreak: int;
+CLASS SYMBOL Breakable   COMPUTE SYNT.CannotBreak=0; END;
+CLASS SYMBOL Unbreakable COMPUTE SYNT.CannotBreak=1; END;
+
+TREE  SYMBOL LoopStatement    INHERITS Breakable   END;
+TREE  SYMBOL SwitchStatement  INHERITS Breakable   END;
+TREE  SYMBOL Goal             INHERITS Unbreakable END;
+TREE  SYMBOL MethodBody       INHERITS Unbreakable END;
+TREE  SYMBOL ClassInitializer INHERITS Unbreakable END;
+
+RULE: Statement ::= 'break' ';' COMPUTE
+  IF(INCLUDING (Breakable.CannotBreak,Unbreakable.CannotBreak),
+    message(ERROR,"Plain break must occur in a loop or switch",0,COORDREF));
+END;
+
+TREE SYMBOL LabeledStatement COMPUTE SYNT.CannotBreak=0; END;
+
+RULE: Statement ::= 'break' LabelIdUse ';' COMPUTE
+  IF(INCLUDING (Breakable.CannotBreak,Unbreakable.CannotBreak,
+                LabeledStatement.CannotBreak),
+    message(
+      ERROR,
+      "Labeled break must occur in a loop, switch, or labeled statement",
+      0,
+      COORDREF));
+END;
+@}
+
+@C
+
+@$@<The continue statement@>==@{@-
+ATTR CannotContinue: int;
+CLASS SYMBOL Continuable   COMPUTE SYNT.CannotContinue=0; END;
+CLASS SYMBOL Uncontinuable COMPUTE
+  SYNT.CannotContinue=1;
+  SYNT.GotNotLoop=1;
+END;
+
+TREE SYMBOL LoopStatement    INHERITS Continuable   END;
+TREE SYMBOL Goal             INHERITS Uncontinuable END;
+TREE SYMBOL MethodBody       INHERITS Uncontinuable END;
+TREE SYMBOL MethodBody       INHERITS Uncontinuable END;
+TREE SYMBOL ClassInitializer INHERITS Uncontinuable END;
+
+ATTR NotLoop: int;
+TREE SYMBOL Statement             COMPUTE SYNT.NotLoop=1;      END;
+RULE: Statement ::= LoopStatement COMPUTE Statement.NotLoop=0; END;
+RULE: LabeledStatement ::= LabelIdDef ':' Statement COMPUTE
+  LabeledStatement.GotNotLoop=
+    ResetNotLoop(LabelIdDef.LblKey,Statement.NotLoop)
+    <- INCLUDING (LabeledStatement.GotNotLoop,Uncontinuable.GotNotLoop);
+END;
+
+RULE: Statement ::= 'continue' ';' COMPUTE
+  IF(INCLUDING (Continuable.CannotContinue,Uncontinuable.CannotContinue),
+    message(ERROR,"Continue must occur in a loop or switch",0,COORDREF));
+END;
+
+RULE: Statement ::= 'continue' LabelIdUse ';' COMPUTE
+  IF(INCLUDING (Continuable.CannotContinue,Uncontinuable.CannotContinue),
+    message(ERROR,"No non-local jumps",0,COORDREF));
+  IF(GetNotLoop(LabelIdUse.LblKey,1),
+    message(
+      ERROR,
+      CatStrInd("Must label a loop: ",LabelIdUse.Sym),
+      0,
+      COORDREF))
+    <- INCLUDING (LabeledStatement.GotNotLoop,Uncontinuable.GotNotLoop);
+END;
+@}
+
+@$@<Property definitions@>+=@{@-
+NotLoop: int;
+@}
+
+@C
+
+@$@<The return statement@>==@{@-
+RULE: Statement ::= 'return' ';' COMPUTE
+  IF(NE(
+      FinalType(INCLUDING (MethodBody.ReturnType,
+                           ConstructorDeclaration.ReturnType,
+                           ClassInitializer.ReturnType)),
+      voidType),
+    message(ERROR,"Must return a value here",0,COORDREF));
+END;
+@}
+
+@C
+
+@$@<The synchronized statement@>==@{@-
+RULE: Statement ::= 'synchronized' '(' Expression ')' Block COMPUTE
+  IF(NOT(IsReferenceType(Expression.Type)),
+    message(
+      ERROR,
+      "The expression must yield a reference type",
+      0,
+      COORDREF))
+    <- INCLUDING Goal.GotAllConstants;
+END;
+@}
+
+@C
+
+@$@<The try statement@>==@{@-
+RULE: CatchClause ::= 'catch' '(' FormalParameter ')' Block COMPUTE
+  IF(NOT(IsCoercible(FinalType(FormalParameter.Type),throwableType)),
+    message(ERROR,"Catch parameter must be throwable",0,COORDREF))
+    <- INCLUDING Goal.GotAllConstants;
+END;
+@}
+
+@B
+
+@$@<Expressions@>==@{@-
+@<Method invocation expressions@>
+@<Field access@>
+@<Array access@>
+@<Expression names@>
+@<Relational operators@>
+@<Constant expressions@>
+@}
+
+@C
+
+@$@<Method invocation expressions@>==@{@-
+RULE: Expression ::= MethodName '(' Arguments ')' COMPUTE
+  IF(AND(NE(MethodName.Key,NoKey),BadOperator),
+    message(ERROR,"Invalid method call",0,COORDREF));
+END;
+
+RULE: Expression ::= 'super' '.' MethodIdUse '(' Arguments ')' COMPUTE
+  IF(AND(NE(MethodIdUse.Key,NoKey),BadOperator),
+    message(ERROR,"Invalid method call",0,COORDREF));
+END;
+
+RULE: Expression ::= Expression '.' MethodIdUse '(' Arguments ')' COMPUTE
+  IF(AND(NE(MethodIdUse.Key,NoKey),BadOperator),
+    message(ERROR,"Invalid method call",0,COORDREF));
+END;
+@}
+
+@C
+
+@$@<Field access@>==@{@-
+TREE SYMBOL FieldIdUse INHERITS ChkTypedUseId END;
+@}
+
+@C
+
+@$@<Array access@>==@{@-
+RULE: Expression ::= Expression '[' Expression ']' COMPUTE
+  IF(BadOperator,
+    message(ERROR,"Invalid array reference",0,COORDREF));
+END;
+@}
+
+@C
+
+@$@<Expression names@>==@{@-
+TREE SYMBOL pExpressionName INHERITS ChkTypedUseId END;
+@}
+
+@C
+
+@$@<Relational operators@>==@{@-
+RULE: Expression ::= Expression 'instanceof' Type COMPUTE
+  IF(NOT(IsReferenceType(Expression[2].Type)),
+    message(
+      ERROR,
+      "Left operand of instanceof must be a reference type",
+      0,
+      COORDREF))
+    <- INCLUDING RootType.TypeIsSet;
+  IF(NOT(IsReferenceType(FinalType(Type.Type))),
+    message(
+      ERROR,
+      "Right operand of instanceof must be a reference type",
+      0,
+      COORDREF))
+    <- INCLUDING RootType.TypeIsSet;
+END;
+@}
+
+@C
+
+@$@<Constant expressions@>+=@{@-
+ATTR Constant: int;
+
+TREE SYMBOL Expression COMPUTE
+  SYNT.Constant=NoStrIndex;
+END;
+
+RULE: Expression ::= 'false' COMPUTE
+  Expression.Constant=MakeName("false");
+END;
+
+RULE: Expression ::= 'true' COMPUTE
+  Expression.Constant=MakeName("true");
+END;
+
+RULE: Expression ::= CharacterLiteral COMPUTE
+  Expression.Constant=CharacterLiteral;
+END;
+
+RULE: Expression ::= IntLiteral COMPUTE
+  Expression.Constant=IntLiteral;
+END;
+
+RULE: Expression ::= LongLiteral COMPUTE
+  Expression.Constant=LongLiteral;
+END;
+
+RULE: Expression ::= FloatLiteral COMPUTE
+  Expression.Constant=FloatLiteral;
+END;
+
+RULE: Expression ::= DoubleLiteral COMPUTE
+  Expression.Constant=DoubleLiteral;
+END;
+
+RULE: Expression ::= StringLiteral COMPUTE
+  Expression.Constant=StringLiteral;
+END;
+
+RULE: Expression ::= 'null' COMPUTE
+  Expression.Constant=MakeName("null");
+END;
+@}
+
+Because a constant expression may depend on identifier values that are
+defined by other constant expressions, a LIDO iteration must be used to
+evaluate them during analysis.
+@{Cluster.DoJinit@} is the iteration attribute:
+
+@$@<Constant expressions@>+=@{@-
+RULE: Goal ::= Cluster COMPUTE
+  Cluster.DoJinit=HaveNoJinit() <- Goal.GotAllOpers;
+  Goal.GotAllConstants=
+    UNTIL NoJinit <- CONSTITUENTS Initializer.GotConstants
+    ITERATE Cluster.DoJinit=HaveNoJinit();
+END;
+@}
+\noindent
+The general strategy is to set the global variable @{NoJinit@} to 1 at the
+beginning of each iteration, and then set it to 0 at any point during the
+iteration that an identifier obtains a value:
+
+@$@<void HaveNoJinit(void)@>==@{@-
+/* Signal that no field or variable has been initialized
+ *   On exit-
+ *     NoJinit=1
+ ***/
+{ NoJinit = 1; }
+@}
+
+@$@<void DidJinit(void)@>==@{@-
+/* Signal that a field or variable was initialized
+ *   On exit-
+ *     NoJinit=0
+ ***/
+{ NoJinit = 0; }
+@}
+
+@{HaveNoJinit@} is invoked prior to the start of each iteration by the code
+of the LIDO iteration given above.
+@{DidJinit@} is invoked when the @{Constant@} property of an identifier is
+set for the first time:
+
+@$@<Property definitions@>+=@{@-
+Constant: int [Jinit];
+
+void Jinit(DefTableKey key, int v)
+{ if (key == NoKey || v == NoStrIndex) return;
+  if (!ACCESS) DidJinit();
+  VALUE = v;
+}	"Context.h"
+@}
+
+The dependence stated in the @{UNTIL@} expression ensures that all
+initialization nodes are visited on each iteration:
+
+@$@<Constant expressions@>+=@{@-
+CHAIN IsFinal: int;
+
+TREE SYMBOL TypeDeclaration  COMPUTE CHAINSTART HEAD.IsFinal=0; END;
+TREE SYMBOL FieldDeclaration COMPUTE CHAINSTART HEAD.IsFinal=0; END;
+RULE: Modifier ::= 'final'   COMPUTE        Modifier.IsFinal=1; END;
+
+RULE: LocalVariableDeclaration ::= 'final' Type VariableDeclarators COMPUTE
+  CHAINSTART Type.IsFinal=1;
+END;
+
+RULE: LocalVariableDeclaration ::=         Type VariableDeclarators COMPUTE
+  CHAINSTART Type.IsFinal=0;
+END;
+
+TREE SYMBOL Initializer COMPUTE THIS.GotConstants="yes"; END;
+
+RULE: FieldDeclarator ::= FieldDeclaratorId '=' Initializer COMPUTE
+  Initializer.GotConstants=
+    IF(FieldDeclaratorId.IsFinal,
+      JinitConstant(
+        FieldDeclaratorId CONSTITUENT FieldIdDef.Key,
+        Initializer.Constant))
+    <- INCLUDING Cluster.DoJinit;
+END;
+
+RULE: VariableDeclarator ::= VariableDeclaratorId '=' Initializer COMPUTE
+  Initializer.GotConstants=
+    IF(VariableDeclaratorId.IsFinal,
+      JinitConstant(VariableDeclaratorId.Key,Initializer.Constant))
+    <- INCLUDING Cluster.DoJinit;
+END;
+
+TREE SYMBOL VariableDeclaratorId: Key: DefTableKey;
+
+RULE: VariableDeclaratorId ::= VariableDeclaratorId '[' ']' COMPUTE
+  VariableDeclaratorId[1].Key=VariableDeclaratorId[2].Key;
+END;
+
+RULE: VariableDeclaratorId ::= VariableIdDef COMPUTE
+  VariableDeclaratorId.Key=VariableIdDef.Key;
+END;
+
+RULE: Initializer ::= Expression COMPUTE
+  Initializer.Constant=
+    CastPrimitive(
+      Expression.Constant,
+      Expression.Type,
+      INCLUDING (FieldDeclarators.Type,VariableDeclarators.Type));
+END;
+
+RULE: Initializer ::= '{' Initializers '}' COMPUTE
+  Initializer.Constant=NoStrIndex;
+END;
+
+RULE: Expression ::= Name $pExpressionName COMPUTE
+  Expression.Constant=
+    GetConstant(pExpressionName.Key,NoStrIndex) <- INCLUDING Cluster.DoJinit;
+END;
+@}
+
+A narrowing conversion of a signed integer to an integral type @{T@}
+simply discards all but the n lowest order bits, where n is the number
+of bits used to represent type @{T@}.
+In addition to a possible loss of information about the magnitude of the
+numeric value, this may cause the sign of the resulting value to differ
+from the sign of the input value.
+
+@$@<Constant expressions@>+=@{@-
+RULE: Expression ::= '(' PrimitiveType ')' Expression COMPUTE
+  Expression[1].Constant=
+    CastPrimitive(
+      Expression[2].Constant,
+      Expression[2].Type,
+      PrimitiveType.Type);
+END;
+@}
+
+@$@<Constant expressions@>+=@{@-
+RULE: Expression ::= Operator Expression COMPUTE
+  Expression[1].Constant=
+    APPLY(GetMonadicOp(Operator.Oper,StrBad1),Expression[2].Constant);
+END;
+
+RULE: Expression ::= Expression Operator Expression COMPUTE
+  Expression[1].Constant=
+    APPLY(
+      GetDyadicOp(Operator.Oper,StrBad2),
+      Expression[2].Constant,
+      Expression[3].Constant);
+END;
+
+RULE: Expression ::= Expression '?' Expression ':' Expression COMPUTE
+  Expression[1].Constant=
+    IF(EQ(Expression[2].Constant,MakeName("true")),
+      Expression[3].Constant,
+      Expression[4].Constant);
+END;
+@}
+
+@$@<Property definitions@>+=@{@-
+MonadicOp: StrOp1;	"StrArith.h"
+DyadicOp:  StrOp2;	"Math.h"
+
+posOp -> MonadicOp={StrNop};
+negOp -> MonadicOp={StrNeg};
+invOp -> MonadicOp={StrNot};
+addOp -> DyadicOp={StrAdd};
+subOp -> DyadicOp={StrSub};
+mulOp -> DyadicOp={StrMul};
+divOp -> DyadicOp={StrDiv};
+remOp -> DyadicOp={StrRem};
+cmpleOp -> DyadicOp={StrLeq};
+cmplsOp -> DyadicOp={StrLss};
+cmpgeOp -> DyadicOp={StrGeq};
+cmpgtOp -> DyadicOp={StrGtr};
+cmpeqOp -> DyadicOp={StrEqu};
+cmpneOp -> DyadicOp={StrNeq};
+clseqOp -> DyadicOp={StrEqu};
+clsneOp -> DyadicOp={StrNeq};
+strprmOp -> DyadicOp={StrPrm};
+prmstrOp -> DyadicOp={PrmStr};
+strclsOp -> DyadicOp={StrStr};
+clsstrOp -> DyadicOp={StrStr};
+@}
+
+@B@<Support code@>
+
+@O@<Context.head@>==@{@-
+#include "Context.h"
+@}
+
+@O@<Context.h@>==@{@-
+#ifndef CONTEXT_H
+#define CONTEXT_H
+
+#include "deftbl.h"
+#include "eliproto.h"
+
+extern int NoJinit;
+
+extern void DidJinit ELI_ARG((void));
+extern void HaveNoJinit ELI_ARG((void));
+extern int NoAssign ELI_ARG((DefTableKey, DefTableKey, int));
+
+#endif
+@}
+
+@O@<Context.c@>==@{@-
+#include <stdio.h>
+#include "csm.h"
+#include "pdl_gen.h"
+#include "Context.h"
+
+int NoJinit;
+
+void
+#ifdef PROTO_OK
+DidJinit(void)
+#else
+DidJinit)()
+#endif
+@<void DidJinit(void)@>
+
+void
+#ifdef PROTO_OK
+HaveNoJinit(void)
+#else
+HaveNoJinit()
+#endif
+@<void HaveNoJinit(void)@>
+
+int
+#ifdef PROTO_OK
+NoAssign(DefTableKey from, DefTableKey to, int v)
+#else
+NoAssign(from, to, v) DefTableKey from, to; int v;
+#endif
+@<int NoAssign(DefTableKey from, DefTableKey to, int v)@>
+@}

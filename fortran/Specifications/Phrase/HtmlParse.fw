@@ -1,0 +1,22 @@
+@p typesetter = html
+
+<TITLE>FORTRAN Syntactic Analysis</TITLE>
+
+@t title titlefont centre "FORTRAN Syntactic Analysis Specification"
+
+<TABLE WIDTH="100%">
+<TR>
+<TD ALIGN=CENTER>
+<A HREF="mailto:William.Waite@@Colorado.edu">
+<ADDRESS>William.Waite@@Colorado.edu</ADDRESS></A></TD>
+</TR>
+</TABLE>
+<HR>
+
+@i parse.fwi
+
+@t table_of_contents
+
+<HR>
+
+@i Grammar.fw

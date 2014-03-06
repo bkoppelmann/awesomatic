@@ -1,0 +1,6 @@
+/* $Id: type.pdl,v 1.2 1992/07/11 20:57:55 kadhim Exp $ */
+/* Properties for checking definition status */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+Define: int;			/* checks for multiple definition */
+Type: DefTableKey;		/* Type key for properties */

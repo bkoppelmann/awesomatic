@@ -1,0 +1,41 @@
+Common
+Executable
+%s :exe
+Executable processor.
+Derive
+Enabled
+
+Common
+Parsable
+%s :parsable
+Report on whether the concrete syntax is parsable or not.
+Show
+Enabled
+
+Common
+Run
+%d +cmd=(%s :exe) %a :run
+Run a processor on specified arguments.
+Derive
+Enabled
+
+Grammars
+Concrete Syntax
+%s :consyntax
+Complete concrete syntax.
+Show
+Enabled
+
+Grammars
+Abstract Syntax
+%s :absyntax
+Complete abstract syntax.
+Show
+Enabled
+
+Grammars
+Abstract Tree Grammar
+%s :abstree
+Complete abstract tree grammar.
+Show
+Enabled

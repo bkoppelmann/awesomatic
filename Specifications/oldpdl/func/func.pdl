@@ -1,0 +1,5 @@
+FuncList: funclist;
+GenFuncs: int;
+
+"ptg_gen.h"
+TypeName: PTGNode;

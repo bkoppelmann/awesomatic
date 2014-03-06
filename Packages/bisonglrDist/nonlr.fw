@@ -1,0 +1,25 @@
+generate processor with
+nonlr.fw+parser=bison:exe>.
+
+@O@<frame.gla@>@{
+Name:     $[A-Za-z]+ [mkidn]
+@}
+
+@O@<frame.con@>@{
+root : sentence +.
+sentence : birds 'fly' / fishes 'swim'.
+birds : bird +.
+bird : Name.      # red. if 'fly' at the end of the sentence
+fishes : fish +.
+fish : Name.      # red. if 'swim' at the end of the sentence
+@}
+
+@O@<frame.lido@>@{
+RULE: bird  ::= Name COMPUTE
+  printf("--> bird %s\n", StringTable(Name)) BOTTOMUP;
+END;
+
+RULE: fish  ::= Name COMPUTE
+  printf("--> fish %s\n", StringTable(Name)) BOTTOMUP;
+END;
+@}

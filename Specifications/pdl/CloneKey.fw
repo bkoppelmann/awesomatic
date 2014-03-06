@@ -1,0 +1,99 @@
+@A@<Cloning keys@>
+
+The following specifications generates a function capable of cloning
+any definition table key.  This facility can be useful if you want
+many keys with similar properties.
+
+@B@<CloneKey function@>
+
+The @{CloneKey@} function takes an arbitrary key and returns a new key 
+that has identical properties and property values.  Note that property 
+values are shallow-copied, so any pointer-valued properties will be
+shared after cloning.
+
+The function works by iterating through the property list and copying
+each property in turn.
+
+@$@<CloneKey pattern@>+=@{
+CloneKey: "\nDefTableKey\n"
+          "#if defined(__STDC__) || defined(__cplusplus)\n"
+          "CloneKey (DefTableKey key)\n"
+          "#else\n"
+          "CloneKey (key)\n"
+          "    DefTableKey key;\n"
+          "#endif\n"
+          "{\n"
+          "  DefTableKey k;\n"
+          "  Entry e;\n"
+          "\n"
+          "  if (key == NoKey) return NoKey;\n"
+          "  k = NewKey ();\n"
+          "  for (e = key->List; (e != (Entry)0) && (e->selector != 0);\n"
+          "       e = e->next) {\n"
+          "    switch (e->selector) {\n"
+          $
+          "      }\n"
+          "  }\n"
+          "  return k;\n"
+          "}\n"
+@}
+
+@$@<Create CloneKey function@>==@{
+ATTR CloneKey : PTGNode;
+
+RULE Axiom: Source ::= Range '$LIBRARY' LibraryList COMPUTE
+    Source.CloneKey =
+        PTGCloneKey (CONSTITUENTS PropertyNameDecl.CloneCase
+                     WITH (PTGNode, PTGSeq, IDENTICAL, PTGNull));
+END;
+@}
+
+The properties are copied by calling the @{Reset@} routine for each
+property found.  We don't use the @{Get@} routine to fetch the value
+of the property because we would need to make up a default value for
+the property (which would be unused).  Instead, we access the
+@{PropVal@} field directly by casting the entry to the appropriate
+type.
+
+@$@<Create CloneKey case property@>==@{
+GenCloneCases : int;
+@}
+
+@$@<Create CloneKey cases@>==@{
+ATTR CloneCase : PTGNode;
+
+RULE PropertyName: PropertyNameDecl ::= Identifier COMPUTE
+    PropertyNameDecl.CloneCase = 
+        IF (GetGenCloneCases (PropertyNameDecl.key, 0),
+            PTGNULL,
+            ORDER (ResetGenCloneCases (PropertyNameDecl.key, 1),
+                   PTGCloneCase (GetSelector (PropertyNameDecl.key, 0),
+                                 PTGIdentifier (Identifier),
+                                 PTGIdentifier (GetSym (GetType (
+                                     PropertyNameDecl.key, NoKey), 0)))))
+        <- PropertyNameDecl.macroout;
+END;
+@}
+
+@$@<CloneCase pattern@>+=@{
+CloneCase: "      case " $1 int ":\n"
+           "         Reset" $2 " (k, ((" $3 "Property)e)->PropVal);\n"
+           "         break;\n"
+@}
+
+@B@<Specification files@>
+
+@O@<clonekey.ptg@>==@{
+@<CloneKey pattern@>
+@<CloneCase pattern@>
+@}
+
+@O@<clonekey.lido@>==@{
+@<Create CloneKey function@>
+@<Create CloneKey cases@>
+@}
+
+@O@<clonekey.pdl@>==@{
+@<Create CloneKey case property@>
+@}
+

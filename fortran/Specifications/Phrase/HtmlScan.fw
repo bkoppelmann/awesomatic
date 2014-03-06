@@ -1,0 +1,22 @@
+@p typesetter = html
+
+<TITLE>FORTRAN Lexical Analysis</TITLE>
+
+@t title titlefont centre "FORTRAN Lexical Analysis Specification"
+
+<TABLE WIDTH="100%">
+<TR>
+<TD ALIGN=CENTER>
+<A HREF="mailto:William.Waite@@Colorado.edu">
+<ADDRESS>William.Waite@@Colorado.edu</ADDRESS></A></TD>
+</TR>
+</TABLE>
+<HR>
+
+@i scan.fwi
+
+@t table_of_contents
+
+<HR>
+
+@i Scan.fw

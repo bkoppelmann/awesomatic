@@ -1,0 +1,401 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Package Storage in the File System@>
+\label{file}
+
+As an extremely simple example, all the Java packages and source and binary
+code on a system might be stored in a single directory and its
+subdirectories.
+Each immediate subdirectory of this directory would represent a top-level
+package, that is, one whose fully qualified name consists of a single
+simple name.
+Subpackages of a package would be represented by subdirectories of the
+directory representing the package.
+
+Each directory corresponding to a package might also contain
+@{.java@} files and @{.class@} files.
+Each of the @{.java@} files contains the source for a compilation unit
+that contains the definition of a class or interface
+whose binary compiled form is contained in the corresponding @{.class@} file.
+
+@B@<Initialize the module@>
+
+The standard JavaSoft Java Developer's Kit on UNIX stores all the Java
+packages and source and binary code in a set of directories and their
+subdirectories.
+This specification allows a user to provide the names of top-level
+directories via the @{-I@} option on the command line.
+
+@O@<FileStorage.clp@>==@{@-
+PackageDirectories "-I" strings;
+Source input;
+@}
+
+The program also queries the @{CLASSPATH@} environment variable for
+additional directory names.
+Those directory names are appended to the @{PackageDirectories@} list.
+@{CLASSPATH@} must be read from the environment and the colon-separated
+directory names extracted:
+
+@$@<void InitHostSystem(void)@>==@{@-
+{ char *dirs, *name;
+  int SourceSym;
+
+  dirs = getenv("CLASSPATH");
+  if (dirs) {
+    do {
+      register char *rest;
+
+      for (rest = dirs; *rest && *rest != ':'; rest++) ;
+
+      { DefTableKey k = NewKey();
+	CsmStrPtr = (char *)obstack_copy0(Csm_obstk, dirs, rest - dirs);
+        ResetClpValue(k, MakeName(CsmStrPtr));
+        PackageDirectories = AppElDefTableKeyList(PackageDirectories, k);
+      }
+
+      if (*rest == '\0') break;
+      dirs = rest + 1;
+    } while (*dirs);
+  }
+
+  if (!FilRootEnv) FilRootEnv = NewEnv();
+
+  if (!PkgRootEnv) PkgRootEnv = NewEnv();
+  if (!PtyRootEnv) PtyRootEnv = NewEnv();
+  ImportPackage(
+    "java.lang",
+    DefineIdn(PkgRootEnv, MakeName("java.lang")));
+
+  SourceSym = GetClpValue(Source, NoStrIndex);
+  if (SourceSym == NoStrIndex) return;
+
+  name = StringTable(SourceSym);
+  if (*name == '/') SourceSym = MakeName(name);
+  else {
+    char cwd[MAX_PATH+1];
+
+    if (!getcwd(cwd, MAX_PATH+1)) {
+      (void)perror(cwd);
+    }
+
+    obstack_grow(Csm_obstk, cwd, strlen(cwd));
+    obstack_1grow(Csm_obstk, '/');
+    CsmStrPtr = (char *)obstack_copy0(Csm_obstk, name, strlen(name));
+    SourceSym = MakeName(CsmStrPtr);
+  }
+
+  ResetIsDone(DefineIdn(FilRootEnv, SourceSym), 1);
+}
+@}
+
+@O@<FileStorage.init@>==@{@-
+InitHostSystem();
+@}
+
+@B
+
+@{DirectoryFor@} seeks the directory corresponding to the package
+in each of the directories specified by the given paths:
+
+@$@<char *DirectoryFor(char *pkg, int len)@>==@{@-
+{ DefTableKeyList l;
+
+  if (!pkg || *pkg == '\0') {
+    char cwd[MAX_PATH+1];
+
+    if (!getcwd(cwd, MAX_PATH+1)) {
+      (void)perror(cwd);
+      return;
+    }
+
+    return StringTable(MakeName(cwd));
+  }
+
+  for (l = PackageDirectories;
+       l != NULLDefTableKeyList;
+       l = TailDefTableKeyList(l)) {
+    char *clpv;
+    struct stat data;
+    int i;
+
+    clpv = StringTable(GetClpValue(HeadDefTableKeyList(l),0));
+    obstack_grow(Csm_obstk, clpv, strlen(clpv));
+    obstack_1grow(Csm_obstk,'/');
+
+    for (i = 0; i < len; i++) {
+      obstack_1grow(Csm_obstk, pkg[i] == '.' ? '/' : pkg[i]);
+    }
+    CsmStrPtr = (char *)obstack_copy0(Csm_obstk, "/", 1);
+
+    if (!stat(CsmStrPtr, &data) && S_ISDIR(data.st_mode))
+      return StringTable(MakeName(CsmStrPtr));
+
+    obstack_free(Csm_obstk, CsmStrPtr);
+  }
+
+  return NULL;
+}
+@}
+
+@B@<Import a specific type@>
+
+A single-type-import declaration makes that type available.
+
+@$@<void ImportType(char *typ)@>==@{@-
+/* Define type names
+ *   On entry-
+ *     typ is the type to be made available
+ *   If typ has a .java file then on exit-
+ *     The .java file defining the type has been defined in FilRootEnv
+ ***/
+{ struct dirent *this_entry;
+  char *filePart, *dir;
+  struct stat status;
+
+  if (typ == NULL || (filePart = strrchr(typ, '.')) == NULL) return;
+
+  dir = DirectoryFor(typ, strlen(typ) - strlen(filePart++));
+  if (dir == NULL) return;
+
+  obstack_grow(Csm_obstk, dir, strlen(dir));
+  obstack_grow(Csm_obstk, filePart, strlen(filePart));
+  CsmStrPtr = obstack_copy0(Csm_obstk, ".java", 5);
+
+  if (stat(CsmStrPtr, &status) || !S_ISREG(status.st_mode)) {
+    (void)perror(CsmStrPtr);
+    obstack_free(Csm_obstk, CsmStrPtr);
+    return;
+  }
+
+  BindInScope(FilRootEnv, MakeName(CsmStrPtr));
+}
+@}
+
+@B@<Import files from a package@>
+
+The scope of a type introduced by a class or interface declaration is the
+declarations of all class and interface declarations of all compilation
+units of the package in which it is declared.
+When a package declaration is encountered in a program, the compiler must
+make all class and interface declarations of that package available.
+Similarly, an import-on-demand declaration makes all of those types
+available.
+
+@$@<void ImportPackage(char *pkg, DefTableKey key)@>==@{@-
+/* Import package files
+ *   On entry-
+ *     pkg is the name of the package whose files are to be imported
+ *     key is the key under which the package's type environment
+ *       is to be stored
+ *     pkg has not yet been examined
+ *   On exit-
+ *     The package's type environment has been established and stored
+ *     Its fully-qualified types have been defined in TypRootEnv
+ *     The .java files in pkg have been defined in FilRootEnv
+ ***/
+{ DIR *package;
+  char cwd[MAX_PATH+1], *dir;
+  struct dirent *this_entry;
+  int dirlen;
+  Environment env;
+
+  if((dir = DirectoryFor(pkg, strlen(pkg))) == NULL) return;
+
+  dirlen = strlen(dir);
+
+  if (!getcwd(cwd, MAX_PATH+1)) {
+    (void)perror(cwd);
+    return;
+  }
+
+  package = opendir(dir);
+  if (!package) {
+    (void)perror(dir);
+    return;
+  }
+
+  if (chdir(dir)) {
+    (void)perror(dir);
+    if (closedir(package)) (void)perror(dir);
+    return;
+  }
+
+  env = NewScope(PtyRootEnv);
+  ResetPtyScope(key, env);
+  ResetTypScope(key, env);
+
+  while(this_entry = readdir(package)) {
+    if ((strcmp(this_entry->d_name, ".")  != 0) &&
+        (strcmp(this_entry->d_name, "..") != 0)) {
+      struct stat status;
+
+      if (stat(this_entry->d_name, &status)) {
+	(void)perror(this_entry->d_name);
+        break;
+      }
+      if (S_ISREG(status.st_mode)) {
+      char *tail;
+
+	if (tail = strchr(this_entry->d_name, '.')) {
+	  if (strcmp(tail, ".java") == 0) {
+	    Binding bind;
+	    int len = strlen(this_entry->d_name);
+
+	    obstack_grow(Csm_obstk, dir, dirlen);
+	    CsmStrPtr = obstack_copy0(Csm_obstk, this_entry->d_name, len);
+	    BindInScope(FilRootEnv, MakeName(CsmStrPtr));
+	  }
+	}
+      }
+    }
+  }
+
+  if (chdir(cwd)) (void)perror(cwd);
+  if (closedir(package)) (void)perror(dir);
+}
+@}
+
+@B@<Advance to the next compilation unit@>
+
+When the end of the current compilation unit is reached,
+@{AnotherCompilationUnit@} will be invoked to determine whether another
+compilation unit is available.
+
+The Java file may be present but not readable, in which case
+@{CompileType@} must issue an error report and return without disturbing
+the source module:
+
+@$@<int AnotherCompilationUnit(void)@>==@{@-
+{ int fd;
+  Binding bind;
+  char *name;
+
+  for (bind = DefinitionsOf(FilRootEnv);
+       GetIsDone(KeyOf(bind), 0);
+       bind = NextDefinition(bind)) ;
+
+  if (bind == NoBinding) return 0;
+
+  ResetIsDone(KeyOf(bind), 1);
+
+  name = StringTable(IdnOf(bind));
+
+  if ((fd = open(name, 0)) == -1) {
+    (void)perror(name);
+    return 1;
+  }
+
+  (void)close(finlBuf());
+  initBuf(name, fd);
+  AddBreak(name, 1);
+#ifdef MONITOR
+  _dapto_source_changed(name, 1, LineNum, 1, 1, 1);
+#endif
+  return 1;
+}
+@}
+
+@B@<Generated Files@>
+
+A type-@{h@} file defines the information exported by the module:
+
+@O@<FileStorage.h@>==@{
+#ifndef FILESTORAGE_H
+#define FILESTORAGE_H
+
+#include "deftbl.h"
+
+extern void ImportPackage ELI_ARG((char*, DefTableKey));
+extern void ImportType ELI_ARG((char*));
+extern int  AnotherCompilationUnit ELI_ARG((void));
+extern void InitHostSystem ELI_ARG((void));
+
+#endif
+@}
+
+The implementation of the module is done in C:
+
+@O@<FileStorage.c@>==@{
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <fcntl.h>
+
+#ifdef MONITOR
+#include "clp_dapto.h"
+#endif
+#include "clp.h"
+#include "err.h"
+#include "csm.h"
+#include "source.h"
+#include "envmod.h"
+#include "Strings.h"
+#include "MakeName.h"
+#include "pdl_gen.h"
+#include "DefTableKeyList.h"
+#include "PkgAlgScope.h"
+#include "PtyAlgScope.h"
+#include "FilAlgScope.h"
+#include "FileStorage.h"
+
+#define MAX_PATH 256
+
+static char *
+#if PROTO_OK
+DirectoryFor(char *pkg, int len)
+#else
+DirectoryFor(pkg, len) char *pkg; int len;
+#endif
+@<char *DirectoryFor(char *pkg, int len)@>
+
+int
+#if PROTO_OK
+AnotherCompilationUnit(void)
+#else
+AnotherCompilationUnit()
+#endif
+@<int AnotherCompilationUnit(void)@>
+
+void
+#if PROTO_OK
+ImportType(char *typ)
+#else
+ImportType(typ) char *typ;
+#endif
+@<void ImportType(char *typ)@>
+
+void
+#if PROTO_OK
+ImportPackage(char *pkg, DefTableKey key)
+#else
+ImportPackage(pkg, key) char *pkg; DefTableKey key;
+#endif
+@<void ImportPackage(char *pkg, DefTableKey key)@>
+
+void
+#if PROTO_OK
+InitHostSystem(void)
+#else
+InitHostSystem()
+#endif
+@<void InitHostSystem(void)@>
+@}
+
+This module adds properties for its own use:
+
+@O@<FileStorage.pdl@>==@{
+IsDone: int;
+PtyScope: Environment;
+@}
+
+@O@<FileStorage.specs@>==@{
+$/Tech/Strings.specs
+$/Tech/MakeName.gnrc +instance=Identifier :inst
+$/Name/AlgScope.gnrc +instance=Fil +referto=Fil :inst
+$/Name/AlgScope.gnrc +instance=Pty +referto=Pty :inst
+$/Name/AlgScope.gnrc +instance=Typ +referto=Typ :inst
+@}

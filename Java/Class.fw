@@ -1,0 +1,481 @@
+This document gives an operational description of the Java Virtual Machine
+@{class@} file format.
+The operational description parallels the natural language description
+insofar as possible, to provide traceability and ease of maintenance.
+An abstract data type (ADT) that allows access to information needed for
+compilation can be generated from this document.
+
+A @{class@} file consists of a stream of 8-bit bytes.
+All 16-bit and 32-bit quantities are constructed by reading in two or four
+consecutive 8-bit bytes, respectively.
+Multibyte data items are always stored in big-endian order, where the high
+bytes come first.
+This format is supported by the following macro:
+
+@$@<Multibyte input operation@>==@{
+#define u2Input(v) v = getc(fd) << 8; v |= getc(fd);
+@}
+
+The document defines its own set of data types representing Java @{class@}
+file data:
+The types @{u1@}, @{u2@} and @{u4@} represent an unsigned one-, two-, or
+four-byte quantity, respectively.
+These types should be redefined if necessary by appropriate basic C types
+to implement their defined effects on the implementation machine.
+
+@$@<Types that may need redefinitions for specific machines@>==@{
+typedef unsigned char u1;
+typedef unsigned int  u2;
+typedef unsigned long u4;
+@}
+
+A type-@{h@} file defines the information exported by the ADT:
+
+@O@<class.h@>==@{
+#ifndef CLASS_H
+#define CLASS_H
+
+#include <stdio.h>
+#include "csm.h"
+#include "obstack.h"
+#include "FldAlgScope.h"
+#include "MthAlgScope.h"
+#include "pdl_gen.h"
+#include "Java_gen.h"
+
+extern int ReadClassFile ELI_ARGS((FILE *fd, DefTableKey key));
+/* Read a .class file
+ *   On entry-
+ *     fd describes the file to be read
+ *     key should be used to update information
+ *   On exit-
+ *     ReadClassFile=0 if the file was invalid
+ *                   1 otherwise
+ ***/
+
+#endif
+@}
+
+The implementation of the ADT is done in C:
+
+@O@<class.c@>==@{
+#include <stdio.h>
+#include "obstack.h"
+#include "class.h"
+
+@<Types that may need redefinitions for specific machines@>
+
+@<Multibyte input operation@>
+
+static Obstack ClassFileArea;
+static ObstackP ClassFile = (void *)0;
+
+@<Constant Pool Tags@>
+
+@<Constant Pool@>
+
+@<Internal Form of Fully Qualified Class Names@>
+
+static int minor_version, major_version, constant_pool_count;
+static int access_flags, this_class, super_class;
+static int interfaces_count, fields_count, methods_count, attributes_count;
+static ConstantPoolEntry *ConstantPool;
+
+static int
+#if PROTO_OK
+BuildDefinitionTable(DefTableKey key)
+#else
+BuildDefinitionTable(key) DefTableKey key;
+#endif 
+{ int i, result;
+
+  ResetFldEnv(key, NewScope(FldRootEnv));
+  ResetMthEnv(key, NewScope(MthRootEnv));
+
+  if (super_class) {
+    ResetDirectSuper(
+      key,
+      QualifiedTypeKey(
+        JavaIdsOf(
+          ConstantPool[*((int*)ConstantPool[super_class].entry)].entry)));
+/*
+    Environment FromFld, ToFld, FromMth, ToMth;
+
+    FromFld = GetFldEnv(superkey, NoEnv);
+    FromMth = GetMthEnv(superkey, NoEnv);
+    ToFld = GetFldEnv(key, NoEnv);
+    ToMth = GetMthEnv(key, NoEnv);
+
+    if (FromFld == NoEnv || FromMth == NoEnv ||
+        ToFld == NoEnv || ToMth == NoEnv)
+      message(DEADLY, "Inconsistent type definitions", 0, NoPosition);
+
+    if (!InheritClass(GetFldEnv(key, NoEnv), GetFldEnv(superkey, NoEnv)) ||
+        !InheritClass(GetMthEnv(key, NoEnv), GetMthEnv(superkey, NoEnv))) {
+      obstack_strgrow(Csm_obstk, "Inheritance from ");
+      obstack_strgrow(
+        Csm_obstk, 
+        JavaNameOf(
+          ConstantPool[*((int*)ConstantPool[super_class].entry)].entry));
+      obstack_strgrow(Csm_obstk, " to ");
+      obstack_strgrow(
+        Csm_obstk, 
+        JavaNameOf(
+          ConstantPool[*((int*)ConstantPool[this_class].entry)].entry));
+      message(ERROR, obstack_strcpy(Csm_obstk, "fails"), 0, NoPosition);
+    };
+*/
+  }
+
+  return 1;
+}
+
+int
+#if PROTO_OK
+ReadClassFile(FILE *fd, DefTableKey key)
+#else
+ReadClassFile(fd, key) FILE *fd; DefTableKey key;
+#endif 
+{ int i, result;
+
+  if (!fd) return 0;
+
+  if (!ClassFile) {
+    obstack_init(&ClassFileArea); ClassFile = &ClassFileArea;
+  }
+
+  @<ClassFile@>
+
+  if (strcmp(
+        JavaNameOf(ConstantPool[*((int*)ConstantPool[this_class].entry)].entry),
+        StringTable(GetId(key, 0))) == 0) {
+    result = BuildDefinitionTable(key);
+  }
+
+
+  obstack_free(ClassFile, ConstantPool);
+  (void)fclose(fd); return result;
+}
+@}
+
+@A@<ClassFile@>
+
+A @{class@} file contains a single @{ClassFile@} structure:
+
+@$@<ClassFile@>==@{
+  @<u4 magic;@>
+  @<u2 minor_version;@>
+  @<u2 major_version;@>
+  @<u2 constant_pool_count;@>
+  @<cp_info constant_pool[constant_pool_count-1];@>
+  @<u2 access_flags;@>
+  @<u2 this_class;@>
+  @<u2 super_class;@>
+  @<u2 interfaces_count;@>
+  @<u2 interfaces[interfaces_count];@>
+  @<u2 fields_count;@>
+  @<field_info fields[fields_count];@>
+  @<u2 methods_count;@>
+  @<method_info methods[methods_count];@>
+  @<u2 attributes_count;@>
+  @<attribute_info attributes[attributes_count];@>
+@}
+
+The items in the @{ClassFile@} structure are read as follows:
+
+@$@<u4 magic;@>==@{
+if (getc(fd) != 0xca ||
+    getc(fd) != 0xfe ||
+    getc(fd) != 0xba ||
+    getc(fd) != 0xbe) {
+  obstack_free(ClassFile, ConstantPool);
+  (void)fclose(fd);
+  return 0;
+}
+@}
+
+@$@<u2 minor_version;@>==@{
+u2Input(minor_version);
+@}
+
+@$@<u2 major_version;@>==@{
+u2Input(major_version);
+@}
+
+@$@<u2 constant_pool_count;@>==@{
+u2Input(constant_pool_count);
+@}
+
+@$@<cp_info constant_pool[constant_pool_count-1];@>==@{
+ConstantPool =
+  (ConstantPoolEntry *)obstack_alloc(
+    ClassFile,
+    constant_pool_count * sizeof(ConstantPoolEntry));
+
+for (i = 1; i < constant_pool_count; i++) {
+  int j;
+  u2 tempU2;
+
+  @<Construct a constant_pool table entry@>
+}
+@}
+
+@$@<u2 access_flags;@>==@{
+u2Input(access_flags);
+@}
+
+@$@<u2 this_class;@>==@{
+u2Input(this_class);
+@}
+
+@$@<u2 super_class;@>==@{
+u2Input(super_class);
+@}
+
+@$@<u2 interfaces_count;@>==@{
+u2Input(interfaces_count);
+@}
+
+@$@<u2 interfaces[interfaces_count];@>==@{
+@}
+
+@$@<u2 fields_count;@>==@{
+u2Input(fields_count);
+@}
+
+@$@<field_info fields[fields_count];@>==@{
+@}
+
+@$@<u2 methods_count;@>==@{
+u2Input(methods_count);
+@}
+
+@$@<method_info methods[methods_count];@>==@{
+@}
+
+@$@<u2 attributes_count;@>==@{
+@}
+
+@$@<attribute_info attributes[attributes_count];@>==@{
+@}
+
+@A
+
+For historical reasons the exact syntax of fully qualified class names the
+appear in @{class@} file structures differs from the familiar fully
+qualified class name defined by Java.
+@{JavaNameOf@} translates a class file name extracted from a @{class@} file
+structure into the standard form.
+
+@$@<Internal Form of Fully Qualified Class Names@>==@{
+static char *
+#if PROTO_OK
+JavaNameOf(char *class)
+#else
+JavaNameOf(class) char *class;
+#endif 
+{ char *p;
+
+  for (p = class; *p; p++) obstack_1grow(ClassFile, *p == '/' ? '.' : *p);
+  return (char *)obstack_strcpy(ClassFile,"");
+}
+
+static intList
+#if PROTO_OK
+JavaIdsOf(char *class)
+#else
+JavaIdsOf(class) char *class;
+#endif 
+{ char *p, *q;
+  intList result = NULLintList;
+
+  for (p = class; *p; p = q + 1) {
+    char save;
+    for (q = p; *q && *q != '/'; q++) ;
+    save = *q; *q = '\0'; result = ConsintList(MakeName(p), result); *q = save;
+    if (!save) break;
+  }
+  return result;
+}
+@}
+
+@A@<Descriptors@>
+
+@A
+
+All constant pool entries have the following general format:
+
+@$@<Constant Pool@>==@{
+typedef struct {
+  u1 tag;
+  void *entry;
+} ConstantPoolEntry;
+@}
+
+Each item in the @{constant_pool@} table must begin with a 1-byte tag
+indicating the kind of entry.
+The contents of the entry varies with the @{tag@} value.
+Because of this variation, an undifferentiated pointer to the actual
+information is stored in the @{ConstantPoolEntry@}.
+The value of this field can then be cast to the appropriate type on the
+basis of the value of the @{tag@} field.
+
+@$@<Constant Pool Tags@>==@{
+#define CONSTANT_Class			7
+#define CONSTANT_Fieldref		9
+#define CONSTANT_Methodref		10
+#define CONSTANT_InterfaceMethodref	11
+#define CONSTANT_String			8
+#define CONSTANT_Integer		3
+#define CONSTANT_Float			4
+#define CONSTANT_Long			5
+#define CONSTANT_Double			6
+#define CONSTANT_NameAndType		12
+#define CONSTANT_Utf8			1
+@}
+
+Each tag byte must be followed by two or more bytes giving information
+about the specific constant.
+The format varies with the tag value.
+Table entries are built in a @{switch@} controlled by the tag:
+
+@$@<Construct a constant_pool table entry@>==@{
+switch (ConstantPool[i].tag = getc(fd)) {
+@<CONSTANT_Class@>
+@<CONSTANT_Fieldref@>
+@<CONSTANT_Methodref@>
+@<CONSTANT_InterfaceMethodref@>
+@<CONSTANT_NameAndType@>
+@<CONSTANT_String@>
+@<CONSTANT_Long@>
+@<CONSTANT_Double@>
+@<CONSTANT_Integer@>
+@<CONSTANT_Float@>
+@<CONSTANT_Utf8@>
+default: perror("ConstPoolEntry: ");
+}
+@}
+
+The operations are arranged to use the same code to deal with different
+entries that have the same formats, and to merge sequences of entries in
+certain cases.
+
+@B
+
+@$@<CONSTANT_Class@>==@{
+case CONSTANT_Class:
+  u2Input(tempU2);
+  ConstantPool[i].entry = obstack_copy(ClassFile, &tempU2, sizeof(tempU2));
+  break;
+@}
+
+@B
+
+This entry has the same properties as that for @{CONSTANT_NameAndType@}.
+
+@$@<CONSTANT_Fieldref@>==@{
+case CONSTANT_Fieldref:
+@}
+
+@B
+
+This entry has the same properties as that for @{CONSTANT_NameAndType@}.
+
+@$@<CONSTANT_Methodref@>==@{
+case CONSTANT_Methodref:
+@}
+
+@B
+
+This entry has the same properties as that for @{CONSTANT_NameAndType@}.
+
+@$@<CONSTANT_InterfaceMethodref@>==@{
+case CONSTANT_InterfaceMethodref:
+@}
+
+@B
+
+The value is not symbol table information, and is therefore skipped.
+
+@$@<CONSTANT_String@>==@{
+case CONSTANT_String:
+  getc(fd); getc(fd);
+  break;
+@}
+
+@B
+
+This entry has the same properties as that for @{CONSTANT_Float@}.
+
+@$@<CONSTANT_Integer@>==@{
+case CONSTANT_Integer:
+@}
+
+@B
+
+The value is not symbol table information, and is therefore skipped.
+
+@$@<CONSTANT_Float@>==@{
+case CONSTANT_Float:
+  getc(fd); getc(fd); getc(fd); getc(fd);
+  break;
+@}
+
+@B
+
+This entry has the same properties as that for @{CONSTANT_Double@}.
+
+@$@<CONSTANT_Long@>==@{
+case CONSTANT_Long:
+@}
+
+@B
+
+The value is not symbol table information, and is therefore skipped.
+It's second half is treated as an entry of type @{CONSTANT_Float@}.
+There is also an obscure fact that double's and float's take up two
+constant pool entries.  Consequently, we have to increment our loop
+counter by an additional step so that the count is right.
+
+@$@<CONSTANT_Double@>==@{
+case CONSTANT_Double:
+  getc(fd); getc(fd); getc(fd); getc(fd);
+  i++;
+@}
+
+@B
+
+@$@<CONSTANT_NameAndType@>==@{
+case CONSTANT_NameAndType:
+  u2Input(tempU2);
+  obstack_grow(ClassFile, &tempU2, sizeof(tempU2));
+  u2Input(tempU2);
+  ConstantPool[i].entry = obstack_copy(ClassFile, &tempU2, sizeof(tempU2));
+  break;
+@}
+
+@B
+
+@{CONSTANT_Utf8@} entries never contain null bytes.
+We terminate them with null bytes to make string operations simpler.
+
+@$@<CONSTANT_Utf8@>==@{
+case CONSTANT_Utf8:
+  u2Input(tempU2);
+  while (tempU2--) obstack_1grow(ClassFile, getc(fd));
+  obstack_1grow(ClassFile, '\0');
+  ConstantPool[i].entry = obstack_finish(ClassFile);
+  break;
+@}
+
+@A@<Fields@>
+
+@A@<Methods@>
+
+@A@<Attributes@>
+
+@A@<Constraints on Java Virtual Machine Code@>
+
+@A@<Verification of class files@>
+
+@A@<Limitations of the Java Virtual Machine and class File Format@>

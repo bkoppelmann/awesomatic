@@ -1,0 +1,6 @@
+begin comment $Id: 2.6.1.a60,v 1.1 2012/11/28 21:15:25 profw Exp $
+A string must have a closing quote;
+
+procedure p(s); string s; { };
+p(`this is an unterminated string);
+end

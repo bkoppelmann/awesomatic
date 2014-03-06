@@ -1,0 +1,49 @@
+/* $Id: func.ptg,v 1.7 1994/03/26 19:20:56 waite Exp $ */
+/* Property Definition Language function output forms */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+CGen: "#include \"pdl_gen.h\"\n\n" 
+      "#define PRESENT find(key, _Property, (Entry *)&_Item, 0)\n"
+      "#define VALUE (_Item->PropVal)\n\n"
+      $ "\n"
+      $
+      $
+
+OperationSpec: "#if defined(__STDC__) || defined(__cplusplus)\n"
+	       $1 "\n"
+	       $2 $3 " (int _Property, " $4 ")\n"
+	       "#else\n"
+	       $1 "\n" 
+               $2 $3 " (_Property, " $5 ")\n"
+	       "int _Property;\n"
+	       $6
+	       "#endif\n"
+	       "{  " $3 "Property _Item;\n"
+	       $7 "\n}\n\n"
+
+Paren: "(" $ ")"
+Identifier: int [PrIdent]
+String: string []
+CommaSeq: $ ", " $
+ParamDecl: $ " " $ $ ";\n"
+SModifier: "(" $ ")"
+EModifier: "(" $ ", ... )"
+PTypeSpec: $ " " $
+IPTypeSpec: $ " " $ " " $
+FuncName: "(*" $ ")"
+Seq: $ $
+
+TypeDef: "typedef struct " $1 "Elt {\n"
+	 "\tEntry next;\n"
+	 "\tint selector;\n"
+	 "\tTYPE PropVal;\n"
+	 "} *" $1 "Property;\n\n"
+
+Functions: "#define TYPE " $ "\n\n" 
+   "#define ACCESS find(key, _Property, (Entry *)&_Item, sizeof(struct " 
+	                        $ "Elt))\n\n"
+	   $ 
+	   "#undef ACCESS\n"
+	   "#undef TYPE\n"
+
+

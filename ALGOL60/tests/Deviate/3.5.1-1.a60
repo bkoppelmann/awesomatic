@@ -1,0 +1,5 @@
+begin comment $Id: 3.5.1-1.a60,v 1.1 1996/07/18 15:01:59 waite Exp $
+  A designational expression must have a label value;
+
+  integer y; go to y;
+end

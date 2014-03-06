@@ -1,0 +1,115 @@
+begin
+
+  integer iSimple1, iSimple2;
+
+  real rSimple1, rSimple2;
+
+  real mn;
+  Boolean success;
+  Boolean lt,le,eq,ge,gt,ne;
+  Boolean b1, b2, b3,b4,b5;
+  Boolean logic1, logic2;
+  array m[1:20];
+
+  integer w, limit1;
+  integer procedure test(limit); value limit;
+     integer limit; 
+
+      begin 
+         integer i,j;
+         real  m, n, p;
+         array a, b[2:limit], c[-2:10, -3:9];
+         i := j := 0;
+
+         for j := 0 step 1 until limit do
+           begin
+             if (i < limit) then
+                i := limit
+             else
+                i := i+3;
+           end;
+         if (i = limit) then
+            i := limit;
+
+  comment The following is to test arithmetic expressions;
+         i := i+j;
+         i := i-j;
+         i := i*j;
+         i := i/j;
+         m := i+5*j-7;
+         n := j div i ;
+         p := (m + n - i) ^ (m*n/j);
+         p := ( (m-n) / j + (m+n) * i);
+
+  comment The following is to test boolean expressions;
+         if  (m < p) then
+              m := p
+         else
+         if (m > p) then
+             p := m
+         else
+         if (m <= p) then
+             m := p
+         else 
+         if (m = p) then
+             m := p-1
+         else 
+         if (m >= p) then
+             m := p-4
+         else 
+         if (m != p) then
+             m := p;
+
+  comment The following is to test array expressions;
+         a[3] := m;
+         b[3] := a[3];
+         c[1,2] := a[3];
+
+  test := 1;
+  end test;
+  
+
+  if success then go to finish;
+ 
+  m[10]:= mn;
+
+
+  iSimple1 := 1; iSimple2 := 2;
+  rSimple1 := 1.0; rSimple2 := 2.0;
+
+comment Relation expression;
+  lt := iSimple1 <  iSimple2;
+  le := iSimple1 <= rSimple2;
+  eq := rSimple1 =  iSimple2;
+  ge := rSimple1 >= rSimple2;
+  gt := iSimple1 >  iSimple2;
+  ne := rSimple1 != rSimple2;
+
+
+comment Logic Value;
+  logic1 := true;
+  logic2 := false;
+
+  b1 := logic1; b2 := ne;
+
+  b3 := not b1;
+
+  b4 := lt and le;
+
+  b5 := b1 or b2;
+ 
+  b1 := b1 -> b5;
+
+  b2 := b3 == b4;
+
+  b1 := if true then b2 else b3;
+
+comment More complex boolean expression;
+  b1 :=  not iSimple1 <= rSimple2 and b3 or b3 -> b4 == b2;
+
+comment This is to test function designator;
+  w := test(limit1);    
+
+finish:
+
+end 

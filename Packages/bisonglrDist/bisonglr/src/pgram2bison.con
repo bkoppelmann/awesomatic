@@ -1,0 +1,19 @@
+/* First test of a grammar-grammar */
+
+Grammar:	  	  Specifications StartSymbol Productions . 
+StartSymbol:      '<$START_SYMBOL>:' StartSymbolSymbol '.' / .
+StartSymbolSymbol: symb .
+Specifications:   '$CODE' TokenDefinitionList '$SEPA' /  .
+TokenDefinitionList: TokenDefinitions . 
+TokenDefinitions: TokenDefinitions TokenDefinition / TokenDefinition .
+TokenDefinition:  symb '=' number '.' / litsymb '=' number '.' .
+Productions:	  ProductionsList .
+ProductionsList:  ProductionsList Production / Production .
+Production:	      LHS_symb ':' SequenceList '.' .
+SequenceList:	  SequenceList '/' SequenceEntry / SequenceEntry .
+SequenceEntry:    Sequence .
+Sequence:	      Sequence Symbol  / .
+Symbol:		      '$' symb / symb / '$' litsymb / litsymb / '@' symb / '@' litsymb / semantic .
+/*Semrec:		      semantic .*/
+LHS_symb:	      symb .
+

@@ -1,0 +1,619 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Structural Analysis@>
+\label{structure}
+
+The structural analyzer builds an abstract syntax tree (AST) from the
+text of a source program.
+Eli generates a structural analyzer from specifications of the
+\begin{itemize}
+\item phrase structure (Section \ref{phrase}),
+\item AST structure (Section \ref{astdef}),
+and
+\item basic symbols and comments (Section \ref{scanner}).
+\end{itemize}
+
+@B@<The Abstract Syntax Tree@>
+\label{astdef}
+
+A compiler must carry out a number of computations over the abstract
+syntax tree in the process of analyzing and translating the source program.
+Simplifying these computations is the primary goal of AST design.
+While the AST certainly reflects the phrase structure of the source program,
+it may differ significantly in certain respects.
+
+Attribute grammars describe both the structure of the AST and the
+computations carried out over it.
+Figure \ref{fig:program},
+\begin{figure}
+@O@<Structure.lido@>==@{@-
+RULE root: Source  ::=    program                                    END;
+RULE pgrm: program ::=    'program' identifier PgmPars ';' block '.' END;
+RULE pgpl: PgmPars LISTOF PgmPar                                     END;
+RULE pgpr: PgmPar  ::=    identifier                                 END;
+RULE blck: block   ::=    Decls 'begin' StmtList 'end'               END;
+
+@<Declarations@>
+@<Statements@>
+@<Expressions@>
+@<Identifiers@>
+@}
+\caption{The top-level program structure}
+\label{fig:program}
+\end{figure}
+written in LIDO, is the attribute grammar fragment describing
+the overall structure of a Pascal program.
+Each rule describes a node of the AST, and corresponds to a class in an
+object-oriented implementation.
+The identifier following the keyword @{RULE@} names the class of the object
+that would represent such a node.
+These are the only classes that can be instantiated.
+(It is not necessary to name the rules in a LIDO specification, because
+Eli will generate unique names if none are given.
+Rules are named in Figure \ref{fig:program} to make it easier to discuss them.)
+
+An identifier that precedes @{::=@} or @{LISTOF@} in some rule is called a
+@/nonterminal@/; all other identifiers are @/terminals@/.
+Nonterminals following @{::=@} represent subtrees, while terminals
+represent values that are not subtrees.
+(For example, @{identifier@} is a terminal representing
+an identifier appearing in the source program.)
+
+Terminals can also be thought of as class names, but these classes are
+defined outside of the LIDO specification.
+They do not represent tree nodes, but rather values that are components of
+a rule's object.
+Objects of class @{pgpr@} therefore have no children, but each stores a
+representation of an identifier appearing in the source program.
+
+A nonterminal (such as @{block@} in Figure \ref{fig:program}) names the
+abstract class that characterizes the contexts in which the construct can
+appear.
+Each rule class (such as @{body@} in Figure \ref{fig:program}) is a subclass of
+the abstract class named by the nonterminal preceding @{::=@} or
+@{LISTOF@}.
+
+Each rule containing @{::=@} describes a node with a fixed number of
+children and/or component values.
+Nonterminals following the @{::=@} specify children, in left-to-right order.
+Each child must be represented by an object belonging to a subclass of the
+abstract class named by the nonterminal.
+
+Each rule containing @{LISTOF@} describes a node with an arbitrary number
+of children (including none at all).
+Nonterminals following @{LISTOF@} (separated  by vertical bars) specify
+the possible children. 
+There may be any number of children corresponding to each nonterminal.
+
+Literals in Figure \ref{fig:program} do not represent information
+present in the abstract syntax tree;
+they are used solely to establish a correspondence between
+the abstract syntax tree nodes and the phrase structure of the input.
+
+@C
+
+The declaration part of a Pascal @{block@} (Figure \ref{Decls})
+\begin{figure}
+@$@<Declarations@>+=@{@-
+RULE dcls: Decls    LISTOF Decl                          END;
+RULE dlbl: Decl     ::=    LblIdDef                      END;
+RULE dcon: Decl     ::=    ConIdDef '=' constant         END;
+RULE dtyp: Decl     ::=    TypIdDef '=' type             END;
+RULE dvar: Decl     ::=    VrblIds ':' type              END;
+RULE dprc: Decl     ::=    'procedure' PrcIdDef ProcBody END;
+RULE dfnc: Decl     ::=    'function'  FncIdDef FuncBody END;
+RULE dfwd: Decl     ::=    'function'  FncIdUse ';' Body END;
+RULE body: Body     ::=    block                         END;
+RULE lbld: LblIdDef ::=    integer_constant              END;
+RULE cnsd: ConIdDef ::=    identifier                    END;
+RULE typd: TypIdDef ::=    identifier                    END;
+RULE vidl: VrblIds  LISTOF VblIdDef                      END;
+RULE vbld: VblIdDef ::=    identifier                    END;
+RULE prcd: PrcIdDef ::=    identifier                    END;
+RULE fncd: FncIdDef ::=    identifier                    END;
+@}
+\caption{The structure of a declaration part}
+\label{Decls}
+\end{figure}
+defines labels, constants,
+types, variables, and routines (procedures or functions) respectively.
+Individual declarations must occur in the order given in the previous
+sentence.
+As far as the semantics of the language are concerned, however, that order
+is actually immaterial.
+Because the attribute grammar is concerned with semantics, it simply
+states that the declaration part of a block contains some number of
+declarations of various kinds.
+
+Pascal constants (Figure \ref{constant})
+\begin{figure}
+@$@<Declarations@>+=@{@-
+RULE sgni: constant  ::= csign integer_constant END;
+RULE sgnr: constant  ::= csign real_constant    END;
+RULE sidn: constant  ::= csign ConIdUse         END;
+RULE cint: constant  ::= integer_constant       END;
+RULE cflt: constant  ::= real_constant          END;
+RULE cidn: constant  ::= ConIdUse               END;
+RULE cstr: constant  ::= Literal                END;
+RULE cpls: csign     ::= '+'                    END;
+RULE cmin: csign     ::= '-'                    END;
+RULE cnsu: ConIdUse  ::= identifier             END;
+RULE litr: Literal   ::= character_string       END;
+@}
+\caption{The structure of a constant}
+\label{constant}
+\end{figure}
+may specify (signed) numbers, characters, or strings.
+Constants may also be named, and the names used in place of the value.
+There is no syntactic difference between a character constant and a string
+constant; if the constant specifies a single character then its type is
+@{char@}, otherwise it has a string type.
+By introducing the @{litr@} rule, we provide a place to to check the length
+of the character string and establish the appropriate type.
+
+Types (Figure \ref{type})
+\begin{figure}
+@$@<Declarations@>+=@{@-
+RULE pack: type        ::=    'packed' type                  END;
+RULE tyid: type        ::=    TypIdUse                       END;
+RULE tden: type        ::=    TypeDenoter                    END;
+RULE rdec: type        ::=    Record                         END;
+RULE typu: TypIdUse    ::=    identifier                     END;
+RULE enum: TypeDenoter ::=    '(' Enumerate ')'              END;
+RULE rnge: TypeDenoter ::=    constant '..' constant         END;
+RULE arry: TypeDenoter ::=    'array' '[' type ']' 'of' type END;
+RULE sett: TypeDenoter ::=    'set'  'of' type               END;
+RULE file: TypeDenoter ::=    'file' 'of' type               END;
+RULE pntr: TypeDenoter ::=    '^' type                       END;
+RULE encl: Enumerate   LISTOF ConIdDef                       END;
+RULE recd: Record      ::=    'record' Fields 'end'          END;
+RULE fldl: Fields      LISTOF Decl | var_part                END;
+RULE vprt: var_part    ::=    'case' var_sel 'of' Variants   END;
+RULE vtag: var_sel     ::=    TagIdDef ':' TypIdUse          END;
+RULE vunt: var_sel     ::=                 TypIdUse          END;
+RULE vars: Variants    LISTOF Variant                        END;
+RULE vrnt: Variant     ::=    constants ':' '(' Fields ')'   END;
+RULE vsel: constants   LISTOF constant                       END;
+RULE tagd: TagIdDef    ::=    identifier                     END;
+@}
+\caption{The structure of a type definition}
+\label{type}
+\end{figure}
+can be represented by identifiers or by constructors describing the
+structure of the type.
+Most constructors have very similar semantics, and can therefore be
+represented by a single nonterminal (@{TypeDenoter@}).
+Record types have a complex inner structure that requires additional
+information.
+Therefore it is convenient to use a second nonterminal (@{Record@}) at the
+root of that definition.
+Note that rule @{fldl@} provides an example of a node with an arbitrary
+collection of children of different kinds.
+Actually, the record will have no more than one @{var_part@}, but there is
+no need to carry that information into the AST explicitly.
+
+A routine declaration (Figure \ref{routines}
+\begin{figure}
+@$@<Declarations@>+=@{@-
+RULE pbdy: ProcBody  ::=    Formals ';' block              END;
+RULE fbdy: FuncBody  ::=    Formals ':' TypIdUse ';' block END;
+RULE fnof: FuncBody  ::=            ':' TypIdUse ';' block END;
+RULE form: Formals   LISTOF Formal                         END;
+RULE fval: Formal    ::=    FrmlIds ':' type               END;
+RULE fvar: Formal    ::=    'var' FrmlIds ':' type         END;
+RULE fprc: Formal    ::=    'procedure' FmlIdDef ProcHead  END;
+RULE ffnc: Formal    ::=    'function'  FmlIdDef FuncHead  END;
+RULE prhd: ProcHead  ::=    Formals                        END;
+RULE fnhd: FuncHead  ::=    Formals ':' TypIdUse           END;
+RULE fhnf: FuncHead  ::=            ':' TypIdUse           END;
+RULE fidl: FrmlIds   LISTOF FmlIdDef                       END;
+RULE bfwd: block     ::=    'forward'                      END;
+RULE bext: block     ::=    'external'                     END;
+@}
+\caption{The structure of a routine declaration}
+\label{routines}
+\end{figure}
+may use the directive @{forward@} or @{external@} in lieu of a block.
+Although these directives are defined as possible descendants of @{block@},
+the phrase structure described later restricts then to blocks defining
+routines.
+ 
+@C
+\label{statements}
+
+@$@<Statements@>+=@{@-
+RULE stms: StmtList  LISTOF statement                                  END;
+RULE locd: statement ::=    LblIdUse ':' statement                     END;
+RULE emty: statement ::=                                               END;
+RULE assn: statement ::=    variable ':=' expression                   END;
+RULE call: statement ::=    ProcCall                                   END;
+RULE goto: statement ::=    'goto' LblIdUse                            END;
+RULE cmpd: statement ::=    'begin' StmtList 'end'                     END;
+RULE ones: statement ::=    'if' expression 'then' statement           END;
+RULE twos: statement ::=    'if' expression 'then' statement
+                                            'else' statement           END;
+RULE cstm: statement ::=    'case' expression 'of' cases 'end'         END;
+RULE rpts: statement ::=    'repeat' StmtList 'until' expression       END;
+RULE whil: statement ::=    'while' expression 'do' statement          END;
+RULE foru: statement ::=    'for' ExpIdUse ':=' expression
+                              'to' expression 'do' statement           END;
+RULE ford: statement ::=    'for' ExpIdUse ':=' expression
+                              'downto' expression 'do' statement       END;
+RULE with: statement ::=    'with' WithVar 'do' WithBody               END;
+RULE casl: cases     LISTOF case                                       END;
+RULE celt: case      ::=    selectors ':' statement                    END;
+RULE csel: selectors LISTOF constant                                   END;
+RULE wcls: WithVar   ::=    variable                                   END;
+RULE wbdy: WithBody  ::=    statement                                  END;
+RULE iost: statement ::=    InOutStmt                                  END;
+@}
+
+@$@<Statements@>+=@{@-
+RULE proc: ProcCall  ::=    PrcIdUse PrcArgs                           END;
+RULE parg: PrcArgs   LISTOF Actual                                     END;
+RULE arge: Actual    ::=    expression                                 END;
+RULE read: InOutStmt ::=    'read'    '(' RdArgs ')'                   END;
+RULE rlin: InOutStmt ::=    'readln'                                   END;
+RULE rdln: InOutStmt ::=    'readln'  '(' RdArgs ')'                   END;
+RULE writ: InOutStmt ::=    'write'   '(' WrtArgs ')'                  END;
+RULE wlin: InOutStmt ::=    'writeln'                                  END;
+RULE wrln: InOutStmt ::=    'writeln' '(' WrtArgs ')'                  END;
+RULE rarg: RdArgs    LISTOF RdArg                                      END;
+RULE rrgv: RdArg     ::=    variable                                   END;
+RULE warg: WrtArgs   LISTOF WrtArg                                     END;
+RULE wrgr: WrtArg    ::=    expression ':' expression ':' expression   END;
+RULE wrgw: WrtArg    ::=    expression ':' expression                  END;
+RULE wrge: WrtArg    ::=    expression                                 END;
+@}
+
+@C
+\label{expressions}
+
+@$@<Expressions@>+=@{@-
+RULE vbid: variable  ::=    ExpIdUse                                   END;
+RULE indx: variable  ::=    variable '[' Subscript ']'                 END;
+RULE fldv: variable  ::=    variable '.' FldIdUse                      END;
+RULE dref: variable  ::=    variable '^'                               END;
+RULE subs: Subscript ::=    expression                                 END;
+@}
+
+@$@<Expressions@>+=@{@-
+RULE iexp: expression ::=    integer_constant                          END;
+RULE rexp: expression ::=    real_constant                             END;
+RULE sexp: expression ::=    Literal                                   END;
+RULE nexp: expression ::=    'nil'                                     END;
+RULE vexp: expression ::=    variable                                  END;
+RULE func: expression ::=    FncIdUse FncArgs                          END;
+RULE setx: expression ::=    '[' Members ']'                           END;
+RULE eset: expression ::=    '['         ']'                           END;
+RULE dyad: expression ::=    expression operator expression            END;
+RULE mnad: expression ::=               operator expression            END;
+RULE farg: FncArgs    LISTOF Actual                                    END;
+RULE meml: Members    LISTOF Member                                    END;
+RULE meme: Member     ::=    expression                                END;
+RULE memr: Member     ::=    expression '..' expression                END;
+@}
+
+@$@<Expressions@>+=@{@-
+RULE equl: operator ::= '='   END;
+RULE neql: operator ::= '<>'  END;
+RULE less: operator ::= '<'   END;
+RULE grtr: operator ::= '>'   END;
+RULE lseq: operator ::= '<='  END;
+RULE greq: operator ::= '>='  END;
+RULE memb: operator ::= 'in'  END;
+RULE plus: operator ::= '+'   END;
+RULE mins: operator ::= '-'   END;
+RULE disj: operator ::= 'or'  END;
+RULE star: operator ::= '*'   END;
+RULE slsh: operator ::= '/'   END;
+RULE idiv: operator ::= 'div' END;
+RULE remr: operator ::= 'mod' END;
+RULE conj: operator ::= 'and' END;
+RULE linv: operator ::= 'not' END;
+@}
+
+@C
+\label{identifiers}
+
+@$@<Identifiers@>==@{@-
+RULE fmld: FmlIdDef ::= identifier       END;
+
+RULE lblu: LblIdUse ::= integer_constant END;
+RULE prcu: PrcIdUse ::= identifier       END;
+RULE fncu: FncIdUse ::= identifier       END;
+RULE fldu: FldIdUse ::= identifier       END;
+RULE exid: ExpIdUse ::= identifier       END;
+@}
+
+@B@<Phrase structure@>
+\label{phrase}
+
+Most of the phrase structure of Pascal can be deduced from the abstract
+syntax given in Section \ref{astdef}.
+In a number of cases, however, the abstract syntax is either ambiguous
+or designed to capture the semantics of a construct more cleanly than
+the phrase structure allows.
+Concrete syntax rules are introduced to define the phrase structure
+in those situations.
+
+@O@<Structure.con@>==@{@-
+@<Constants@>
+@<Lists@>
+@<Fields@>
+@<Statement labeling@>
+@<Precedence and association@>
+@<Dangling else@>
+@<Declaration sequence@>
+@<Extensions@>
+@}
+
+Eli uses pattern matching to determine the relationship between phrases
+defined by a concrete syntax and AST nodes defined by an abstract syntax.
+It recognizes simple identities like that of rule @{pgrm@}
+in Figure \ref{fig:program}, and
+LISTOF rules are properly associated with concrete
+syntax rules that use extended BNF notation to describe iteration.
+
+The concrete syntax for Pascal uses a number of symbols that do not appear
+in the abstract grammar.
+For example, the operator precedence rules of the language are described
+by using distinct symbols for expressions at each precedence level.
+Symbol mappings convert all of these distinct expression
+symbols into the single symbol expression used in the abstract grammar.
+
+Several shorthand notations, such as multi-dimensional arrays, are
+incorporated into the concrete syntax.
+These shorthands are converted into their long form in the abstract syntax
+by rule mappings.
+
+Eli cannot deduce these mappings from the grammars themselves; an
+additional specification is needed:
+
+@O@<Structure.map@>==@{@-
+MAPSYM
+
+expression ::= simple_expression term factor .
+constant   ::= selector .
+
+operator ::= sign multiplying_operator adding_operator relational_operator .
+
+Decl ::=
+  constant_definition
+  type_definition record_section
+  variable_declaration
+  procedure_declaration
+  function_declaration .
+
+statement ::= unlabeled_statement .
+
+@<List symbol mapping@>
+@<Extension symbol mapping@>
+
+MAPRULE
+
+@<Extension rule mapping@>
+@}
+
+@C
+
+@$@<Constants@>==@{@-
+constant: [csign] (integer_constant / real_constant / ConIdUse) / Literal .
+selector: [csign] (integer_constant / real_constant / ConIdUse) / Literal .
+@}
+
+@C
+\label{lists}
+
+@$@<Lists@>+=@{@-
+PgmPars: [ '(' (PgmPar // ',') ')' ] .
+Enumerate: ConIdDef // ',' .
+constants: constant // ',' .
+selectors: selector // ',' .
+Variants:  variant_list .
+variant_list: / Variant / Variant ';' variant_list .
+VrblIds:   VblIdDef // ',' .
+FrmlIds:   FmlIdDef // ',' .
+Formals:   '(' (Formal // ';') ')'   .
+FncArgs:   '(' (Actual // ',') ')'   .
+PrcArgs: [ '(' (Actual // ',') ')' ] .
+RdArgs:         RdArg  // ','        .
+WrtArgs:        WrtArg // ','        .
+Members:        Member // ','        .
+StmtList: statement // ';' .
+cases: case_list .
+case_list: / case / case ';' case_list .
+
+ProcBody:   optFormals ';' block .
+ProcHead:   optFormals .
+optFormals: [ '(' (Formal // ';') ')' ] .
+@}
+
+@$@<List symbol mapping@>==@{@-
+Formals ::= optFormals .
+@}
+
+@C
+\label{records}
+
+@$@<Fields@>==@{@-
+Fields: [ fixed_part [';' [var_part]] / var_part ] .
+fixed_part: record_section / fixed_part ';' record_section .
+record_section: VrblIds ':' type .
+@}
+
+@C
+\label{statements}
+
+@$@<Statement labeling@>==@{@-
+statement: [ LblIdUse ':' ] unlabeled_statement .
+unlabeled_statement: .
+unlabeled_statement: variable ':=' expression .
+unlabeled_statement: ProcCall .
+unlabeled_statement: 'goto' LblIdUse .
+unlabeled_statement: 'begin' StmtList 'end' .
+unlabeled_statement: 'case' expression 'of' cases 'end' .
+unlabeled_statement: 'repeat' StmtList 'until' expression .
+unlabeled_statement: 'while' expression 'do' statement .
+unlabeled_statement: 'for' ExpIdUse ':=' expression
+                              'to' expression 'do' statement .
+unlabeled_statement: 'for' ExpIdUse ':=' expression
+                              'downto' expression 'do' statement .
+unlabeled_statement: InOutStmt .
+@}
+
+@C
+\label{operators}
+
+@$@<Precedence and association@>+=@{@-
+expression: simple_expression [ relational_operator simple_expression ] .
+
+simple_expression: [sign] term / simple_expression adding_operator term .
+
+sign: '+' / '-' .
+csign: '+' / '-' .
+
+term: factor / term multiplying_operator factor .
+
+factor:
+  '(' expression ')' /
+  'not' factor /
+  FncIdUse FncArgs /
+  '[' Members ']' /
+  '['         ']' /
+  variable /
+  integer_constant /
+  real_constant /
+  Literal /
+  'nil' .
+
+multiplying_operator: '*' / '/' / 'div' / 'mod' / 'and' .
+
+adding_operator: '+' / '-' / 'or' .
+
+relational_operator: '=' / '<>' / '<' / '>' / '<=' / '>=' / 'in' .
+
+variable: ExpIdUse .
+@}
+
+@C
+
+@$@<Dangling else@>==@{@-
+unlabeled_statement:
+  'if' expression 'then' statement $'else' /
+  'if' expression 'then' statement  'else' statement .
+@}
+
+@C
+
+@$@<Declaration sequence@>+=@{@-
+Decls:
+  [ 'label' (LblIdDef // ',') ';' ]
+  [ 'const' (constant_definition ';')* ]
+  [ 'type'  (type_definition ';')* ]
+  [ 'var'   (variable_declaration ';')* ]
+  (procedure_declaration ';' / function_declaration ';')* .
+
+constant_definition:   ConIdDef '=' constant .
+type_definition:       TypIdDef '=' type .
+variable_declaration:  VrblIds ':' type .
+procedure_declaration: 'procedure' PrcIdDef ProcBody.
+function_declaration:
+  'function'  FncIdDef FuncBody /
+  'function'  FncIdUse ';' Body .
+@}
+
+@C
+\label{with}
+
+@$@<Extensions@>==@{@-
+TypeDenoter:
+  'array' '[' type array_tail /
+  'array' '[' type ']' 'of' type .
+array_tail:
+  ',' type array_tail /
+  ',' type ']' 'of' type .
+
+unlabeled_statement: 'with' variable with_tail .
+with_tail:
+  ',' variable with_tail /
+  'do' statement .
+
+variable: subscript_head ']' .
+subscript_head:
+  subscript_head ',' Subscript /
+  variable '[' Subscript .
+@}
+
+@$@<Extension symbol mapping@>==@{@-
+TypeDenoter ::= array_tail .
+statement ::= with_tail .
+variable ::= subscript_head .
+@}
+
+@$@<Extension rule mapping@>==@{@-
+TypeDenoter: 'array' '[' type array_tail
+  < 'array' '[' $1 ']' 'of' $2 > .
+array_tail: ',' type array_tail
+  < 'array' '[' $1 ']' 'of' $2 > .
+array_tail: ',' type ']' 'of' type
+  < 'array' '[' $1 ']' 'of' $2 > .
+
+unlabeled_statement: 'with' variable with_tail 
+  < 'with' $1 'do' $2 > .
+with_tail: ',' variable with_tail
+  < 'with' $1 'do' $2 > .
+
+subscript_head: variable '[' Subscript
+  < $1 '[' $2 ']' > .
+subscript_head: subscript_head ',' Subscript
+  < $1 '[' $2 ']' > .
+@}
+
+@B@<Basic symbols and comments@>
+\label{scanner}
+
+The generated structural analyzer must read a sequence of characters from
+a file and build the corresponding abstract syntax tree.
+Eli can extract the definitions of literal basic symbols from the grammars,
+but neither Section \ref{phrase} nor Figure \ref{fig:program} describes the
+sequence of characters making up identifiers and numbers.
+There is also no indication of what constitutes a comment.
+
+Figure \ref{scangla}
+\begin{figure}
+@O@<Structure.gla@>==@{@-
+identifier:		PASCAL_IDENTIFIER
+integer_constant:	PASCAL_INTEGER		[mkidn]
+real_constant:		PASCAL_REAL		[mkidn]
+character_string:	PASCAL_STRING		[mkidn]
+			PASCAL_COMMENT
+@}
+\caption{Non-literal Basic Symbols and Coments}
+\label{scangla}
+\end{figure}
+contains the necessary definitions.
+The Eli library provides @/canned descriptions@/ (such as @{PASCAL_IDENTIFIER@})
+for all of these character sequences.
+(White space will be automatically ignored by an Eli-generated scanner
+unless the user explicitly defines some other behavior.)
+
+The canned descriptions of @{PASCAL_INTEGER@} and @{PASCAL_REAL@} do not
+guarantee that each distinct denotation has a unique internal representation
+no matter how many times it appears in the source text.
+It is convenient to have unique representations for denotations, and hence
+Figure \ref{scangla} overrides the creation of their internal
+representations.
+The token processor @{mkidn@} enters the scanned character sequence into
+the string table if and only if it is not already in that table.
+It then uses the index of the (newly or previously) stored string as the
+internal representation of the basic symbol.
+
+@N@<Keywords.gla@>==@{@-
+$[a-z]+
+@}
+
+@O@<Structure.specs@>==@{@-
+Keywords.gla :kwd
+@}

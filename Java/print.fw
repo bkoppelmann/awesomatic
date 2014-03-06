@@ -1,0 +1,24 @@
+@O@<print.specs@>==@{
+$/Output/PtgCommon.fw
+$/Output/C_Separator.fw
+@}
+
+@O@<print.head@>==@{
+#define PTGIntLiteral(x)	PTGHex(StringTable(x))
+#define PTGLongLiteral(x)	PTGHex(StringTable(x))
+#define PTGFloatLiteral(x)	PTGId(x)
+#define PTGDoubleLiteral(x)	PTGId(x)
+#define PTGCharacterLiteral(x)	PTGId(x)
+#define PTGStringLiteral(x)	PTGId(x)
+#define PTGIdentifier(x)	PTGId(x)
+@}
+
+@O@<print.ptg@>==@{
+Hex:	"0x" $ string
+@}
+
+@O@<print.lido@>==@{
+SYMBOL ROOTCLASS COMPUTE
+  PTGOut(THIS.IdemPtg);
+END;
+@}

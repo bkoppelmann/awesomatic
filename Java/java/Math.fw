@@ -1,0 +1,302 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Provide Constant Arithmetic@>
+\label{context}
+
+@O@<Math.lido@>==@{@-
+@}
+
+@O@<Math.specs@>==@{@-
+@<Instantiate required modules@>
+@}
+
+@O@<Math.pdl@>==@{@-
+@<Property definitions@>
+@}
+
+@B@<Narrowing primitive conversions@>
+
+A narrowing conversion of a character or signed integer to an integral
+type @{T@} simply discards all but the lowest @/n@/ bits,
+where @/n@/ is the number of bits used to represent @{T@}.
+Information about both the magnitude and the sign of the original number
+may be lost.
+The parameters of this conversion are held in properties
+of the known keys representing the types:
+
+@$@<Property definitions@>+=@{@-
+ValueRetain: int;
+ValuePower, ValuePowBy2: CharPtr;	"Strings.h"
+
+byteType ->  ValueRetain={2}, ValuePower={"100"},   ValuePowBy2={"80"};
+shortType -> ValueRetain={4}, ValuePower={"10000"}, ValuePowBy2={"8000"};
+charType ->  ValueRetain={4}, ValuePower={"10000"};
+intType ->   ValueRetain={8},
+             ValuePower={"100000000"},
+             ValuePowBy2={"80000000"};
+longType ->  ValueRetain={16},
+             ValuePower={"10000000000000000"},
+             ValuePowBy2={"8000000000000000"};
+@}
+\noindent
+Both @{ValuePower@} and @{ValuePowBy2@} are given in hexadecimal, because
+they represent bits.
+@{ValueRetain@} is a count of bytes.
+
+The actual conversion is carried out using string arithmetic operations:
+
+@$@<int CastPrimitive(int v, DefTableKey from, DefTableKey to)@>==@{@-
+/* Cast a primitive value
+ *   On entry-
+ *     StringTable(v)=decimal value to be narrowed
+ *     from=type of v
+ *     to=result type
+ *   On exit-
+ *     CastPrimitive=value of type to
+ ***/
+{ char *vs, temp[ARITH_SIZE + 1];
+  int length, retain;
+
+  if (v == NoStrIndex) return NoStrIndex;
+
+  retain = GetValueRetain(to, 17);
+  if (GetValueRetain(from, 0) <= retain) return v;
+
+  vs = strnorm(StringTable(v), 10, 16, "");
+  if (vs[0] == '-') vs = stradd(GetValuePower(from, "100"), vs, 16);
+  length = strlen(vs) - retain;
+  if (length > 0) vs += length;
+
+  if (to != charType) { 
+    strcpy(temp, vs);
+    vs = strsub(vs, GetValuePowBy2(to, "0"), 16);
+    if (vs[0] != '-') vs = strsub(temp, GetValuePower(to, 0), 16);
+    else vs = temp;
+  }
+  return MakeName(strnorm(vs, 16, 10, ""));
+}
+@}
+
+@B@<Additional operations required by Java@>
+
+@$@<int StrPrm(int s, int p)@>==@{@-
+/* Concatenate a string with a primitive
+ *   On entry-
+ *     s=string table index of the string value
+ *     p=string table index of the primitive value
+ *   On exit-
+ *     StrPrm=string table index of the resulting string value
+ ***/
+{ char *ss, *ps;
+
+  if (s == NoStrIndex || p == NoStrIndex) return NoStrIndex;
+
+  ss = StringTable(s); ps = StringTable(p);
+  obstack_grow(Csm_obstk, ss, strlen(ss) - 1);
+  obstack_grow(Csm_obstk, ps, strlen(ps));
+  CsmStrPtr = obstack_copy(Csm_obstk, "\"", 2);
+  return MakeName(CsmStrPtr);
+}  
+@}
+
+@$@<int PrmStr(int p, int s)@>==@{@-
+/* Concatenate a primitive with a string
+ *   On entry-
+ *     p=string table index of the primitive value
+ *     s=string table index of the string value
+ *   On exit-
+ *     PrmStr=string table index of the resulting string value
+ ***/
+{ char *ss, *ps;
+
+  if (s == NoStrIndex || p == NoStrIndex) return NoStrIndex;
+
+  ss = StringTable(s); ps = StringTable(p);
+  obstack_1grow(Csm_obstk, '"');
+  obstack_grow(Csm_obstk, ps, strlen(ps));
+  CsmStrPtr = obstack_copy(Csm_obstk, ss + 1, strlen(ss));
+  return MakeName(CsmStrPtr);
+}  
+@}
+
+@$@<int StrStr(int s1, int s2)@>==@{@-
+/* Concatenate a string with a string
+ *   On entry-
+ *     s1=string table index of the first value
+ *     s2=string table index of the second value
+ *   On exit-
+ *     StrStr=string table index of the concatenation
+ ***/
+{ char *s1s, *s2s;
+
+  if (s1 == NoStrIndex || s2 == NoStrIndex) return NoStrIndex;
+
+  s1s = StringTable(s1); s2s = StringTable(s2);
+  obstack_grow(Csm_obstk, s1s, strlen(s1s) - 1);
+  CsmStrPtr = obstack_copy(Csm_obstk, s2s + 1, strlen(s2s));
+  return MakeName(CsmStrPtr);
+}  
+@}
+
+@$@<Instantiate required modules@>+=@{@-
+$/Tech/StrArith.gnrc :inst
+@}
+
+@B@<Support code@>
+
+@O@<Math.head@>==@{@-
+#include "Math.h"
+@}
+
+@O@<Math.h@>==@{@-
+#ifndef MATH_H
+#define MATH_H
+
+#include "deftbl.h"
+#include "eliproto.h"
+
+extern int CastPrimitive ELI_ARG((int, DefTableKey, DefTableKey));
+extern int FptAdd ELI_ARG((int, int));
+extern int StrPrm ELI_ARG((int, int));
+extern int PrmStr ELI_ARG((int, int));
+extern int StrStr ELI_ARG((int, int));
+extern int StrEqu ELI_ARG((int, int));
+extern int StrNeq ELI_ARG((int, int));
+extern int StrLss ELI_ARG((int, int));
+extern int StrLeq ELI_ARG((int, int));
+extern int StrGtr ELI_ARG((int, int));
+extern int StrGeq ELI_ARG((int, int));
+extern int StrNot ELI_ARG((int));
+
+#endif
+@}
+
+@O@<Math.c@>==@{@-
+#include <stdio.h>
+#include "csm.h"
+#include "pdl_gen.h"
+#include "strmath.h"
+#include "termcode.h"
+
+int
+#ifdef PROTO_OK
+CastPrimitive(int v, DefTableKey from, DefTableKey to)
+#else
+CastPrimitive(v, from, to) int v; DefTableKey from, to;
+#endif
+@<int CastPrimitive(int v, DefTableKey from, DefTableKey to)@>
+
+int
+#ifdef PROTO_OK
+StrPrm(int s, int p)
+#else
+StrPrm(s, p) int s, p;
+#endif
+@<int StrPrm(int s, int p)@>
+
+int
+#ifdef PROTO_OK
+PrmStr(int p, int s)
+#else
+PrmStr(p, s) int p, s;
+#endif
+@<int PrmStr(int p, int s)@>
+
+int
+#ifdef PROTO_OK
+StrStr(int s1, int s2)
+#else
+StrStr(s1, s2) int s1, s2;
+#endif
+@<int StrStr(int s1, int s2)@>
+
+int
+#ifdef PROTO_OK
+StrEqu(int l, int r)
+#else
+StrEqu(l,r) int l, r;
+#endif
+{ if (l == NoStrIndex || r == NoStrIndex) return NoStrIndex;
+  if (l == r) return MakeName("true"); else return MakeName("false");
+}
+
+int
+#ifdef PROTO_OK
+StrNeq(int l, int r)
+#else
+StrNeq(l,r) int l, r;
+#endif
+{ if (l == NoStrIndex || r == NoStrIndex) return NoStrIndex;
+  if (l != r) return MakeName("true"); else return MakeName("false");
+}
+
+int
+#ifdef PROTO_OK
+StrLss(int l, int r)
+#else
+StrLss(l,r) int l, r;
+#endif
+{ char *s;
+
+  if (l == NoStrIndex || r == NoStrIndex) return NoStrIndex;
+  s = strsub(StringTable(l), StringTable(r), 10);
+  if (s[0] == '-') return MakeName("true");
+  else return MakeName("false");
+}
+
+int
+#ifdef PROTO_OK
+StrLeq(int l, int r)
+#else
+StrLeq(l,r) int l, r;
+#endif
+{ char *s;
+
+  if (l == NoStrIndex || r == NoStrIndex) return NoStrIndex;
+  s = strsub(StringTable(r), StringTable(l), 10);
+  if (s[0] != '-') return MakeName("true");
+  else return MakeName("false");
+}
+
+int
+#ifdef PROTO_OK
+StrGtr(int l, int r)
+#else
+StrGtr(l,r) int l, r;
+#endif
+{ char *s;
+
+  if (l == NoStrIndex || r == NoStrIndex) return NoStrIndex;
+  s = strsub(StringTable(r), StringTable(l), 10);
+  if (s[0] == '-') return MakeName("true");
+  else return MakeName("false");
+}
+
+int
+#ifdef PROTO_OK
+StrGeq(int l, int r)
+#else
+StrGeq(l,r) int l, r;
+#endif
+{ char *s;
+
+  if (l == NoStrIndex || r == NoStrIndex) return NoStrIndex;
+  s = strsub(StringTable(l), StringTable(r), 10);
+  if (s[0] != '-') return MakeName("true");
+  else return MakeName("false");
+}
+
+int
+#ifdef PROTO_OK
+StrNot(int r)
+#else
+StrNot(r) int r;
+#endif
+{ int l = MakeName("false");
+
+  if (r == NoStrIndex) return NoStrIndex;
+  if (l == r) return MakeName("true");
+  else return l;
+}
+@}

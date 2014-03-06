@@ -1,0 +1,117 @@
+@O@<target.lido@>@{
+RULE Cj: Expr ::= Expr Name Name
+COMPUTE
+  Expr[1].Ptg=
+    PTGCj(
+      Expr[2].Ptg,
+      PTGNumb(GetIndex(Name[1],0)),
+      PTGNumb(GetIndex(Name[2],0)));
+END;
+
+RULE Uj: Expr ::= Expr Name
+COMPUTE
+  Expr[1].Ptg=PTGUj(Expr[2].Ptg,PTGNumb(GetIndex(Name,0)));
+END;
+
+RULE Assign: Expr ::= Operation VarSet Expr
+COMPUTE
+  Expr[1].Ptg=
+    PTGDyadic(
+      PTGAsIs(GetInstr(OilOpName(Operation),"NOP")),
+      VarSet.Ptg,
+      Expr[2].Ptg);
+END;
+
+RULE Dyadic: Expr ::= Operation Expr Expr
+COMPUTE
+  Expr[1].Ptg=
+    PTGDyadic(
+      PTGAsIs(GetInstr(OilOpName(Operation),"NOP")),
+      Expr[2].Ptg,
+      Expr[3].Ptg);
+END;
+
+RULE Monadic: Expr ::= Operation Expr
+COMPUTE
+  Expr[1].Ptg=
+    PTGMonadic(
+      PTGAsIs(GetInstr(OilOpName(Operation),"NOP")),
+      Expr[2].Ptg);
+END;
+
+RULE Varb: Expr ::= VarUse
+COMPUTE
+  Expr.Ptg=VarUse.Ptg;
+END;
+
+RULE Icon: Expr ::= IntConstant
+COMPUTE
+  Expr.Ptg=PTGAsIs(StringTable(IntConstant));
+END;
+
+RULE Fcon: Expr ::= FloatConstant
+COMPUTE
+  Expr.Ptg=PTGAsIs(StringTable(FloatConstant));
+END;
+
+RULE Vard: VarSet ::= Ident
+COMPUTE
+ VarSet.Ptg=PTGAsIs(StringTable(RelatedSymbol(VarSet.Key,Ident)));
+END;
+
+RULE Varu: VarUse ::= Ident
+COMPUTE
+ VarUse.Ptg=PTGAsIs(StringTable(RelatedSymbol(VarUse.Key,Ident)));
+END;
+@}
+
+@O@<target.ptg@>@{
+Cj:
+  "cj(" $ "," $ "," $ ")"
+
+Uj:
+  "uj(" $ "," $ ")"
+
+Monadic:
+  $ "(" $ ")"
+
+Dyadic:
+  $ "(" $ "," $ ")"
+@}
+
+@O@<target.pdl@>@{
+Instr: CharPtr; "Strings.h"
+
+Disjunction -> Instr={"COR"};
+Conjunction -> Instr={"CAND"};
+Complement -> Instr={"NOT"};
+
+IntEqual -> Instr={"EQL"};
+FloatEqual -> Instr={"EQF"};
+IntLess -> Instr={"LSL"};
+FloatLess -> Instr={"LSF"};
+IntGreater -> Instr={"GTL"};
+FloatGreater -> Instr={"GTF"};
+
+IntegerAddition -> Instr={"ADDL"};
+IntegerSubtraction -> Instr={"SUBL"};
+IntegerMultiplcation -> Instr={"MULL"};
+IntegerDivision -> Instr={"DIVL"};
+
+FloatingAddition -> Instr={"ADDF"};
+FloatingSubtraction -> Instr={"SUBF"};
+FloatingMultiplcation -> Instr={"MULF"};
+FloatingDivision -> Instr={"DIVF"};
+
+IntegerAssignment -> Instr={"MOVL"};
+FloatingAssignment -> Instr={"MOVF"};
+TruncatingAssignment -> Instr={"CVTFI"};
+@}
+
+@O@<target.specs@>@{
+$/Tech/Strings.specs
+@}
+
+@O@<target.head@>@{
+#include "csm.h"
+@}

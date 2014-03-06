@@ -1,0 +1,126 @@
+@A@<What the Pascal- Compiler Does@>
+
+The Pascal- compiler accepts a program written in a subset of Pascal
+and produces an equivalent program in the language of an abstract
+stack-oriented machine ideally suited to the execution of Pascal programs.
+If the source program is not valid according to the rules of Pascal-,
+the compiler issues an error report keyed to the coordinates (line and column)
+at which the problem was detected.
+
+@B@<Translation@>
+
+Here is a fragment of a program written in Pascal-
+(declarations of the integer variable @{m@}, @{n@}, @{q@} and @{r@} have
+been omitted):
+
+@$@<Pascal- code for Euclid's integer division algorithm@>@Z==@{
+{ m>=0 and n>0 }
+q:=0; r:=m;
+while r>=n do
+  begin r:=r-n; q:=q+1 end;
+{ q = quotient of m/n and r = remainder of m/n }
+@}
+
+The Pascal- compiler will accept a program containing this fragment
+and produce a program containing an equivalent fragment
+in the language of the abstract stack machine.
+In order to make it readable by humans,
+the abstract machine code is output as a text file.
+Each line of the file contains a single symbolic operation
+with arguments enclosed in parentheses
+(the comments on the right were added to
+explain the compiler's implementation):
+
+@$@<Abstract machine code for Euclid's integer division algorithm@>@Z==@{
+Variable(0,5)	Push the address of q onto the stack
+Constant(0)	Push the constant 0 onto the stack
+Assign(1)	Store the value at the address, removing both
+Variable(0,6)	Push the address of r onto the stack
+Variable(0,3)	Push the address of m onto the stack
+Value(1)	Replace the address at the top of the stack with its content
+Assign(1)
+DefAddr(L1)	Represent the current address symbolically by ``L1''
+Variable(0,6)	Push the address of r onto the stack
+Value(1)	Replace the address at the top of the stack with its content
+Variable(0,4)	Push the address of n onto the stack
+Value(1)	Replace the address at the top of the stack with its content
+NotLess		Compare the two values, removing both and setting the test flag
+Do(L2)		If the test flag is false, go to address represented by ``L2''
+Variable(0,6)
+Variable(0,6)
+Value(1)
+Variable(0,4)
+Value(1)
+Subtract	Replace the top two values by (second-top)
+Assign(1)
+Variable(0,5)
+Variable(0,5)
+Value(1)
+Constant(1)
+Add		Replace the top two values by (second+top)
+Assign(1)
+Goto(L1)	Go to address represented by ``L1''
+DefAddr(L2)	Represent the current address symbolically by ``L2''
+@}
+
+This form of the abstract machine code is not only easy for humans to read,
+thereby allowing them to understand the compiler's translation,
+but is also easy to implement via C pre-processor macros.
+Thus the programs produced by the compiler can be run on any machine that
+provides C.
+
+@B@<Error reporting@>
+
+If an incorrect program is submitted to the Pascal- compiler,
+it must deduce that the program @/is@/ incorrect
+and give the user an indication of the problem.
+Error reports are keyed to a particular position in the program,
+specified by a file name, line number, and character position within the line.
+The report itself consists of a @/severity@/
+and a short text describing the problem.
+All of the errors detected by the Pascal- compiler are @{ERROR@} -- compilation
+can proceed, but the generated program cannot be run.
+A @{NOTE@} does not describe an error, but provides additional information.
+
+Here is an erroneous program that illustrates a variety of reports:
+
+@$@<Error reporting example@>@Z==@{
+{Miscellaneous errors}
+program MiscError;
+  const
+    b = c;
+  type
+    T = array [5..1] of integer;
+    U = record x: true end;
+    V = array [false..true] of integer;
+  var
+    x, y, x: integer;
+    z: V;
+  begin
+  y := 1 and 2;
+  y := 2 * (3+4;
+  z[1] := &2;
+  end.
+
+"miscerr", line 14:16 ERROR: Syntax error
+"miscerr", line 14:16 NOTE: Parsing resumed here
+"miscerr", line 15:11 ERROR: char '&' (ascii:38) is not a token
+"miscerr", line 4:9 ERROR: identifier not defined
+"miscerr", line 6:16 ERROR: Lower bound may not exceed upper bound
+"miscerr", line 7:19 ERROR: Must be a type identifier
+"miscerr", line 10:5 ERROR: identifier is multiply defined
+"miscerr", line 10:11 ERROR: identifier is multiply defined
+"miscerr", line 13:10 ERROR: Invalid operand for this operator
+"miscerr", line 15:3 ERROR: Invalid index type
+@}
+
+All of the reports are for file @{miscerr@}.
+At the fourteenth line, the compiler detected a syntax error upon reaching
+character position 16.
+Character position 16 contains the semicolon of the assignment statement
+@{y := 2 * (3+4;@}.
+At this point the compiler recognizes that there is no right parenthesis
+to match the left parenthesis before the @{3@}.
+It recovers from the error by assuming that a right parenthesis is present,
+and continues analysis of the program by accepting the semicolon.
+(That is the meaning of the @{NOTE@} following the syntax error report.)

@@ -1,0 +1,1108 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Type Analysis@>
+\label{sec:type}
+
+This specification implements the Pascal type model,
+the declaration and use of identifiers representing types and typed
+entities, and
+the type analysis of expressions.
+Those properties of Pascal are defined Sections 6.4-6.7 of
+ANSI/IEEE 770X3.97-1983.
+
+LIDO computations are used to establish the meanings of identifiers and to
+analyze the types of operands in expressions.
+
+@O@<Type.lido@>==@{@-
+ATTR Type: DefTableKey;
+
+@<Establish a user-defined type@>
+@<Packing@>
+@<Sets of required ordinal types@>
+@<Constant definitions@>
+@<Type definitions@>
+@<Variable declarations@>
+@<Procedure and function declarations@>
+@<Expressions@>
+@<Statements@>
+@<Qualified identifiers@>
+@}
+
+All of the Eli type analysis modules are required.
+
+@O@<Type.specs@>==@{@-
+$/Type/Typing.gnrc :inst
+$/Type/Expression.gnrc :inst
+$/Type/PreDefOp.gnrc +referto=(Operator.d) :inst
+$/Type/StructEquiv.fw
+@<Instantiate appropriate modules@>
+@}
+
+@B@<The Pascal type model@>
+\label{types}
+
+A type model consists of a number of language-defined types and operators,
+plus facilities for constructing user-defined types.
+The model is defined primarily with OIL, but this section also contains
+some LIDO computations.
+
+@O@<Type.oil@>==@{@-
+@<Required simple types@>
+@<Enumerated types@>
+@<Subrange types@>
+@<Array types@>
+@<Set types@>
+@<File types@>
+@<Pointer types@>
+@}
+
+Since all of the user-defined types create operators, it's useful to bundle
+the type denotation and operator definition roles into a single role:
+
+@$@<Establish a user-defined type@>+=@{@-
+SYMBOL TypeDenoter INHERITS TypeDenotation, OperatorDefs END;
+@}
+
+FIXME:  This implementation makes no distinction between packed and
+unpacked types.
+
+@$@<Packing@>==@{@-
+RULE: type ::= 'packed' type COMPUTE
+  type[1].Type=type[2].Type;
+END;
+@}
+
+@C
+
+@$@<Required simple types@>==@{@-
+SET ordinalType = [intType, boolType, charType];
+SET arithType = [intType, realType];
+SET simpleType = [intType, realType, boolType, charType];
+
+COERCION
+  (intType): realType;
+
+OPER
+  cmpeq, cmpne, cmpls, cmpgt, cmple, cmpge(simpleType,simpleType): boolType;
+  pos, neg(arithType): arithType;
+  add, sub, mul(arithType,arithType): arithType;
+  divi, rem(intType,intType): intType;
+  divr(realType,realType): realType;
+
+  inv(boolType): boolType;
+  disj, conj(boolType,boolType): boolType;
+
+  rewriteOp, putOp, resetOp, getOp(textType): voidType;
+  readOp(textType, simpleType): voidType;
+  rdtextOp(simpleType): voidType;
+  readlnOp(textType): voidType;
+  wtextOp(writableType): voidType;
+  wlistOp(writableType,writableType): voidType;
+  wfileOp(textType, writableType): voidType;
+  writelnOp(textType): voidType;
+
+  absOp, sqrOp(arithType): arithType;
+  sinOp, cosOp, expOp, lnOp, sqrtOp, arctanOp(realType): realType;
+
+  truncOp, roundOp(realType): intType;
+  ordOp(ordinalType): intType;
+  chrOp(intType): charType;
+  succOp, predOp(ordinalType): ordinalType;
+  oddOp(intType): boolType;
+  txtTest(textType): boolType;
+  txtDeref(textType): charType;
+
+COERCION
+  (intType): writableType;
+  (realType): writableType;
+  (boolType): writableType;
+  (charType): writableType;
+  (stringType): writableType;
+  (eofType): boolType;
+  (eolnType): boolType;
+
+INDICATION
+  equal:        cmpeq;
+  lsgt:         cmpne;
+  less:         cmpls;
+  greater:      cmpgt;
+  lessequal:    cmple;
+  greaterequal: cmpge;
+  plus:         pos, add;
+  minus:        neg, sub;
+  or:           disj;
+  star:         mul;
+  slash:        divr;
+  div:          divi;
+  mod:          rem;
+  and:          conj;
+  not:          inv;
+
+  rewriteType:	rewriteOp;
+  putType:	putOp;
+  resetType:	resetOp;
+  getType:	getOp;
+  readType:	readOp, rdtextOp;
+  readlnType:	readlnOp;
+  writeType:	wlistOp, wtextOp, wfileOp;
+  writelnType:	writelnOp, wlistOp, wtextOp, wfileOp;
+
+  absType:	absOp;
+  sqrType:	sqrOp;
+  sinType:	sinOp;
+  cosType:	cosOp;
+  expType:	expOp;
+  lnType:	lnOp;
+  sqrtType:	sqrtOp;
+  arctanType:	arctanOp;
+
+  truncType:	truncOp;
+  roundType:	roundOp;
+  ordType:	ordOp;
+  chrType:	chrOp;
+  succType:	succOp;
+  predType:	predOp;
+  oddType:	oddOp;
+  eofType:	txtTest;
+  eolnType:	txtTest;
+
+  deref:	txtDeref;
+@}
+
+@O@<Type.pdl@>==@{@-
+intKey   -> Defer={intType};
+realKey  -> Defer={realType};
+boolKey  -> Defer={boolType};
+charKey  -> Defer={charType};
+textKey  -> Defer={textType};
+
+trueKey  -> TypeOf={boolType};
+falseKey -> TypeOf={boolType};
+
+@<Property definitions@>
+@}
+
+The required ordinal types all have corresponding set types:
+
+@$@<Sets of required ordinal types@>==@{@-
+TREE SYMBOL program COMPUTE
+  SYNT.GotType=
+    ORDER(
+      AddTypeToBlock(
+        intsetType,
+	SetTypes,
+        SingleDefTableKeyList(intType)),
+      ResetCanonicalSet(intType,intsetType),
+      AddTypeToBlock(
+        boolsetType,
+	SetTypes,
+        SingleDefTableKeyList(boolType)),
+      ResetCanonicalSet(boolType,boolsetType),
+      AddTypeToBlock(
+        charsetType,
+	SetTypes,
+        SingleDefTableKeyList(charType)),
+      ResetCanonicalSet(charType,charsetType));
+  SYNT.GotOper=
+    ORDER(
+      InstClass1(setType,FinalType(intsetType),intType),
+      MonadicOperator(
+        makeset,
+	NoOprName,
+	intType,
+	FinalType(intsetType)),
+      InstClass1(setType,FinalType(boolsetType),boolType),
+      MonadicOperator(
+        makeset,
+	NoOprName,
+	boolType,
+	FinalType(boolsetType)),
+      InstClass1(setType,FinalType(charsetType),charType),
+      MonadicOperator(
+        makeset,
+	NoOprName,
+	charType,
+	FinalType(charsetType)));
+END;
+
+RULE: Source ::= program COMPUTE
+  Source.GotType=program.GotType;
+  Source.GotOper=program.GotOper;
+END;
+@}
+
+@C
+
+@$@<Enumerated types@>==@{@-
+CLASS enumType() BEGIN
+  OPER
+    enumOrd(enumType): intType;
+    enumeq, enumne, enumls, enumgt, enumle,
+      enumge(enumType,enumType): boolType;
+END;
+
+INDICATION
+  ordType: enumOrd;
+  equal: enumeq;
+  lsgt: enumne;
+  less: enumls;
+  greater: enumle;
+  lessequal: enumle;
+  greaterequal: enumge;
+@}
+
+Each enumerated type needs a set type, because set expressions can be
+used as subexpressions without the corresponding set type being declared.
+The reason for this @/canonical set@/ type is that in a set expression
+made up of constants the constants are of the base type.
+
+
+@$@<Establish a user-defined type@>+=@{@-
+ATTR CanonicalSet: DefTableKey;
+
+RULE: TypeDenoter ::=  '(' Enumerate ')' COMPUTE
+  .CanonicalSet=NewType();
+  TypeDenoter.GotType=
+    ORDER(
+      AddTypeToBlock(
+        .CanonicalSet,
+        SetTypes,
+        SingleDefTableKeyList(TypeDenoter.Type)),
+      ResetCanonicalSet(TypeDenoter.Type,.CanonicalSet));
+  TypeDenoter.GotOper=
+    ORDER(
+      InstClass0(enumType,TypeDenoter.Type),
+      InstClass1(setType,.CanonicalSet,TypeDenoter.Type),
+      MonadicOperator(
+        makeset,
+	NoOprName,
+	TypeDenoter.Type,
+	FinalType(.CanonicalSet)));
+  Enumerate.Type=TypeDenoter.Type;
+END;
+@}
+
+@$@<Property definitions@>+=@{@-
+CanonicalSet: DefTableKey;
+makeset;
+@}
+
+@C
+
+@$@<Subrange types@>==@{@-
+CLASS rangeType(hostType) BEGIN
+  OPER
+    rangeOrd(rangeType): intType;
+    rangeNarrow(hostType): rangeType;
+  COERCION
+    (rangeType): hostType;
+END;
+
+INDICATION
+  ordType: rangeOrd;
+  assignCvt: rangeNarrow;
+@}
+
+@$@<Establish a user-defined type@>+=@{@-
+RULE: TypeDenoter ::=  constant '..' constant COMPUTE
+  .CanonicalSet=NewType();
+  TypeDenoter.GotType=
+    ORDER(
+      AddTypeToBlock(
+        .CanonicalSet,
+        SetTypes,
+        SingleDefTableKeyList(constant[1].Type)),
+      ResetCanonicalSet(TypeDenoter.Type,.CanonicalSet));
+  TypeDenoter.GotOper=
+    InstClass1(rangeType,TypeDenoter.Type,constant[1].Type);
+END;
+@}
+
+@C
+
+@$@<Array types@>==@{@-
+CLASS arrayType(indexType,elementType) BEGIN
+  OPER
+    arrayaccess(arrayType,indexType): elementType;
+
+/* FIXME: Array types can only be compared if they are packed 1..x of char
+ **/
+  COERCION (arrayType): stringType;
+END;
+
+OPER
+  stringAccess(stringType): charType;
+  stringcmp(stringType,stringType): boolType;
+
+INDICATION
+  arrayAccess: arrayaccess, stringAccess;
+  equal: stringcmp;
+  lsgt: stringcmp;
+  less: stringcmp;
+  greater: stringcmp;
+  lessequal: stringcmp;
+  greaterequal: stringcmp;
+@}
+
+@$@<Establish a user-defined type@>+=@{@-
+RULE: TypeDenoter ::=  'array' '[' type ']' 'of' type COMPUTE
+  TypeDenoter.GotOper=
+    InstClass2(arrayType,TypeDenoter.Type,type[1].Type,type[2].Type);
+END;
+@}
+
+@C@<Record types@>
+
+@$@<Establish a user-defined type@>+=@{@-
+ATTR OpndTypeList: DefTableKeyList;
+
+SYMBOL Record INHERITS TypeDenotation, OperatorDefs END;
+
+RULE: Record ::=  'record' Fields 'end' COMPUTE
+  .Type=NewType();
+  Record.GotType=
+    AddTypeToBlock(
+      .Type,
+      PointerTypes,
+      SingleDefTableKeyList(Record.Type));
+  Record.GotOper=
+    ORDER(
+      InstClass1(ptrType,.Type,Record.Type),
+      ListOperator(newType,NoOprName,Fields.OpndTypeList,voidType));
+  Fields.OpndTypeList=SingleDefTableKeyList(.Type);
+END;
+
+SYMBOL var_part INHERITS OperatorDefs END;
+
+RULE: var_part ::= 'case' var_sel 'of' Variants COMPUTE
+  var_part.GotOper=
+    ListOperator(newType,NoOprName,Variants.OpndTypeList,voidType);
+  Variants.OpndTypeList=
+    ConsDefTableKeyList(
+      var_sel CONSTITUENT TypIdUse.Type,
+      INCLUDING (Fields.OpndTypeList,Variants.OpndTypeList));
+END;
+
+TREE SYMBOL TagIdDef INHERITS TypedDefId END;
+
+RULE: var_sel ::= TagIdDef ':' TypIdUse COMPUTE
+  TagIdDef.Type=TypIdUse.Type;
+END; 
+
+RULE: Variant ::= constants ':' '(' Fields ')' COMPUTE
+  Fields.OpndTypeList=INCLUDING Variants.OpndTypeList;
+END;
+@}
+
+@C
+
+FIXME: This implementation makes all sets of a given base type equivalent.
+That's probably not correct.  See Pascal 6.4.3.4, 6.7.2.4.
+
+@$@<Set types@>==@{@-
+CLASS setType(baseType) BEGIN
+  OPER
+    setop(setType,setType): setType;
+    setmember(baseType,setType): boolType;
+    setrel(setType,setType): boolType;
+  COERCION
+    (emptyType): setType;
+END;
+
+INDICATION
+  plus: setop;
+  minus: setop;
+  star: setop;
+  in: setmember;
+  equal: setrel;
+  lsgt: setrel;
+  lessequal: setrel;
+  greaterequal: setrel;
+@}
+
+@$@<Establish a user-defined type@>+=@{@-
+RULE: TypeDenoter ::= 'set' 'of' type COMPUTE
+  .CanonicalSet=
+    GetCanonicalSet(FinalType(type.Type),NoKey)
+    <- INCLUDING RootType.GotUserTypes;
+  TypeDenoter.GotOper=
+    ORDER(
+      Coercible(
+        NoOprName,
+	FinalType(TypeDenoter.Type),
+	FinalType(.CanonicalSet)),
+      MonadicOperator(
+	assignCvt,
+	NoOprName,
+	FinalType(.CanonicalSet),
+	FinalType(TypeDenoter.Type)),
+      InstClass1(setType,TypeDenoter.Type,type.Type));
+END;
+@}
+
+@$@<Property definitions@>+=@{@-
+SetTypes;
+@}
+
+@C
+
+@$@<File types@>==@{@-
+CLASS fileType(componentType) BEGIN
+  OPER
+    filBuff(fileType): componentType;
+    filOp(fileType): voidType;
+    filTst(fileType): boolType;
+END;
+
+INDICATION
+  deref:        filBuff;
+  rewriteType:	filOp;
+  putType:	filOp;
+  resetType:	filOp;
+  getType:	filOp;
+  eofType:      filTst;
+  eolnType:     filTst;
+@}
+
+@$@<Establish a user-defined type@>+=@{@-
+RULE: TypeDenoter ::=  'file' 'of' type COMPUTE
+  TypeDenoter.GotOper=
+    InstClass1(fileType,TypeDenoter.Type,type.Type);
+END;
+@}
+
+@C
+
+@$@<Pointer types@>==@{@-
+CLASS ptrType(domainType) BEGIN
+  OPER
+    ptrOrd(ptrType): intType;
+    ptrderef(ptrType): domainType;
+    ptreq, ptrne(ptrType,ptrType): boolType;
+    ptrNewDisp(ptrType): voidType;
+  COERCION
+    (nilType): ptrType;
+END;
+
+INDICATION
+  ordType: ptrOrd;
+  deref: ptrderef;
+  equal: ptreq;
+  lsgt: ptrne;
+  newType: ptrNewDisp;
+  disposeType: ptrNewDisp;
+@}
+
+@$@<Establish a user-defined type@>+=@{@-
+RULE: TypeDenoter ::=  '^' type COMPUTE
+  TypeDenoter.GotType=
+    AddTypeToBlock(
+      TypeDenoter.Type,
+      PointerTypes,
+      SingleDefTableKeyList(type.Type));
+  TypeDenoter.GotOper=
+    InstClass1(ptrType,TypeDenoter.Type,type.Type);
+END;
+@}
+
+@$@<Property definitions@>+=@{@-
+PointerTypes;
+@}
+
+@B
+\label{condef}
+
+@$@<Constant definitions@>+=@{@-
+CHAIN ConstDepend: VOID;
+
+CLASS SYMBOL RootType COMPUTE
+  CHAINSTART HEAD.ConstDepend = "yes";
+END;
+
+TREE SYMBOL ConIdDef  INHERITS TypedDefId      END;
+TREE SYMBOL ConIdUse  INHERITS TypedUseId, ChkTypedUseId      END;
+TREE SYMBOL Enumerate INHERITS TypedDefinition END;
+
+RULE: Decl ::= ConIdDef '=' constant COMPUTE
+  ConIdDef.Type=constant.Type;
+  Decl.ConstDepend = ConIdDef.TypeIsSet <- constant.ConstDepend;
+END;
+
+SYMBOL ConIdUse COMPUTE
+  SYNT.TypeIsSet=THIS.ConstDepend;
+END;
+@}
+
+@$@<Constant definitions@>+=@{@-
+RULE: Literal ::= character_string COMPUTE
+  Literal.Type=
+    IF(EQ(strlen(StringTable(character_string)),3),charType,
+    IF(strcmp(StringTable(character_string),"''''"),stringType,
+    charType));
+END;
+
+RULE: constant ::= csign integer_constant COMPUTE
+  constant.Type=intType;
+END;
+
+RULE: constant ::= csign real_constant COMPUTE
+  constant.Type=realType;
+END;
+
+RULE: constant ::= csign ConIdUse COMPUTE
+  constant.Type=ConIdUse.Type;
+END;
+
+RULE: constant ::= integer_constant COMPUTE
+  constant.Type=intType;
+END;
+
+RULE: constant ::= real_constant COMPUTE
+  constant.Type=realType;
+END;
+
+RULE: constant ::= ConIdUse COMPUTE
+  constant.Type=ConIdUse.Type;
+END;
+
+RULE: constant ::= Literal COMPUTE
+  constant.Type=Literal.Type;
+END;
+@}
+
+@B
+\label{typdef}
+
+@$@<Type definitions@>+=@{@-
+TREE SYMBOL TypIdDef INHERITS TypeDefDefId, ChkTypeDefDefId END;
+TREE SYMBOL TypIdUse INHERITS TypeDefUseId, ChkTypeDefUseId END;
+
+RULE: type ::= TypIdUse COMPUTE
+  type.Type=TypIdUse.Type;
+END;
+
+RULE: type ::= TypeDenoter COMPUTE
+  type.Type=TypeDenoter.Type;
+END;
+
+RULE: type ::= Record COMPUTE
+  type.Type=Record.Type;
+END;
+@}
+
+@B
+\label{vardec}
+
+A declaration is used to associated a type with an identifier, and that
+type becomes the value of the @{Type@} attribute of the identifier use.
+Thus the @{Typing@} module provides computational roles for both the
+defining occurrence and the applied occurrence of a typed identifier.
+These roles must be inherited by appropriate AST nodes:
+
+@$@<Variable declarations@>+=@{@-
+TREE SYMBOL VrblIds  INHERITS TypedDefinition END;
+TREE SYMBOL FrmlIds  INHERITS TypedDefinition END;
+
+TREE SYMBOL VblIdDef INHERITS TypedDefId      END;
+
+RULE: Decl ::= TypIdDef '=' type     COMPUTE
+  TypIdDef.Type=type.Type;
+END; 
+
+RULE: Decl ::= VrblIds  ':' type     COMPUTE
+  VrblIds.Type=type.Type;
+END; 
+
+@}
+
+@B
+\label{routine}
+
+@$@<Procedure and function declarations@>+=@{@-
+SYMBOL ProcHead INHERITS TypeDenotation, OperatorDefs END;
+SYMBOL FuncHead INHERITS TypeDenotation, OperatorDefs END;
+SYMBOL ProcBody INHERITS TypeDenotation, OperatorDefs END;
+SYMBOL FuncBody INHERITS TypeDenotation, OperatorDefs END;
+
+SYMBOL Formals  INHERITS OpndTypeListRoot END;
+SYMBOL FmlIdDef INHERITS OpndTypeListElem END;
+
+RULE: ProcHead ::= Formals COMPUTE
+  ProcHead.GotType=
+    AddTypeToBlock(
+      ProcHead.Type,
+      ProcTypes,
+      Formals.OpndTypeList);
+  ProcHead.GotOper=
+    ListOperator(ProcHead.Type,NoOprName,Formals.OpndTypeList,voidType);
+END;
+
+RULE: ProcBody ::= Formals ';' block COMPUTE 
+  ProcBody.GotType=
+    AddTypeToBlock(
+      ProcBody.Type,
+      ProcTypes,
+      Formals.OpndTypeList);
+  ProcBody.GotOper=
+    ListOperator(ProcBody.Type,NoOprName,Formals.OpndTypeList,voidType);
+END;
+
+RULE: FuncHead ::= Formals ':' TypIdUse COMPUTE
+  FuncHead.GotType=
+    AddTypeToBlock(
+      FuncHead.Type,
+      FuncTypes,
+      ConsDefTableKeyList(TypIdUse.Type,Formals.OpndTypeList));
+  FuncHead.GotOper=
+    ListOperator(FuncHead.Type,NoOprName,Formals.OpndTypeList,TypIdUse.Type);
+END;
+
+RULE: FuncBody ::= Formals ':' TypIdUse ';' block COMPUTE 
+  FuncBody.GotType=
+    AddTypeToBlock(
+      FuncBody.Type,
+      FuncTypes,
+      ConsDefTableKeyList(TypIdUse.Type,Formals.OpndTypeList));
+  FuncBody.GotOper=
+    ListOperator(FuncBody.Type,NoOprName,Formals.OpndTypeList,TypIdUse.Type);
+END;
+@}
+
+@$@<Property definitions@>+=@{@-
+ProcTypes;
+FuncTypes;
+@}
+
+Functions with no arguments are invoked without an argument list.
+Since there is no syntactic clue, the ``call'' must be treated as a
+coercion.
+
+@$@<Procedure and function declarations@>+=@{@-
+RULE: FuncHead ::= ':' TypIdUse COMPUTE
+  FuncHead.GotType=
+    AddTypeToBlock(
+      FuncHead.Type,
+      FuncTypes,
+      SingleDefTableKeyList(TypIdUse.Type));
+  FuncHead.GotOper=Coercible(NoOprName,FuncHead.Type,TypIdUse.Type);
+END;
+
+RULE: FuncBody ::= ':' TypIdUse ';' block COMPUTE 
+  FuncBody.GotType=
+    AddTypeToBlock(
+      FuncBody.Type,
+      FuncTypes,
+      SingleDefTableKeyList(TypIdUse.Type));
+  FuncBody.GotOper=Coercible(NoOprName,FuncBody.Type,TypIdUse.Type);
+END;
+@}
+
+@$@<Procedure and function declarations@>+=@{@-
+CHAIN Forward: VOID;
+
+CLASS SYMBOL RootType COMPUTE
+  CHAINSTART HEAD.Forward = "yes";
+END;
+
+RULE: Decl ::= 'procedure' PrcIdDef ProcBody COMPUTE
+  .Type=GetTypeOf(PrcIdDef.Key,NoKey) <- Decl.Forward;
+  PrcIdDef.Type=IF(EQ(.Type,NoKey),ProcBody.Type,.Type);
+  ProcBody.Forward=PrcIdDef.Type;
+END; 
+
+RULE: Decl ::= 'function'  FncIdDef FuncBody COMPUTE
+  .Type=GetTypeOf(FncIdDef.Key,NoKey) <- Decl.Forward;
+  FncIdDef.Type=IF(EQ(.Type,NoKey),FuncBody.Type,.Type);
+  FuncBody.Forward=FncIdDef.Type;
+END; 
+@}
+
+@$@<Procedure and function declarations@>+=@{@-
+TREE SYMBOL FmlIdDef INHERITS TypedDefId      END;
+TREE SYMBOL PrcIdDef INHERITS TypedDefId      END;
+TREE SYMBOL FncIdDef INHERITS TypedDefId      END;
+
+RULE: Formal ::= FrmlIds ':' type COMPUTE
+  FrmlIds.Type=type.Type;
+END; 
+
+RULE: Formal ::= 'var' FrmlIds ':' type COMPUTE
+  FrmlIds.Type=type.Type;
+END; 
+
+RULE: Formal ::= 'procedure' FmlIdDef ProcHead COMPUTE
+  FmlIdDef.Type=ProcHead.Type;
+END; 
+
+RULE: Formal ::= 'function' FmlIdDef FuncHead COMPUTE
+  FmlIdDef.Type=FuncHead.Type;
+END; 
+@}
+
+@$@<Property definitions@>+=@{@-
+absKey      -> TypeOf={absType};
+arctanKey   -> TypeOf={arctanType};
+chrKey      -> TypeOf={chrType};
+cosKey      -> TypeOf={cosType};
+disposeKey  -> TypeOf={disposeType};
+eofKey      -> TypeOf={eofType};
+eolnKey     -> TypeOf={eolnType};
+expKey      -> TypeOf={expType};
+getKey      -> TypeOf={getType};
+inputKey    -> TypeOf={textType};
+lnKey       -> TypeOf={lnType};
+newKey      -> TypeOf={newType};
+oddKey      -> TypeOf={oddType};
+ordKey      -> TypeOf={ordType};
+outputKey   -> TypeOf={textType};
+predKey     -> TypeOf={predType};
+putKey      -> TypeOf={putType};
+readKey     -> TypeOf={readType};
+readlnKey   -> TypeOf={readlnType};
+resetKey    -> TypeOf={resetType};
+rewriteKey  -> TypeOf={rewriteType};
+roundKey    -> TypeOf={roundType};
+sinKey      -> TypeOf={sinType};
+sqrKey      -> TypeOf={sqrType};
+sqrtKey     -> TypeOf={sqrtType};
+succKey     -> TypeOf={succType};
+truncKey    -> TypeOf={truncType};
+writeKey    -> TypeOf={writeType};
+writelnKey  -> TypeOf={writelnType};
+
+absType     -> IsType={1};
+arctanType  -> IsType={1};
+chrType     -> IsType={1};
+cosType     -> IsType={1};
+disposeType -> IsType={1};
+expType     -> IsType={1};
+getType     -> IsType={1};
+lnType      -> IsType={1};
+newType     -> IsType={1};
+oddType     -> IsType={1};
+ordType     -> IsType={1};
+predType    -> IsType={1};
+putType     -> IsType={1};
+readType    -> IsType={1};
+readlnType  -> IsType={1};
+resetType   -> IsType={1};
+rewriteType -> IsType={1};
+roundType   -> IsType={1};
+sinType     -> IsType={1};
+sqrtType    -> IsType={1};
+sqrType     -> IsType={1};
+succType    -> IsType={1};
+truncType   -> IsType={1};
+writeType   -> IsType={1};
+writelnType -> IsType={1};
+@}
+
+@B
+\label{typeattr}
+
+@N@<Operator.d@>==@{
+PreDefInd('=',   operator, equal)
+PreDefInd('<>',  operator, lsgt)
+PreDefInd('<',   operator, less)
+PreDefInd('>',   operator, greater)
+PreDefInd('<=',  operator, lessequal)
+PreDefInd('>=',  operator, greaterequal)
+PreDefInd('in',  operator, in)
+PreDefInd('+',   operator, plus)
+PreDefInd('-',   operator, minus)
+PreDefInd('or',  operator, or)
+PreDefInd('*',   operator, star)
+PreDefInd('/',   operator, slash)
+PreDefInd('div', operator, div)
+PreDefInd('mod', operator, mod)
+PreDefInd('and', operator, and)
+PreDefInd('not', operator, not)
+@}
+
+@$@<Expressions@>+=@{@-
+TREE SYMBOL PrcIdUse INHERITS TypedUseId, ChkTypedUseId END;
+TREE SYMBOL FncIdUse INHERITS TypedUseId, ChkTypedUseId END;
+TREE SYMBOL ExpIdUse INHERITS TypedUseId, ChkTypedUseId END;
+TREE SYMBOL FldIdUse INHERITS TypedUseId, ChkTypedUseId END;
+
+SYMBOL expression    INHERITS ExpressionSymbol END;
+SYMBOL variable      INHERITS ExpressionSymbol END;
+SYMBOL Subscript     INHERITS ExpressionSymbol END;
+SYMBOL operator      INHERITS OperatorSymbol   END;
+
+RULE: expression ::= integer_constant COMPUTE
+  PrimaryContext(expression,intType);
+END;
+
+RULE: expression ::= real_constant COMPUTE
+  PrimaryContext(expression,realType);
+END;
+
+RULE: expression ::= Literal COMPUTE
+  PrimaryContext(expression,Literal.Type);
+END;
+
+RULE: expression ::= 'nil' COMPUTE
+  PrimaryContext(expression,nilType);
+END;
+
+RULE: expression ::= variable COMPUTE
+  TransferContext(expression,variable);
+END;
+
+RULE: variable ::= ExpIdUse COMPUTE
+  PrimaryContext(variable,ExpIdUse.Type);
+END;
+
+RULE: variable ::= variable '[' Subscript ']' COMPUTE
+  DyadicContext(variable[1],,variable[2],Subscript);
+  Indication(arrayAccess);
+  IF(BadOperator,message(ERROR,"Invalid array reference",0,COORDREF));
+END;
+
+ATTR Sym: int;
+ATTR env: Environment;
+ATTR bnd: Binding;
+ATTR ScopeKey, Key: DefTableKey;
+
+RULE: variable ::= variable '.' FldIdUse COMPUTE
+  variable[2].Required=NoKey <- FldIdUse.Type;
+  PrimaryContext(variable[1],FldIdUse.Type);
+END;
+
+RULE: variable ::= variable '^' COMPUTE
+  MonadicContext(variable[1],,variable[2]);
+  Indication(deref);
+  IF(BadOperator,message(ERROR,"Invalid pointer access",0,COORDREF));
+END;
+
+RULE: Subscript ::= expression COMPUTE
+  ConversionContext(Subscript,,expression);
+  Indication(assignCvt);
+END;
+
+SYMBOL Actual  INHERITS OpndExprListElem END;
+SYMBOL FncArgs INHERITS OpndExprListRoot END;
+
+RULE: expression ::= FncIdUse FncArgs COMPUTE
+  ListContext(expression,,FncArgs);
+  Indication(FncIdUse.Type);
+  IF(BadOperator,message(ERROR,"Illegal function call",0,COORDREF));
+END;
+
+RULE: Actual ::= expression COMPUTE
+  ConversionContext(Actual,,expression);
+  Indication(assignCvt);
+END;
+
+SYMBOL PrcArgs INHERITS OpndExprListRoot END;
+
+RULE: ProcCall ::= PrcIdUse PrcArgs COMPUTE
+  ListContext(ProcCall,,PrcArgs);
+  Indication(PrcIdUse.Type);
+  IF(BadOperator,message(ERROR,"Illegal procedure call",0,COORDREF));
+END;
+
+/* FIXME: Need some type checking here */
+
+RULE: InOutStmt ::= 'read' '(' RdArgs ')'
+END;
+
+RULE: InOutStmt ::= 'readln'
+END;
+
+RULE: InOutStmt ::= 'readln' '(' RdArgs ')'
+END;
+
+RULE: InOutStmt ::= 'write' '(' WrtArgs ')'
+END;
+
+RULE: InOutStmt ::= 'writeln'
+END;
+
+RULE: InOutStmt ::= 'writeln' '(' WrtArgs ')'
+END;
+
+RULE: WrtArg ::= expression ':' expression ':' expression COMPUTE
+  expression[2].Required=intType;
+  expression[3].Required=intType;
+END;
+
+RULE: WrtArg ::= expression ':' expression COMPUTE
+  expression[2].Required=intType;
+END;
+
+RULE: WrtArg ::= expression COMPUTE
+  Indication(assignCvt);
+END;
+
+SYMBOL Members INHERITS BalanceListRoot END;
+SYMBOL Member  INHERITS BalanceListElem END;
+
+RULE: expression ::= '[' Members ']' COMPUTE
+  MonadicContext(expression,,Members);
+  Indication(makeset);
+  IF(BadOperator,message(ERROR,"No set with this base type",0,COORDREF));
+END;
+
+RULE: expression ::= '[' ']' COMPUTE
+  PrimaryContext(expression,emptyType);
+END;
+
+RULE: Member ::= expression COMPUTE
+  TransferContext(Member,expression);
+END;
+
+RULE: Member ::= expression '..' expression COMPUTE
+  BalanceContext(Member,expression[1],expression[2]);
+END;
+
+RULE: expression ::= operator expression COMPUTE
+  MonadicContext(expression[1],operator,expression[2]);
+END;
+
+RULE: expression ::= expression operator expression COMPUTE
+  DyadicContext(expression[1],operator,expression[2],expression[3]);
+END;
+@}
+
+@B
+\label{statements}
+
+@$@<Statements@>+=@{@-
+ATTR FuncName: DefTableKey;
+
+RULE: statement ::= variable ':=' expression COMPUTE
+  RootContext(
+    IF(NE(variable.FuncName,NoKey),
+      FinalType(GetResultType(variable.FuncName,NoKey)),
+      variable.Type),
+    ,
+    expression);
+  Indication(assignCvt);
+END;
+
+RULE: Decl ::= 'function' FncIdDef FuncBody COMPUTE
+  FuncBody.FuncName=FncIdDef.Key;
+END;
+
+RULE: Decl ::= 'function' FncIdUse ';' Body COMPUTE
+  Body.FuncName=FncIdUse.Key;
+END;
+
+RULE: FuncBody ::= Formals ':' TypIdUse ';' block COMPUTE
+  FuncBody.GotResultType=ResetResultType(FuncBody.FuncName,TypIdUse.Type);
+END;
+
+RULE: FuncBody ::= ':' TypIdUse ';' block COMPUTE
+  FuncBody.GotResultType=ResetResultType(FuncBody.FuncName,TypIdUse.Type);
+END;
+
+SYMBOL program COMPUTE
+  SYNT.GotResultTypes=CONSTITUENTS FuncBody.GotResultType;
+END;
+
+SYMBOL variable COMPUTE
+  SYNT.FuncName=NoKey <- INCLUDING RootType.GotAllTypes;
+END;
+
+SYMBOL program COMPUTE
+  SYNT.FuncName=NoKey <- INCLUDING RootType.GotAllTypes;
+END;
+
+RULE: variable ::= ExpIdUse COMPUTE
+  variable.FuncName=
+    IF(EQ(
+        ExpIdUse.Key,
+	INCLUDING (FuncBody.FuncName,Body.FuncName,program.FuncName)),
+      ExpIdUse.Key,
+      NoKey);
+END;
+@}
+
+@$@<Property definitions@>+=@{@-
+ResultType: DefTableKey;
+@}
+
+@$@<Statements@>+=@{@-
+RULE: statement ::= 'if' expression 'then' statement COMPUTE
+  expression.Required=boolType;
+END;
+
+RULE: statement ::= 'if' expression 'then' statement 'else' statement COMPUTE
+  expression.Required=boolType;
+END;
+
+RULE: statement ::= 'case' expression 'of' cases 'end' COMPUTE
+END;
+
+RULE: statement ::= 'repeat' StmtList 'until' expression COMPUTE
+  expression.Required=boolType;
+END;
+
+RULE: statement ::= 'while' expression 'do' statement COMPUTE
+END;
+
+RULE: statement ::= 'for' ExpIdUse ':=' expression 'to' expression
+                    'do' statement COMPUTE
+END;
+
+RULE: statement ::= 'for' ExpIdUse ':=' expression 'downto' expression
+                    'do' statement COMPUTE
+END;
+@}
+
+@B@<Name analysis of qualified identifiers@>
+
+The region that is the field specifier of a field identifier is excluded
+from the enclosing scopes.
+Thus an applied occurrence of a field identifier must identify a defining
+occurrence in a specific record.
+Moreover, the record's scope is obtained from the variable whose field is
+being accessed:
+
+@$@<Qualified identifiers@>+=@{@-
+TREE SYMBOL FldIdUse INHERITS IdentOcc, QualIdUse, ChkQualIdUse END;
+
+RULE: variable ::= variable '.' FldIdUse COMPUTE
+  FldIdUse.ScopeKey=variable[2].Type;
+END;
+@}
+
+This requires another library module:
+
+@$@<Instantiate appropriate modules@>+=@{@-
+$/Name/ScopeProp.gnrc :inst
+@}
+
+A record definition exports its field environment.
+The key carrying that environment is the type of the record:
+
+@$@<Qualified identifiers@>+=@{@-
+SYMBOL Record INHERITS ExportRange COMPUTE
+  SYNT.ScopeKey=THIS.Type;
+END;
+@}
+
+In a @{WithBody@}, a field identifier is indistinguishable from
+any other identifier.
+The @{WithBody@} is a region that inherits the record's environment:
+
+@$@<Qualified identifiers@>+=@{@-
+TREE SYMBOL WithBody INHERITS InhRange     END;
+TREE SYMBOL WithVar  INHERITS InheritScope END;
+
+RULE: statement ::= 'with' WithVar 'do' WithBody COMPUTE
+  WithBody.GotInh=WithVar.InheritOk;
+  WithVar.InnerScope=WithBody.Env;
+END;
+
+RULE: WithVar ::= variable COMPUTE
+  WithVar.ScopeKey=variable.Type;
+END;
+@}
+
+@$@<Instantiate appropriate modules@>+=@{@-
+$/Name/AlgInh.gnrc :inst
+@}

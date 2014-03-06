@@ -1,0 +1,1146 @@
+@A@<Type Analysis@>
+
+The purpose of type analysis is to determine what kind of object is
+represented by each name and what type of value each expression yields,
+and to verify that these satisfy the context conditions of the source language.
+Errors of agreement, such as use of a type name as an expression operand or
+use of an integer value to control an if-statement, are detected and
+reported during type analysis.
+
+Type analysis is an attribution process.
+Given the @{Key@} attributes resulting from the consistent renaming,
+it establishes a @{Kind@} property for each object and specific additional
+properties for each type.
+It also defines a @{Type@} attribute for each tree node that describes a
+construct yielding a value.
+
+@B
+
+A Pascal- object belongs to one of seven classes:
+
+@$@<Kinds of objects@>==@{
+#define Undefined	0
+#define Typex		1
+#define Procedurex	2
+#define Constantx	3
+#define Variable	4
+#define ValueParameter	5
+#define VarParameter	6
+@}
+
+This classification is useful because it distinguishes objects that have
+very different characteristics.
+Nothing is known about an @{Undefined@} object, and therefore the compiler
+should assume whatever characteristics are necessary in the context in
+which it appears.
+@{Typex@} and @{Procedurex@} objects are allowed only in specific contexts
+defined by the grammar.
+The remaining objects are all valid in expression contexts, but the code
+that must be generated to implement them varies.
+By grouping them as shown, a simple test can determine whether the context
+conditions are satisfied.
+
+Brinch-Hansen distinguishes eleven object classes, dividing the @{Typex@}
+class into standard types, array types and record types, dividing the
+@{Procedurex@} class into standard procedures and user-defined procedures,
+and adding a class for record fields.
+The reason he needs this finer classification is that he defines a
+variant record to store all of the necessary information about each object,
+and uses the object class to distinguish variants.
+As we shall see, the information needed to describe an array type is
+somewhat different from the information needed to describe a standard type
+or record type.
+Therefore these two variants must be distinguished, and Brinch-Hansen needs
+distinct classes to make that distinction.
+
+An Eli-generated compiler stores information about objects in a
+@{definition table@}, which is a global database accessed by keys
+associated with each object.
+Each item of information is stored as a named @/property@/ of arbitrary
+type.
+The property name and type must be declared.
+Here is a declaration of the @{Kind@} property, of type @{int@}, that will
+be defined for every object:
+
+@$@<The object classification property@>==@{
+Kind: int;
+@}
+
+For every property name, Eli creates two definition table operations.
+One operation (@{Get@}) is used to query the definition table,
+the other (@{Set@}) to update it.
+Thus the declaration of the @{Kind@} property causes Eli to create the
+query operation @{GetKind@} and the update operation @{SetKind@}.
+Both operations take the key of the object of interest as their first
+argument.
+The second argument of the query operation @{GetKind@} is the so-called
+@/default value@/ for this query: if the object of interest does not have
+the @{Kind@} property set, then @{GetKind@} returns the value
+of its second argument.
+@{SetKind@} has two arguments in addition to the key.
+The first is the value to which the @{Kind@} property should be set if the
+object of interest currently has no @{Kind@} property set; the second is
+the value to which the @{Kind@} property should be changed if the object of
+interest currently has a @{Kind@} property set.
+
+Because Pascal- requires definition before use, we can obtain all of the
+properties of declared objects in a single text-order traversal of the tree.
+For this purpose, we define a chain @{Objects@} to represent the invariant
+``all visible objects have their properties defined''.
+Since the standard names are visible everywhere, this invariant is
+initially true when all properties of the standard names have been set:
+
+@$@<Text-order traversal invariant@>==@{
+CHAIN Objects: VOID;
+
+SYMBOL StandardBlock COMPUTE
+  CHAINSTART HEAD.Objects=StandardIdProperties() DEPENDS_ON THIS.Env;
+END;
+@}
+
+@B
+
+Every object that yields a value has a property that specifies the type of
+the value yielded.
+Since a type is itself an object, with properties of its own,
+it is represented by a definition table key:
+
+@$@<Types@>==@{
+Type: DefTableKey;
+@}
+
+Each of the standard types @{boolean@} and @{integer@} is represented by an
+object of kind @{Typex@}.
+No properties other than the @{Kind@} are required of standard types by the
+type analyzer.
+The @{Kind@} property is set using the update operation @{SetKind@} that
+was created by Eli in response to the property declaration.
+This operation must be invoked as a part of the implementation of
+the @{StandardIdProperties@} operation introduced in the last section:
+
+@$@<Set properties of standard names@>+=@{
+  SetKind(IntegerKey,Typex,Undefined);
+  SetKind(BooleanKey,Typex,Undefined);
+@}
+
+@C
+
+New types can be defined by the user.
+A type definition constructs either a new array type or a new record type,
+but in each case provides a definition table key to represent the
+constructed type:
+
+@$@<Type declaration@>==@{
+SYMBOL NewType: Key: DefTableKey;
+
+RULE UserType: TypeDefinition ::= TypeNameDef '=' NewType ';'
+COMPUTE
+  NewType.Key=TypeNameDef.Key;
+  NewType.Objects=
+    SetKind(TypeNameDef.Key,Typex,Undefined)
+    DEPENDS_ON TypeDefinition.Objects;
+END;
+@}
+
+The specific properties of the constructed type depend on whether it is an
+array or a record, and will be discussed below.
+These properties will be stored in the database under the key of the type
+name, which is made available as the @{Key@} attribute of @{NewType@}.
+
+Recall that the @{Objects@} attribute is a chain representing the
+assertion ``all visible objects have their properties defined''.
+Rule @{UserType@} therefore asserts that all objects visible at the
+beginning of the @{NewType@} phrase have their properties defined if
+that assertion holds before the type definition, and if the @{Kind@} property
+of the type object itself has been set.
+In this case all of the @/known@/ properties are set, but some of the
+properties are not known until after the @{NewType@} phrase has been
+processed.
+Thus rule @{UserType@} cannot guarantee the truth of the assertion
+to the right of the @{TypeDefinition@} phrase.
+
+@C
+
+The symbol @{TypeNameUse@} represents a context in which a type name
+is required.
+The interesting information carried by that name is its type
+property, which is delivered to the context as the @{Type@} attribute of
+the @{TypeNameUse@} node.
+
+@$@<Type name use@>==@{
+SYMBOL TypeNameUse: Type: DefTableKey;
+
+SYMBOL TypeNameUse COMPUTE
+  SYNT.Type=
+    IF(EQ(GetKind(THIS.Key,Undefined),Typex),THIS.Key,NoKey)
+    DEPENDS_ON THIS.VisibleTypeProperties;
+  IF(NE(GetKind(THIS.Key,Typex),Typex),
+    message(ERROR,"Must be a type name",0,COORDREF))
+    DEPENDS_ON THIS.VisibleTypeProperties;
+END;
+@}
+
+@{VisibleTypeProperties@} asserts that all type names
+visible at this point have their properties defined.
+Note that @{VisibleTypeProperties@} differs from @{Objects@}, which asserts
+that @/all@/ visible names (not merely type names)
+have their properties defined.
+To see the need for @{VisibleTypeProperties@}, consider the Pascal-
+construct @{var a, b, c: T;@}.
+The Pascal- compiler computes properties in textual order.
+But the type represented by @{T@} is one of the properties of the names
+@{a@}, @{b@} and @{c@}.
+Therefore the @{TypeNameUse@} @{T@} must have its @{Type@} property set
+@/before@/ all visible names (which include @{a@}, @{b@} and @{c@}!)
+have their properties defined.
+Section 7.4.1 shows how the assertion @{VisibleTypeProperties@} is
+established for the construct @{var a, b, c: T;@}.
+
+If the name appearing in this context is not a type name
+then the @{Type@} attribute will get the value @{NoKey@},
+used to represent an unknown type.
+@{NoKey@} is a distinguished definition table key that can never have any
+properties.
+Definition table query operations applied to @{NoKey@} always yield their
+default values, and definition table update operations applied to @{NoKey@}
+have no effect.
+
+The decisions in the @{TypeNameUse@} symbol computation illustrate the
+utility of a distinct default value for each invocation of a query
+operation.
+When establishing the value of the @{Type@} attribute, both an undefined
+name and an name of the wrong class should yield @{NoKey@}
+because in either case the type is unknown.
+An error, on the other hand, should be reported only if the name is
+defined but has the wrong class.
+If the name is not defined, that was a violation of the scope rules
+and has already been reported.
+A report that the name must be a type name would be wrong
+because the compiler does not know that the name in question isn't a
+type name -- it simply has no information about that name's
+meaning.
+
+@B
+
+A constant yields a value, and therefore has a @{Type@} property in
+addition to the @{Kind@} property common to all objects.
+Because one of the context conditions verified by type analysis is that the
+lower bound of an array does not exceed the upper bound,
+and because bounds can be specified by constant names,
+the actual value of a constant must also be provided as one of its properties:
+
+@$@<Constants@>==@{
+Value: int;
+@}
+
+There are two pre-defined constant names, @{true@} and @{false@}.
+Their properties must be set as a part of the implementation of
+the @{StandardIdProperties@} operation:
+
+@$@<Set properties of standard names@>+=@{
+  SetKind(FalseKey,Constantx,Undefined);
+  SetType(FalseKey,BooleanKey,NoKey);
+  SetValue(FalseKey,0,0);
+  SetKind(TrueKey,Constantx,Undefined);
+  SetType(TrueKey,BooleanKey,NoKey);
+  SetValue(TrueKey,1,0);
+@}
+
+Notice that, although @{false@} and @{true@} are Boolean constants,
+they are given integer values.
+Integer values are needed because @{false@} and @{true@}
+are legal array bounds.
+Brinch-Hansen does not discuss the integer values to be provided, but in
+Figure 7.2 of his book he shows @{false@} with the value ``0''.
+The complete compiler listing he gives in Appendix A.3 sets the values of
+the Boolean constants to their Pascal ordinal values, which are defined by
+the Pascal standard to be ``0'' for @{false@} and ``1'' for @{true@}, so
+those are the settings used here.
+
+@C
+
+Constant objects are created by the user via a constant declaration:
+
+@$@<Constant declaration@>==@{
+RULE ConstDef: ConstantDefinition ::= ConstantNameDef '=' Constant ';'
+COMPUTE
+  ConstantDefinition.Objects=
+    ORDER(
+      SetKind(ConstantNameDef.Key,Constantx,Undefined),
+      SetType(ConstantNameDef.Key,Constant.Type,NoKey),
+      SetValue(ConstantNameDef.Key,Constant.Value,0))
+    DEPENDS_ON ConstantDefinition.Objects;
+END;
+@}
+
+This rule asserts that all visible objects have their properties
+defined after the constant definition if that assertion holds before the
+constant definition, and if the @{Kind@}, @{Type@} and @{Value@} properties
+of the constant definition itself have been set.
+The use of @{ORDER@} is a slight overspecification because the
+property values do not have to be set in any particular order.
+@{ORDER@} is being used here simply to group the update operations into a
+single action asserting that the properties of the constant object have
+been set.
+
+@C
+
+When a constant is used, the type and value of that constant are determined
+from the constant's properties and delivered to the surrounding context as
+attribute values.
+If the constant is an integer denotation, then its type and value are
+computed directly; if it is a constant name they are obtained from
+that name's properties:
+
+@$@<Constant name use@>==@{
+ATTR Type: DefTableKey;
+ATTR Value: int;
+
+RULE IntConst: Constant ::= Numeral
+COMPUTE
+  Constant.Type=IntegerKey;
+  Constant.Value=Numeral;
+END;
+
+RULE IdnConst: Constant ::= ConstantNameUse
+COMPUTE
+  Constant.Type=
+    GetType(ConstantNameUse.Key,NoKey) DEPENDS_ON Constant.Objects;
+  Constant.Value=
+    GetValue(ConstantNameUse.Key,0) DEPENDS_ON Constant.Objects;
+  IF(NE(GetKind(ConstantNameUse.Key,Constantx),Constantx),
+    message(ERROR,"Constant name required",0,COORDREF))
+    DEPENDS_ON Constant.Objects;
+END;
+@}
+
+Rule @{IdnConst@} demonstrates that
+the assertion that all visible objects have their properties defined
+is a precondition for the process of accessing the properties
+of a named constant.
+Unless that assertion is true, there is no guarantee that the definition
+table contains valid property values for the object.
+
+Brinch-Hansen's Algorithm 7.1 must verify that the name is a constant
+name before accessing the property values, in order to ensure that
+they are defined.
+If the name is @/not@/ a constant, he then must establish appropriate
+attribute values with a completely separate set of assignments.
+Here the fact that the two query operations @{GetType@} and @{GetValue@}
+each provide a default value allow us to handle the possibility that the
+name is not a constant without any additional mechanism.
+
+@B
+
+In Pascal- variables and parameters are very similar in their behavior.
+All yield values, and therefore have a @{Type@} property in
+addition to the @{Kind@} property common to all objects.
+They are defined in groups, with all names in a groups having the same
+kind and type properties.
+Finally, a @{VariableNameUse@} could actually be a use of a constant name,
+a variable name or a parameter name.
+
+@$@<Variables@>==@{
+ATTR Kind: int;
+ATTR Type: DefTableKey;
+
+@<Variable definitions@>
+@<Parameter definitions@>
+@<Constant, variable or parameter use@>
+@}
+
+@C
+
+Type is a characteristic of each group of variable names,
+a fact indicated by attaching the attribute @{Type@} to @{VariableDefinition@}.
+A remote attribute access (@{INCLUDING@}) is used to make it available
+at each individual variable name definition.
+Notice that the remote attribute access abstracts from the details of the
+tree structure, requiring only that a @{VariableNameDef@} node be a
+descendent of a @{VariableDefinition@} node.
+
+@$@<Variable definitions@>==@{
+RULE VarType: VariableDefinition ::= VariableNameDefList ':' TypeNameUse ';'
+COMPUTE
+  VariableDefinition.Type=TypeNameUse.Type;
+  TypeNameUse.VisibleTypeProperties=VariableDefinition.Objects;
+END;
+
+SYMBOL VariableNameDef COMPUTE
+  THIS.Objects=
+    ORDER(
+      SetKind(THIS.Key,Variable,Undefined),
+      SetType(THIS.Key,INCLUDING VariableDefinition.Type,NoKey))
+    DEPENDS_ON THIS.Objects;
+END;
+@}
+
+Recall from Section 7.2 that the @{VisibleTypeProperties@} attribute of
+@{TypeNameUse@} asserts that all type names
+visible at this point have their properties defined.
+That assertion is true if @/all@/ names visible at the beginning of
+the @{VariableDefinition@} phrase have their properties defined
+(@{VariableDefinition.Objects@}), because no new type names
+become visible within the @{VariableNameDefList@} phrase.
+
+@C
+
+Parameters are declared in much the same way as variables, except that the
+classification of the parameter (as well as its type) is characteristic
+of the group rather than being fixed.
+Two attributes, @{Kind@} and @{Type@}, are therefore attached to
+@{ParameterDefinition@} and accessed remotely by the computations
+associated with @{ParameterNameDef@} nodes.
+
+@$@<Parameter definitions@>==@{
+RULE ValParmDef:
+  ParameterDefinition ::= ParameterNameDefList ':' TypeNameUse
+COMPUTE
+  ParameterDefinition.Kind=ValueParameter;
+  ParameterDefinition.Type=TypeNameUse.Type;
+  TypeNameUse.VisibleTypeProperties=ParameterDefinition.Objects;
+END;
+
+RULE VarParmDef:
+  ParameterDefinition ::= 'var' ParameterNameDefList ':' TypeNameUse
+COMPUTE
+  ParameterDefinition.Kind=VarParameter;
+  ParameterDefinition.Type=TypeNameUse.Type;
+  TypeNameUse.VisibleTypeProperties=ParameterDefinition.Objects;
+END;
+
+SYMBOL ParameterNameDef COMPUTE
+  THIS.Objects=
+    ORDER(
+      SetKind(THIS.Key,INCLUDING ParameterDefinition.Kind,Undefined),
+      SetType(THIS.Key,INCLUDING ParameterDefinition.Type,NoKey))
+    DEPENDS_ON THIS.Objects;
+END;
+@}
+
+@C
+
+Variable and parameter names are used in the same context: the name
+component of a @{VariableAccess@} phrase.
+(Constant names can also appear in this context, as well as in other
+contexts.)
+The integer values used in the object classification scheme are chosen so
+that a single test suffices to differentiate constants, variables and
+parameters from types and procedures.
+
+Because a @{VariableAccess@} phrase describes a construct that yields a
+value, it has a @{Type@} attribute.
+It also has a @{Kind@} attribute to permit the compiler to verify that (for
+example) a constant does not appear on the left-hand side of an
+assignment.
+
+@$@<Constant, variable or parameter use@>==@{
+RULE VarIdn: VariableAccess ::= VariableNameUse
+COMPUTE
+  VariableAccess.Kind=
+    GetKind(VariableNameUse.Key,Variable) DEPENDS_ON VariableAccess.Objects;
+  VariableAccess.Type=
+    GetType(VariableNameUse.Key,NoKey) DEPENDS_ON VariableAccess.Objects;
+  IF(LT(VariableAccess.Kind,Constantx),
+    message(ERROR,"Constant, variable or parameter name required",0,COORDREF));
+END;
+@}
+
+Note that the computations of the @{Kind@} and @{Type@} attribute of the
+@{VariableAccess@} both depend on the assertion that all names
+visible at this point have their properties set.
+The need for this dependence is clear:
+Both attributes are properties of the name being used, and might be
+meaningless if the assertion were false.
+
+Choice of @{Variable@} as the default value of the @{Kind@} attribute
+avoids a spurious error report if the name is undefined.
+Remember that scope analysis has already reported an error if the name is
+undefined.
+If @{Undefined@} were chosen as the default value, the error "Constant,
+variable or parameter name required" would be reported here.
+That report is spurious, because the compiler does not @/know@/ that the
+name in question is not a constant, variable or parameter name -- it has no
+information about the name.
+
+@B
+
+An array type has four properties in addition to the normal properties of a
+type object:
+
+@$@<Arrays@>==@{
+IndexType, ElementType: DefTableKey;
+LowerBound, UpperBound: int;
+@}
+
+All of these properties are used in checking the context conditions
+for expressions.
+
+@C
+
+Array types are declared by specifying the index range and the element
+type.
+Each new array type is distinct from all others, even though two array type
+declarations may look the same.
+
+@$@<Array type definition@>==@{
+RULE ArrayDef:
+  NewArrayType ::= 'array' '[' IndexRange ']' 'of' TypeNameUse
+COMPUTE
+  NewArrayType.Objects=
+    ORDER(
+      SetLowerBound(INCLUDING NewType.Key,IndexRange.LowerBound,0),
+      SetUpperBound(INCLUDING NewType.Key,IndexRange.UpperBound,0),
+      SetIndexType(INCLUDING NewType.Key,IndexRange.IndexType,NoKey),
+      SetElementType(INCLUDING NewType.Key,TypeNameUse.Type,NoKey))
+    DEPENDS_ON NewArrayType.Objects;
+  TypeNameUse.VisibleTypeProperties=NewArrayType.Objects;
+END;
+
+SYMBOL IndexRange:
+  LowerBound, UpperBound: int,
+  IndexType: DefTableKey;
+
+RULE Bounds: IndexRange ::= Constant '..' Constant
+COMPUTE
+  IndexRange.LowerBound=Constant[1].Value;
+  IndexRange.UpperBound=Constant[2].Value;
+  IndexRange.IndexType=
+    IF(EQ(Constant[1].Type,Constant[2].Type),
+      Constant[1].Type,
+      ORDER(
+        IF(AND(NE(Constant[1].Type,NoKey),NE(Constant[2].Type,NoKey)),
+          message(ERROR,"Bounds must be of the same type",0,COORDREF)),
+        NoKey));
+  IF(GT(Constant[1].Value,Constant[2].Value),
+    message(ERROR,"Lower bound may not exceed upper bound",0,COORDREF));
+END;
+@}
+
+The assertion that ``all visible names have their properties set'' is true
+after the array type declaration if it is true before and if the array type
+name has its properties set.
+
+@C
+
+An array variable can be accessed as a whole simply by stating the name of
+the variable.
+One element of an array can also be accessed as a variable by specifying a
+subscript expression that selects the desired element.
+
+@$@<Array element use@>==@{
+RULE Index: VariableAccess ::= VariableAccess '[' Expression ']'
+COMPUTE
+  VariableAccess[1].Kind=VariableAccess[2].Kind;
+  VariableAccess[1].Type=
+    GetElementType(VariableAccess[2].Type,NoKey)
+    DEPENDS_ON VariableAccess[1].Objects;
+  IF(EQ(VariableAccess[1].Type,NoKey),
+    message(ERROR,"Indexed variable must be of array type",0,COORDREF));
+  Expression.ExpectedType=GetIndexType(VariableAccess[2].Type,NoKey)
+    DEPENDS_ON VariableAccess[1].Objects;
+END;
+@}
+
+A constant cannot be of an array type because there is no way to describe
+an array denotation in Pascal-.
+Therefore a single test of the type yielded by the indexed object
+suffices to determine the legality of an indexed selector.
+
+@B@<Records@>
+
+A record variable consists of some number of distinct @/field variables@/.
+Field variable names do not follow the same scope rules as other names.
+If a field variable name is defined within a record of type @{T@}, then the
+scope of that definition is the set of names following the ``@{.@}'' in all
+phrases @{VariableAccess '.' FieldNameUse@} for which @{VariableAccess@}
+yields an object of type @{T@}.
+
+Scope rules of this kind are common in programming languages, and they
+cannot be verified during scope analysis because they depend on type
+analysis.
+Eli provides a generic library module @{$/Tool/lib/Name/Field.gnrc@}
+to implement consistent renaming according to this rule.
+
+@{Field.gnrc@} exports four symbols to embody the concepts involved:
+a @{FieldScope@} is a phrase that contains definitions, a @{FieldDef@} is a
+name definition, and a @{FieldUse@} is a name use.
+@{RootField@} is a phrase containing all of the @{FieldScope@} phrases in
+the source program.
+Name definitions and uses are assumed to be represented by tree nodes
+having a @{Sym@} attribute of type @{int@} that specifies the corresponding
+name.
+The module will compute the value of a @{Key@} attribute of type
+@{DefTableKey@} at each tree node representing a name definition or use.
+@{Key@} attribute values of associated definitions and uses will be
+identical.
+If a use is not associated with any definition, its @{Key@} attribute will
+be the distinguished @{DefTableKey@} value ``@{NoKey@}''.
+
+@C
+
+Each @{FieldScope@} must be provided with a @{Key@} attribute of type
+@{DefTableKey@} by some mechanism outside of the module.
+The same @{DefTableKey@} value must be provided as the @{ScopeKey@}
+attribute of each @{FieldUse@}, again via a mechanism outside of the
+module.
+It is this @{DefTableKey@} value that links the field with the record in
+which it is defined.
+
+In Pascal-, the @{DefTableKey@} value linking records and their field
+variables is the record's type.
+The @{FieldScope@} concept is embodied in the @{NewRecordType@} phrase,
+@{FieldDef@} is embodied in @{FieldNameDef@} and
+@{FieldUse@} is embodied in @{FieldNameUse@}.
+Since the field names must be unique within a record and every field
+variable must be defined, these symbols also inherit from the error
+reporting modules discussed in Section 6.2.
+
+@$@<Record type definition@>==@{
+SYMBOL NewRecordType INHERITS RangeScopeProp, RangeUnique COMPUTE
+  INH.Key=INCLUDING NewType.Key;
+  SYNT.ScopeKey=THIS.Key;
+END;
+
+RULE RecSect: RecordSection ::= FieldNameDefList ':' TypeNameUse
+COMPUTE
+  RecordSection.Type=TypeNameUse.Type;
+  TypeNameUse.VisibleTypeProperties=RecordSection.Objects;
+END;
+
+ATTR ScopeKey: DefTableKey;
+
+SYMBOL FieldNameDef INHERITS IdDefScope, NameOccurrence, Unique COMPUTE
+  INH.ScopeKey=INCLUDING NewType.Key;
+  SYNT.Objects=
+    SetType(THIS.Key,INCLUDING RecordSection.Type,NoKey)
+    DEPENDS_ON THIS.Objects;
+END;
+@}
+
+@$@<Instantiate the scope property module@>==@{
+$/Name/AlgScopeProp.gnrc :inst
+@}
+
+The assertion that ``all visible names have their properties set'' is true
+after the field declaration if it is true before and if the field
+name has its properties set.
+
+@C
+
+A record variable can be accessed as a whole simply by stating the name of
+the variable.
+One field of a record can also be accessed as a variable by specifying a
+name that selects the desired field.
+
+@$@<Field name use@>==@{
+SYMBOL FieldNameUse INHERITS IdUseScopeProp, NameOccurrence COMPUTE
+  IF(EQ(THIS.Key,NoKey),
+    message(ERROR,"Undefined field",0,COORDREF));
+END;
+
+RULE Select: VariableAccess ::= VariableAccess '.' FieldNameUse
+COMPUTE
+  VariableAccess[1].Kind=VariableAccess[2].Kind;
+  VariableAccess[1].Type=GetType(FieldNameUse.Key,NoKey)
+    DEPENDS_ON VariableAccess[1].Objects;
+  FieldNameUse.Scope=GetScope(VariableAccess[2].Type, NoEnv)
+                     DEPENDS_ON INCLUDING RootScope.GotScopeProp;
+END;
+@}
+
+@{VariableAccess[1].Type@} is set to a property of the field name being used,
+and might be meaningless unless all visible identifiers have their
+properties set.
+Hence its dependence on the assertion @{VariableAccess[1].Objects@}.
+
+A constant cannot be of a record type because there is no way to describe
+an record denotation in Pascal-.
+Therefore the test for an undefined field variable
+suffices to determine the legality of a field selector.
+
+@B
+
+Type analysis of a Pascal- expression determines the type yielded by every
+expression and the type required by the context in which that expression
+appears.
+It then verifies that the yielded type is appropriate for the context:
+
+@$@<Expressions@>==@{
+ATTR Type, ExpectedType: DefTableKey;
+
+SYMBOL Expression COMPUTE
+  IF(AND(
+    AND(NE(THIS.Type,THIS.ExpectedType),NE(THIS.Type,NoKey)),
+    NE(NoKey,THIS.ExpectedType)),
+    message(
+      ERROR,
+      "Type yielded is not compatible with the context",
+      0,
+      COORDREF));
+END;
+
+@<Expression contexts@>
+@<Operator definitions@>
+@}
+
+Note that no error report is issued when nothing is known about the
+expression type (i.e. the type is @{NoKey@}).
+
+This computation should be applied at @/all@/ nodes representing
+expressions.
+In the grammar, however, phrases that describe expressions were given
+different names in order to make operator precedence and association rules
+explicit.
+Operator precedence and association rules only affect the structure of the
+tree, however, not the meaning of the computation.
+Thus @{A+B@} and @{A*B@} are both dyadic expressions, in which two operands
+are combined by an operator according to certain rules to yield a single
+result, even though the first constitutes a @{SimpleExpression@} and the
+second a @{Term@}.
+
+To avoid spurious distinctions among nodes,
+define @/equivalence classes@/ of phrases:
+
+@$@<Equivalence classes of expression and operator phrases@>==@{
+Expression ::= SimpleExpression Term Factor.
+Binop ::= RelationalOperator AddingOperator MultiplyingOperator.
+Unop ::= SignOperator NotOperator.
+@}
+
+Each equivalence class is represented by the name of one of its member
+phrases, the one appearing to the left of ``@{::=@}''.
+The name used to represent the members of the equivalence class
+need not actually appear in the grammar (@{Expression@} is a phrase in the
+Pascal- grammar, but @{Binop@} and @{Unop@} are not).
+Every tree node corresponding to a member of an equivalence class must be
+referred to by the name used to represent that class.
+
+@C
+
+The @{Type@} and @{ExpectedType@} attributes of every expression must be
+set in order to verify the context condition.
+@{Type@} depends on the content of the expression itself, while
+@{ExpectedType@} depends upon how the expression is used.
+In Pascal-, there are four distinct ways of forming an expression:
+
+@$@<Expression contexts@>==@{
+RULE VariableExpr: Expression ::= VariableAccess
+COMPUTE
+  Expression.Type=VariableAccess.Type;
+END;
+
+RULE Denotation: Expression ::= Numeral
+COMPUTE
+  Expression.Type=IntegerKey;
+END;
+
+ATTR Needs: DefTableKey;
+
+RULE Monadic: Expression ::= Unop Expression
+COMPUTE
+  Expression[1].Type=Unop.Type;
+  Expression[2].ExpectedType=Unop.Needs;
+END;
+
+ATTR Left: DefTableKey;
+
+RULE Dyadic: Expression ::= Expression Binop Expression
+COMPUTE
+  Expression[1].Type=Binop.Type;
+  Expression[2].ExpectedType=Binop.Needs;
+  Binop.Left=Expression[2].Type;
+  Expression[3].ExpectedType=Binop.Needs;
+END;
+@}
+
+When an expression is formed using an operator, the type yielded by the
+resulting expression is completely determined by the operator.
+The @{Type@} attribute of the operator specifies that type.
+The @{Needs@} attribute of the operator specifies the type that must be
+yielded by the operand(s) (both operands of a dyadic operator must
+yield the same type in Pascal-).
+@{Needs@} is completely determined by the operator in most cases, but
+depends on @{Left@} for relational operators.
+
+@C
+
+Every Pascal- operator is described by a phrase in the grammar, and
+therefore corresponds to a node of the tree.
+The computations associated with those nodes simply establish the values of
+the @{Needs@} and @{Type@} attributes of the operator.
+Each phrase needs a rule with a name, and the rule must give the name of
+the phrase (@{Binop@} or @{Unop@}), and the operator indication (@{'+'@},
+@{'div'@}, etc.)
+Here is a template that creates the necessary boilerplate:
+
+@$@<Operator type information@>@(@5@)@M==@{
+RULE r@1: @2 ::= @3
+COMPUTE
+  @2.Needs=@4Key; @2.Type=@5Key;
+END;
+@}
+
+Relational operators do not fit this model, because they are
+@/overloaded@/:
+Their operands might be either integer values or Boolean values.
+Therefore the @{Needs@} attribute of a relational operator depends upon the
+types of the operands actually provided to it, while the @{Needs@}
+attributes of other operators are determined by the operators.
+
+@$@<Relational operator type information@>@(@2@)@M==@{
+RULE r@1: Binop ::= @2
+COMPUTE
+  Binop.Needs=IF(EQ(Binop.Left,BooleanKey),BooleanKey,IntegerKey);
+  Binop.Type=BooleanKey;
+END;
+@}
+
+Given these templates, the characteristics of the operators are simply
+listed:
+
+@$@<Operator definitions@>==@{
+@<Relational operator type information@>@(Lss@,'<'@)
+@<Relational operator type information@>@(Leq@,'<='@)
+@<Relational operator type information@>@(Gtr@,'>'@)
+@<Relational operator type information@>@(Geq@,'>='@)
+@<Relational operator type information@>@(Equ@,'='@)
+@<Relational operator type information@>@(Neq@,'<>'@)
+
+@<Operator type information@>@(Add@,Binop@,'+'@,Integer@,Integer@)
+@<Operator type information@>@(Sub@,Binop@,'-'@,Integer@,Integer@)
+@<Operator type information@>@(Mul@,Binop@,'*'@,Integer@,Integer@)
+@<Operator type information@>@(Div@,Binop@,'div'@,Integer@,Integer@)
+@<Operator type information@>@(Mod@,Binop@,'mod'@,Integer@,Integer@)
+
+@<Operator type information@>@(Neg@,Unop@,'-'@,Integer@,Integer@)
+@<Operator type information@>@(Nop@,Unop@,'+'@,Integer@,Integer@)
+
+@<Operator type information@>@(And@,Binop@,'and'@,Boolean@,Boolean@)
+@<Operator type information@>@(Or@,Binop@,'or'@,Boolean@,Boolean@)
+@<Operator type information@>@(Not@,Unop@,'not'@,Boolean@,Boolean@)
+@}
+
+@B
+
+As far as type analysis is concerned, the only effect of a statement is
+to establish a context for the expressions it contains:
+
+@$@<Statements@>==@{
+RULE Assign: Statement ::= VariableAccess ':=' Expression
+COMPUTE
+  Expression.ExpectedType=VariableAccess.Type;
+END;
+
+RULE While: Statement ::= 'while' Expression 'do' Statement
+COMPUTE
+  Expression.ExpectedType=BooleanKey;
+END;
+
+RULE OneSided: Statement ::= 'if' Expression 'then' Statement
+COMPUTE
+  Expression.ExpectedType=BooleanKey;
+END;
+
+RULE TwoSided: Statement ::= 'if' Expression 'then' Statement 'else' Statement
+COMPUTE
+  Expression.ExpectedType=BooleanKey;
+END;
+@}
+
+Procedure statements are deferred to the next section.
+
+Because there is no need to distinguish the different kinds of statement
+described in the grammar, they are all placed into an equivalence class:
+
+@$@<Equivalence classes of statement phrases@>==@{
+Statement ::= AssignmentStatement ProcedureStatement IfStatement WhileStatement.
+@}
+
+@B
+
+Type analysis of procedures verifies that the the arguments of a procedure
+call agree with the parameter specifications of the procedure called.
+Since the specification of a parameter is available via its definition
+table key, a procedure must have a property that specifies its parameters,
+in addition to the @{Kind@} property common to all objects:
+
+@$@<Procedures@>==@{
+Formals: KeyArray;
+@}
+
+A @{KeyArray@} is an abstract data type provided by the Eli library to
+represent fixed-sized, ordered collections of objects.
+@{KeyArray@} exports four operations:
+@{NewKeyArray(n)@} returns a new collection of size @{n@} whose elements
+are indexed by the integers 0 through n-1 inclusive.
+Initially, all elements of the collection represented by @{NewKeyArray(n)@}
+are the distinguished definition table key @{NoKey@}.
+Element @{i@} of collection @{a@} is set to the value @{k@} by the
+operation @{StoreKeyInArray(a,i,k)@} and its value is obtained by the
+operation @{FetchKeyFromArray(a,i)@}.
+@{KeyArraySize(a)@} yields the number of elements in a collection, and
+@{NoKeyArray@} is the empty collection.
+
+@{KeyArray@} is an abstract data type, not a generic module.
+Therefore it need not be instantiated, but
+its interface must be made available:
+
+@$@<Definition table key array module interface@>==@{
+#include "keyarray.h"
+@}
+
+@$@<Make the key array module available@>==@{
+$/pdl/keyarray.specs
+@}
+
+The properties of the standard procedures are established as follows:
+
+@$@<Set properties of standard names@>+=@{
+  { KeyArray Formals; DefTableKey FormalKey;
+
+    SetKind(ReadKey,Procedurex,Undefined);
+    Formals = NewKeyArray(1);
+    FormalKey = NewKey();
+    SetKind(FormalKey,VarParameter,Undefined);
+    SetType(FormalKey,IntegerKey,NoKey);
+    StoreKeyInArray(Formals,0,FormalKey);
+    SetFormals(ReadKey,Formals,NoKeyArray);
+
+    SetKind(WriteKey,Procedurex,Undefined);
+    Formals = NewKeyArray(1);
+    FormalKey = NewKey();
+    SetKind(FormalKey,ValueParameter,Undefined);
+    SetType(FormalKey,IntegerKey,NoKey);
+    StoreKeyInArray(Formals,0,FormalKey);
+    SetFormals(WriteKey,Formals,NoKeyArray);
+  }
+@}
+
+@C
+
+The formal parameters of a procedure are characteristic of the
+@{ProcedureBlock@} component of the procedure definition, so
+@{ProcedureBlock@} is given a @{Formals@} attribute.
+Its value is a key array large enough to hold the collection of parameters.
+A computation at each parameter stores the parameter's definition table key
+into the key array, and the presence of the key array is asserted when all
+parameter keys have been stored.
+
+@$@<Procedure definitions@>==@{
+ATTR Formals: KeyArray;
+
+RULE ProcDef:
+  ProcedureDefinition ::= 'procedure' ProcedureNameDef ProcedureBlock ';'
+COMPUTE
+  ProcedureBlock.Objects=
+    ORDER(
+      SetKind(ProcedureNameDef.Key,Procedurex,Undefined),
+      SetFormals(ProcedureNameDef.Key,ProcedureBlock.Formals,NoKeyArray))
+    DEPENDS_ON ProcedureNameDef.Objects;
+END;
+
+CHAIN Counter: int;
+
+RULE ProcBlock: ProcedureBlock ::= FormalParameterList ';' BlockBody
+COMPUTE
+  CHAINSTART FormalParameterList.Counter=0;
+  FormalParameterList.Formals=NewKeyArray(FormalParameterList.Counter);
+  ProcedureBlock.Formals=
+    FormalParameterList.Formals
+    DEPENDS_ON FormalParameterList CONSTITUENTS ParameterNameDef.GotFormal;
+END;
+
+SYMBOL ParameterNameDef COMPUTE
+  SYNT.GotFormal=
+    StoreKeyInArray(
+      INCLUDING FormalParameterList.Formals,
+      THIS.Counter,
+      THIS.Key);
+  THIS.Counter=ADD(THIS.Counter,1);
+END;
+@}
+
+@C
+
+The corresponding formal parameter list is characteristic of the argument
+list in a call, so @{ActualParameterList@} is given a @{Formals@}
+attribute.
+The key of the parameter corresponding to each argument is extracted from
+the key array by the computation at the @{ActualParameter@} node.
+The argument type is the type required by the argument expression's
+context, and thus becomes the value of that expression's @{ExpectedType@}
+attribute.
+If the parameter is a @{var@} parameter, however, the corresponding
+argument must also be a variable.
+Two more attributes, @{ExpectedVar@} and @{IsVariable@}, associated with
+@{Expression@} nodes verify this condition:
+
+@$@<Procedure calls@>==@{
+RULE Call: Statement ::= ProcedureNameUse ActualParameterList
+COMPUTE
+  CHAINSTART ActualParameterList.Counter=0;
+  ActualParameterList.Formals=
+    GetFormals(ProcedureNameUse.Key,NoKeyArray)
+    DEPENDS_ON Statement.Objects;
+  IF(NE(GetKind(ProcedureNameUse.Key,Undefined),Procedurex),
+    message(ERROR,"Procedure name required here",0,COORDREF),
+    IF(NE(
+        ActualParameterList.Counter,
+        KeyArraySize(ActualParameterList.Formals)),
+      message(
+        ERROR,
+        "Number of arguments differs from number of parameters",
+        0,
+        COORDREF)))
+    DEPENDS_ON Statement.Objects;
+END;
+
+RULE Argument: ActualParameter ::= Expression
+COMPUTE
+  ActualParameter.Key=
+    FetchKeyFromArray(
+      INCLUDING ActualParameterList.Formals,
+      ActualParameter.Counter);
+  ActualParameter.Counter=ADD(ActualParameter.Counter,1);
+  Expression.ExpectedType=GetType(ActualParameter.Key,NoKey);
+  Expression.ExpectedVar=EQ(GetKind(ActualParameter.Key,Undefined),
+                            VarParameter);
+END;
+
+SYMBOL Expression: ExpectedVar, IsVariable: int;
+
+SYMBOL Expression COMPUTE
+  INH.ExpectedVar=0;
+  SYNT.IsVariable=0;
+  IF(AND(THIS.ExpectedVar,NOT(THIS.IsVariable)),
+    message(ERROR,"A variable is required here",0,COORDREF));
+END;
+
+RULE VariableExpr: Expression ::= VariableAccess
+COMPUTE
+  Expression.IsVariable=NE(VariableAccess.Kind,Constantx);
+END;
+@}
+
+@{ExpectedVar@} and @{IsVariable@} are both false for almost all
+expressions.
+The only case in which @{ExpectedVar@} is true is when the @{Expression@}
+is an argument corresponding to a @{var@} parameter, and the only case in
+which @{IsVariable@} is true is when the @{Expression@} is a
+@{VariableAccess@} that is not a constant.
+Computations in these two contexts override the normal computations
+associated with each @{Expression@} node.
+
+@B@<Specification files for type analysis@>
+
+Most of the type analysis problem is characterized by attribute
+computations.
+These computations involve both attributes and properties, which must be
+defined.
+Properties of standard names are set by a C module.
+
+@C
+
+Attribute computations are specified in a type-@{lido@} file.
+Eli merges this file with all other type-@{lido@} files and uses the
+resulting specification to create the attribute evaluator.
+
+@O@<type.lido@>@{
+@<Text-order traversal invariant@>
+@<Constant declaration@>
+@<Constant name use@>
+@<Type declaration@>
+@<Type name use@>
+@<Array type definition@>
+@<Array element use@>
+@<Record type definition@>
+@<Field name use@>
+@<Variables@>
+@<Expressions@>
+@<Statements@>
+@<Procedure definitions@>
+@<Procedure calls@>
+@}
+
+@C
+
+Properties are declared in a type-@{pdl@} file.
+Eli merges this file with all other type-@{pdl@} files and uses the
+resulting specification to create the definition table module.
+
+@O@<type.pdl@>@{
+"keyarray.h"
+@<The object classification property@>
+@<Constants@>
+@<Types@>
+@<Arrays@>
+@<Procedures@>
+@}
+
+@C
+
+A type-@{sym@} file specifies equivalence classes of phrase names.
+Eli merges this file with all other type-@{sym@} files and uses the
+resulting specification to create the procedure calls that build the tree.
+
+@O@<pascal-.sym@>==@{
+@<Equivalence classes of expression and operator phrases@>
+@<Equivalence classes of statement phrases@>
+@}
+
+@C
+
+A type-@{c@} file implements a module that characterizes a problem by
+solution.
+Eli does @/not@/ merge type-@{c@} files, but compiles them individually.
+
+@O@<type.c@>@{
+#include "scope.h"
+#include "type.h"
+#include "pdl_gen.h"
+#include "keyarray.h"
+
+void
+StandardIdProperties()
+{
+@<Set properties of standard names@>
+}
+@}
+
+@C
+
+A type-@{h@} file defines the interface of a C module.
+Eli does not merge type-@{h@} files.
+
+@O@<type.h@>@{
+#ifndef TYPE_H
+#define TYPE_H
+@<Kinds of objects@>
+extern void StandardIdProperties();
+#endif
+@}
+
+@C
+
+The interface of a C module is made available to the tree construction and
+attribute evaluation modules by placing a C pre-processor @{include@}
+directive in a type-@{head@} file.
+Eli merges the contents of all type-@{head@} files into a single file,
+@{HEAD.h@}, which is included by the tree construction and attribute
+evaluation modules.
+
+@O@<type.head@>@{
+@<Definition table key array module interface@>
+#include "type.h"
+@}
+
+@C
+
+A type-@{specs@} file is used to instantiate generic modules from the Eli
+library, and to make non-generic modules available.
+
+@O@<type.specs@>@{
+@<Instantiate the scope property module@>
+@<Make the key array module available@>
+@}

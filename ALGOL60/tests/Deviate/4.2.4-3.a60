@@ -1,0 +1,6 @@
+begin comment $Id: 4.2.4-3.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+If the type of the left part is integer, the expression must be arithmetic;
+
+integer i; i := false;
+
+end

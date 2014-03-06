@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.0"?>
+<plugin
+   id="au.edu.mq.ics.plrg.edt"
+   name="%name"
+   version="1.0.5"
+   provider-name="%providerName"
+   class="au.edu.mq.ics.plrg.eli.EDTPlugin">
+
+   <runtime>
+      <library name="edt.jar">
+         <export name="*"/>
+      </library>
+   </runtime>
+   <requires>
+      <import plugin="org.eclipse.core.resources"/>
+      <import plugin="org.eclipse.core.runtime"/>
+      <import plugin="org.eclipse.ui"/>
+      <import plugin="org.eclipse.ui.console"/>
+      <import plugin="org.eclipse.ui.ide"/>
+      <import plugin="org.eclipse.ui.editors"/>
+      <import plugin="org.eclipse.jface"/>
+      <import plugin="org.eclipse.jface.text"/>
+      <import plugin="org.eclipse.debug.core"/>
+      <import plugin="org.eclipse.debug.ui"/>
+   </requires>
+   <extension
+         id="au.edu.mq.ics.plrg.edt.newWizards"
+         name="Eli Wizards"
+         point="org.eclipse.ui.newWizards">
+         <category
+         	name="Eli"
+         	id="au.edu.mq.ics.plrg.edt.eliCategory">
+         </category>
+         <wizard
+               icon="gifs/newprj.gif"
+               class="au.edu.mq.ics.plrg.eli.NewEliProjectWizard"
+               category="au.edu.mq.ics.plrg.edt.eliCategory"
+               project="true"
+               name="Eli Project"
+               id="au.edu.mq.ics.plrg.edt.newEliProject">
+            <description>
+            A wizard that creates a new Eli project containing no specifications.
+            </description>
+         </wizard>
+   </extension>
+   <extension
+         id="eliNature"
+         name="Eli"
+         point="org.eclipse.core.resources.natures">
+      <runtime>
+         <run class="au.edu.mq.ics.plrg.eli.EliNature"/>
+      </runtime>
+   </extension>
+     <extension
+         point="org.eclipse.ui.ide.projectNatureImages">
+      <image
+            icon="gifs/eli_ovr.gif"
+            natureId="au.edu.mq.ics.plrg.edt.eliNature"
+            id="au.edu.mq.ics.plrg.edt.eliProjectNatureImage">
+      </image>
+   </extension>
+   <extension
+         point="org.eclipse.ui.propertyPages">
+      <page
+            objectClass="org.eclipse.core.resources.IProject"
+            class="au.edu.mq.ics.plrg.odin.MainPropertyPage"
+            name="Eli"
+            id="au.edu.mq.ics.plrg.edt.mainPropertyPage">
+            <filter name="nature" value="au.edu.mq.ics.plrg.edt.eliNature"/>
+      </page>
+   </extension>
+   <extension
+         point="org.eclipse.ui.preferencePages">
+      <page
+            class="au.edu.mq.ics.plrg.odin.MainPreferencePage"
+            name="Eli"
+            id="au.edu.mq.ics.plrg.edt.eliPrefPage"/>
+      <page
+            class="au.edu.mq.ics.plrg.odin.VarPreferencePage"
+            category="au.edu.mq.ics.plrg.edt.eliPrefPage"
+            name="Variables"
+            id="au.edu.mq.ics.plrg.edt.eliVarPrefPage"/>
+      <page
+            class="au.edu.mq.ics.plrg.odin.DerivationsPreferencePage"
+            category="au.edu.mq.ics.plrg.edt.eliPrefPage"
+            name="Derivations"
+            id="au.edu.mq.ics.plrg.edt.derPrefPage"/>
+   </extension>
+   <extension
+         point="org.eclipse.ui.popupMenus">
+      <objectContribution
+            objectClass="org.eclipse.core.resources.IFile"
+            id="au.edu.mq.ics.plrg.edt.fileContextMenu">
+         <filter
+         	   name="projectNature"
+         	   value="au.edu.mq.ics.plrg.edt.eliNature">
+         </filter>
+         <menu
+               id="au.edu.mq.ics.plrg.edt.eliFileContextMenu"
+               label="Eli"
+               path="additions">
+            <groupMarker name="additions"/>
+         </menu>
+         <action
+               label="Reset Cache..."
+               tooltip="Reset the cache for the Eli project of the selected file."
+               class="au.edu.mq.ics.plrg.odin.ResetCacheAction"
+               menubarPath="au.edu.mq.ics.plrg.edt.eliFileContextMenu/additions"
+               id="au.edu.mq.ics.plrg.edt.resetFileContextAction"/>
+       </objectContribution>
+      <objectContribution
+            adaptable="false"
+            id="au.edu.mq.ics.plrg.edt.folderContextMenu"
+            objectClass="org.eclipse.core.resources.IContainer">
+         <filter
+               name="projectNature"
+               value="au.edu.mq.ics.plrg.edt.eliNature"/>
+         <menu
+               id="au.edu.mq.ics.plrg.edt.eliContainerContextMenu"
+               label="Eli"
+               path="additions">
+            <groupMarker name="additions"/>         
+         </menu>
+         <action
+               label="Reset Cache..."
+               tooltip="Reset the cache for the Eli project of the selected folder or project."
+               class="au.edu.mq.ics.plrg.odin.ResetCacheAction"
+               menubarPath="au.edu.mq.ics.plrg.edt.eliContainerContextMenu/additions"
+               id="au.edu.mq.ics.plrg.edt.resetContainerContextAction"/>
+      </objectContribution>
+   </extension>
+   <extension
+         id="eliproblemmarker"
+         name="Eli Problem"
+         point="org.eclipse.core.resources.markers">
+      <super type="org.eclipse.core.resources.problemmarker"/>
+      <super type="org.eclipse.core.resources.textmarker"/>
+      <persistent value="true"/>
+   </extension>
+   <extension
+         point="org.eclipse.ui.editors">
+      <editor
+            class="org.eclipse.ui.editors.text.TextEditor"
+            default="true"
+            name="Default Eli Text Editor"
+            contributorClass="org.eclipse.ui.editors.text.TextEditorActionContributor"
+            id="au.edu.mq.ics.plrg.edt.textEditor"
+            icon="gifs/file_obj.gif"
+            extensions="clp,con,ctl,delit,eta,finl,fw,gla,gnrc,head,liga,map,oil,pdl,phi,ptg,specs,str,sym"/>
+   </extension>
+   <extension
+         point="org.eclipse.debug.core.launchConfigurationTypes">
+      <launchConfigurationType
+            delegate="au.edu.mq.ics.plrg.odin.DerivationLaunchConfigurationDelegate"
+            id="au.edu.mq.ics.plrg.edt.derivationLaunchConfigurationType"
+            modes="run"
+            name="Eli Derivation"/>
+   </extension>
+   <extension
+         point="org.eclipse.debug.ui.launchConfigurationTypeImages">
+      <launchConfigurationTypeImage
+            icon="gifs/derive.gif"
+            configTypeID="au.edu.mq.ics.plrg.edt.derivationLaunchConfigurationType"
+            id="au.edu.mq.ics.plrg.edt.derivationLaunchConfigurationTypeImage"/>
+   </extension>
+   <extension
+         point="org.eclipse.debug.ui.launchConfigurationTabGroups">
+      <launchConfigurationTabGroup
+            type="au.edu.mq.ics.plrg.edt.derivationLaunchConfigurationType"
+            class="au.edu.mq.ics.plrg.odin.DerivationLaunchTabGroup"
+            description="Run an Eli derivation"
+            id="au.edu.mq.ics.plrg.edt.derivationLaunchTabGroup"/>
+   </extension>
+   <extension
+         point="org.eclipse.ui.console.consolePageParticipants">
+      <consolePageParticipant
+            class="au.edu.mq.ics.plrg.eli.EliConsolePageParticipant"
+            id="au.edu.mq.ics.plrg.edt.eliConsoleParticipant">
+         <enablement>
+            <test property="org.eclipse.ui.console.consoleTypeTest" value="eliConsole"/>
+         </enablement>
+      </consolePageParticipant>
+   </extension>
+</plugin>

@@ -1,0 +1,36 @@
+A specification for an analyzer for Pascal.
+The contents of this directory are:
+
+Structure.fw	Specification of abstract syntax tree construction
+Name.fw		Specification of name analysis
+Type.fw		Specification of type
+Context.fw	Specification of context condition verification
+
+wrapper.tex	Files needed for creating a printed specification
+title.tex
+
+Odinfile	Commands that build some useful products
+
+To use the analyzer specified in this directory as a component of a
+complete compiler, put the following line into the .specs file for that
+compiler:
+
+Pascal%Pascal.specs
+
+This assumes that the directory containing this README is named "Pascal"
+and is a subdirectory of the directory in which the .specs file resides.
+If that is not the case, replace "Pascal" in the line with an appropriate
+path.
+
+You can request any of the following products by invoking "eli" with the
+name of the product as its argument (e.g. "eli pascal"):
+
+pascal		Executable version of the complete analyzer
+
+Pascal.pdf	PDF version of the complete specification
+
+File wrapper.tex contains directives for setting layout parameters for
+either US Letter or A4 format.  Before generating a formatted version of
+the document, verify that wrapper.tex specifies the appropriate paper.
+
+$Id: README,v 1.1.1.1 2008/09/04 16:52:42 profw Exp $

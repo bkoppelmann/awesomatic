@@ -1,0 +1,5 @@
+begin comment $Id: 3.4.5-7.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+Not is a Boolean operation;
+
+  Boolean x; x := not 0;
+end

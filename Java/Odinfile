@@ -1,0 +1,33 @@
+# $Id: Odinfile,v 1.6 2002/03/30 16:30:11 waite Exp $
+# Derive a Java processor
+
+%current == Java.specs +debug +monitor +cc=gcc
+%tests   == tests
+
+javac == Java.specs :exe
+java.ps == TexJava.fw :fwTex :ps
+java.html == HtmlJava.fw :fwHtml
+
+filestorage.ps == TexFileStorage.fw :fwTex :ps
+filestorage.html == HtmlFileStorage.fw :fwHtml
+
+class.ps == TexClass.fw :fwTex :ps
+class.html == HtmlClass.fw :fwHtml
+
+%try ! == . +cmd=(try.specs :exe) (input) :run
+
+%source == Java.specs :source
+
+%lint ! == <<
+  . +cmd=(tests/try) (javac) (tests/Conform) :run
+  . +cmd=(tests/try) '-d' (javac) (tests/Deviate) :run
+
+%a  ! == %current :absyntax
+%c  ! == %current :consyntax
+%d  ! == %current :gdb
+%g  ! == %current :gencode :viewlist
+%h  ! == %current :exe :help
+%m  ! == %current +arg=(input) :mon
+%p  ! == %current :parsable
+%r  ! == .+cmd=(%current:exe)     (input) :run
+%t  ! == .+cmd=(%current:exe)  -t (input) :run

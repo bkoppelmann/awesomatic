@@ -1,0 +1,5 @@
+begin comment $Id: 3.4.3-1.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+Verify the Boolean expression of a conditional expression;
+
+integer x; x := if x then 0 else 1;
+end

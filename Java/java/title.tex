@@ -1,0 +1,65 @@
+\title{An Analyzer for Java}
+\author{W. M. Waite \\ W. E. Munsil}
+\maketitle
+
+The purpose of this specification is to verify that the type analysis
+modules of Eli 4.5 are useful for describing a modern object-oriented
+language.
+It implements the typing rules of Java 1.4, and accepts the entire
+language.
+Many programming errors that do not involve type analysis are not reported,
+due to a lack of time and the particular goal of the project.
+
+Complete name analysis for Java 1.4 requires a fixpoint algorithm for
+resolving type inheritance, and this specification does not include that
+algorithm.
+As a result, some correct programs will be rejected with reports of
+improper inheritance or undefined identifiers.
+This deficiency is not relevant for the type analysis demonstration.
+
+Chapter \ref{chap:lexical} defines the building blocks of Java text, and
+Chapter \ref{chap:syntax} defines the programs that can be built from them.
+Together, these definitions provide the \emph{phrase structure} of a Java
+program.
+
+Generally speaking, the phrase structure of a program is not a convenient
+representation for analysis.
+Chapter \ref{chap:tree} defines the \emph{abstract syntax tree} (AST),
+a data structure that reflects the semantics of a Java program.
+Eli deduces most of the transformations required to obtain the AST from the
+phrase structure, but requires additional specification for some aspects
+(Section \ref{sec:mapping}).
+
+The computations specified in Chapters \ref{name} and \ref{type}
+decorate the nodes of the AST with information about
+the binding of identifiers and the type of expressions, respectively.
+Chapter \ref{context} uses these decorations to report semantic errors.
+
+We assume that Java packages are stored in a file system, and
+Appendix \ref{file} defines how those packages are accessed.
+All classes needed for a compilation are assumed to be available as source
+text, and are added to the original text as individual compilation units.
+The entire assemblage is then processed as a unit.
+
+Appendix \ref{chap:debug} provides some additional information to aid in
+interpreting definition table keys when examining attributes with Noosa.
+
+The first version of this specification was developed in 1996 to test
+whether Eli could deal with multiple-file input based on partial analysis
+of the text.
+That was successful, although the present specification uses a less
+fine-grained mechanism.
+
+In 1998 the specification was extended to the full Java 1.0 language and
+used to implement some extensions for a Ph.D. thesis (Munsil, Wesley E.
+``Intensive Inheritance with Applications to Java'', Department of Computer
+Science, University of Colorado at Colorado Springs, 1998).
+
+The Java 1.0 specification was enhanced to accept programs written in Java
+1.4 in 2008.
+All of the type analysis computations were rewritten to use Eli 4.5's type
+analysis modules, and Java Names were disambiguated in the abstract syntax
+tree by using a tree parser.
+
+Eli 4.5 can generate an executable analyzer from the
+specifications used to derive this document.

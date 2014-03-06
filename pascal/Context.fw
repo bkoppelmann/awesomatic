@@ -1,0 +1,99 @@
+@p typesetter = latex2html
+
+@A@<Enforcing Constraints@>
+\label{sec:context}
+
+ANSI/IEEE 770X3.97-1983 specifies a number of @/constraints@/ upon the
+constructs of the language.
+If a program violates any of these constraints, it is illegal and an error
+report should be provided to the author.
+This section specifies tree computations that check for violation of the
+following constraints, and issue messages:
+
+@O@<Context.lido@>==@{@-
+@<Pascal Section 6.2.2.1@>
+@<Pascal Section 6.2.2.7@>
+@}
+
+Most error reporting requires the Eli string concatenation module to
+construct error reports containing variable information;
+other modules will be instantiated later in this section as needed:
+
+@O@<Context.specs@>==@{@-
+$/Tech/Strings.specs
+@<Instantiate appropriate modules@>
+@}
+
+@B
+
+Each identifier or label contained by the program-block shall have a
+defining-point.
+This context condition is checked by a module computation that is
+implemented by the @{ChkIdUse@} role:
+
+@$@<Pascal Section 6.2.2.1@>+=@{@-
+TREE SYMBOL LblIdUse INHERITS ChkIdUse END;
+TREE SYMBOL ConIdUse INHERITS ChkIdUse END;
+TREE SYMBOL TypIdUse INHERITS ChkIdUse END;
+TREE SYMBOL PrcIdUse INHERITS ChkIdUse END;
+TREE SYMBOL FncIdUse INHERITS ChkIdUse END;
+TREE SYMBOL ExpIdUse INHERITS ChkIdUse END;
+@}
+
+@B
+
+When an identifier or label has a defining point for a region, another
+identifier or label with the same spelling can't have a defining point for
+that region.
+
+@$@<Pascal Section 6.2.2.7@>+=@{@-
+SYMBOL MultDefChk INHERITS Unique COMPUTE
+  IF(NOT(THIS.Unique),
+    message(
+      ERROR,
+      CatStrInd("Multiply defined identifier ",THIS.Sym),
+      0,
+      COORDREF));
+END;
+
+TREE SYMBOL LblIdDef INHERITS MultDefChk END;
+TREE SYMBOL ConIdDef INHERITS MultDefChk END;
+TREE SYMBOL TypIdDef INHERITS MultDefChk END;
+TREE SYMBOL TagIdDef INHERITS MultDefChk END;
+TREE SYMBOL VblIdDef INHERITS MultDefChk END;
+TREE SYMBOL FmlIdDef INHERITS MultDefChk END;
+@}
+
+@{MultDefChk@} requires the Eli @{Unique@} module.
+
+@$@<Instantiate appropriate modules@>+=@{@-
+$/Prop/Unique.gnrc :inst
+@}
+
+Function and procedure identifiers present a problem because of the
+@{forward@} directive.
+FIXME
+For the moment, no messages will be issued for multiply-defined procedures
+or functions.
+
+@$@<Pascal Section 6.2.2.7@>+=@{@-
+TREE SYMBOL PrcIdDef INHERITS IdentOcc, IdDefScope END;
+TREE SYMBOL FncIdDef INHERITS IdentOcc, IdDefScope END;
+@}
+Program parameters have similar characteristics, except that they must have
+defining occurrences a variables in the @{program@}.
+The required identifiers @{input@} and @{output@} are exceptions to this
+rule --- their appearance in @{PgmPars@} constitutes their defining
+occurrence.
+FIXME
+That subtlety is not reflected in this specification.
+
+FIXME
+This rather simplistic solution doesn't worry about multiple @{forward@}
+or non-@{forward@} declarations for the same routine.
+Strictly speaking, @{input@} and @{output@} should not be included in this
+list, since they are variables.
+A variable requires storage, and hence must have a defining point within
+the program.
+Defining them here means that there will be no error report if these
+identifiers are defined explicitly in the program block.

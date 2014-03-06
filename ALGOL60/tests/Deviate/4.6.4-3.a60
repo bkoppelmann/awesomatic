@@ -1,0 +1,5 @@
+begin comment $Id: 4.6.4-3.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+Verify the type of a while expression;
+
+integer x; for x := x + 1 while 1 do ;
+end

@@ -1,0 +1,21 @@
+begin 
+  integer x;
+  integer y;
+  x:=y:=2;
+
+S:
+
+  begin
+    x:=0;
+    for y:=1 step 1 until 10 do
+        x:=x+1;
+    if x > 3 then 
+       go to STOP
+    else
+      if x > 2 then
+        go to S;
+  end;
+
+STOP:
+
+end

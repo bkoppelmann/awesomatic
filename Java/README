@@ -1,0 +1,48 @@
+Eli specifications for Java.  The contents of this directory are:
+
+Java.fw			The Java specification
+
+HtmlJava.fw		Wrapper for the specification in HTML
+TexJava.fw		Wrapper for the specification in PostScript
+abstract.fw		Abstract for the printed specification
+
+CheckNames.specs	Processor printing the result of name analysis
+CheckNames.fw		Computations that print names
+
+tests			A collection of Java test programs
+
+Odinfile		Commands that build some useful products
+
+You can request any of the following products by invoking "eli" with the
+name of the product as its argument (e.g. "eli javac"):
+
+javac		Executable processor for Java
+
+%source		All files, including a Makefile, needed to implement the
+		Java processor independent of Eli.  This product should
+		be redirected to a directory (e.g. "eli '%source>src'").
+
+java.html	Formatted specification with hyperlinks
+java.ps		Formatted specification for printing
+
+%lint		Build a Java processor and test it by applying it to all
+		of the Java programs in the test suite.  The executable
+		version of the processor will be left as file "javac" in
+		this directory.
+
+		These tests will all produce nothing if they are successful.
+		If the generated processor detects errors when attempting to
+		compile any conforming program, or fails to detect errors in
+		any deviating program, the test will stop at that point.
+		The test program for which the errors were reported will be
+		copied to file "input" in this directory, and the error
+		reports will be written to file "ERR" in this directory.
+
+%names		Build a Java processor containing additional code to print
+		information about the binding of simple names.  Java text
+		will be read from file "input" in this directory, and the
+		result will be presented as an info browser session.  No
+		executable version of the test processor will be placed in
+		this directory.
+
+$Id: README,v 1.2 1998/01/30 00:58:47 kadhim Exp $

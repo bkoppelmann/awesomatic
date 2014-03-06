@@ -1,0 +1,66 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Add Debug Data@>
+\label{debug}
+
+@O@<Debug.specs@>==@{@-
+$/Tech/Strings.specs
+@}
+
+@O@<Debug.pdl@>==@{@-
+Name: CharPtr;	"Strings.h"
+
+CanonicalSet: DefTableKey;
+ElementType: DefTableKey;
+
+intType   -> Name={"integer"};
+realType  -> Name={"real"};
+boolType  -> Name={"boolean"};
+charType  -> Name={"char"};
+stringType -> Name={"string"};
+textType  -> Name={"textfile"};
+
+intsetType -> Name={"set of integer"};
+boolsetType -> Name={"set of boolean"};
+charsetType -> Name={"set of char"};
+
+eofType -> Name={"eof function"};
+resetType -> Name={"reset function"};
+@}
+
+@O@<Debug.lido@>==@{@-
+RULE: TypeDenoter ::= '(' Enumerate ')' COMPUTE
+  ResetName(TypeDenoter.Type,"enumeration");
+  ResetName(.CanonicalSet,"set of enumeration");
+END;
+
+RULE: TypeDenoter ::=  constant '..' constant COMPUTE
+  ResetName(FinalType(TypeDenoter.Type),"subrange");
+  ResetElementType(FinalType(TypeDenoter.Type),FinalType(constant[1].Type));
+END;
+
+RULE: TypeDenoter ::=  'array' '[' type ']' 'of' type COMPUTE
+  ResetName(TypeDenoter.Type,"array");
+  ResetElementType(TypeDenoter.Type,type[2].Type);
+END;
+
+RULE: Record ::=  'record' Fields 'end' COMPUTE
+  ResetName(.Type,"record");
+END;
+
+RULE: TypeDenoter ::= 'set' 'of' type COMPUTE
+  ResetName(TypeDenoter.Type,"set");
+  ResetElementType(FinalType(TypeDenoter.Type),FinalType(type.Type));
+END;
+
+RULE: TypeDenoter ::= 'file' 'of' type COMPUTE
+  ResetName(TypeDenoter.Type,"file");
+  ResetElementType(FinalType(TypeDenoter.Type),FinalType(type.Type));
+END;
+
+RULE: TypeDenoter ::=  '^' type COMPUTE
+  ResetName(TypeDenoter.Type,"pointer");
+  ResetElementType(FinalType(TypeDenoter.Type),FinalType(type.Type));
+END;
+@}

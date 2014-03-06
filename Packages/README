@@ -1,0 +1,35 @@
+These instructions are guidelines for package developers wishing to
+release a new version of package "PKG".  They assume that all of the
+desired changes have been checked in, and that you are in the "Packages
+working directory.  Note that the tag "PKG_1_2_3" and name "PKG-1.2.3"
+should be changed to reflect the particular package and the version
+being released.
+
+1. Update the version number and tag the repository:
+
+	cd PKGDist
+        <edit PKG/version to bump the number>
+        cvs ci PKG/version
+	cvs tag PKG_1_2_3
+	cd ..
+
+2. Export a copy of the package and create the tar file:
+
+	cvs export -r PKG_1_1_3 -d PKG-1.2.3 Packages/PKGDist
+	tar -jcf PKG-1.2.3.tar.bz2 PKG-1.2.3
+
+3. Follow the current directions for installing PKG-1.2.3.tar.bz2
+   on SourceForge:  Log onto SourceForge and go to the bottom of the
+   screen.  Under "Help", click on the "Site Documentation" link.
+   The relevant document is "Release Files for Download", under
+   "Hosting with SourceForge.net" in the second bullet ("Downloads
+   and metrics").  Create the package "PKG" if necessary; this is
+   where you want to upload the tar file of the distribution.
+
+4. Remove the file and directory created during this process:
+
+	rm -rf PKG-1.2.3*
+
+If the update contains significant new functionality, send an announcement
+to compilers@iecc.com.  Your e-mail should be pure ASCII, not HTML.  For
+further information, see http://compilers.iecc.com/faq.txt.

@@ -1,0 +1,9 @@
+/* $Id: type.specs,v 1.2 1992/07/11 20:57:55 kadhim Exp $ */
+/* Specifications for PDL type analysis */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+type.pdl	/* Properties for type analysis */
+type.lido	/* Data flow properties of type analysis */
+type.c		/* Type analysis computation module */
+type.h		/* Exported definitions for computation module */
+type.head	/* Inclusion of exported definitions in global header */

@@ -1,0 +1,25 @@
+This document defines the grammars used by X3.9-1978 (FORTRAN 77) and
+ISO/IEC 1539 (FORTRAN 90).
+It is a part of an Eli specification from which scanner/parsers for
+FORTRAN 77 and FORTRAN 90 can be generated.
+Generation of the parser is controlled by a FunnelWeb macro.
+The following selects the code for FORTRAN 77 analysis
+(@{0@} selects the code for FORTRAN 90 analysis):
+
+@$@<Fortran77@>@M@{1@}
+
+Some symbols of the FORTRAN 77 grammar have been changed to their FORTRAN 90
+counterparts, and changes necessary to remove ambiguity have been made.
+Cross references to both the FORTRAN 77 and FORTRAN 90 standards are
+included.
+
+Additional rules specific to FORTRAN 90 can be found in a separate document.
+
+This specification was created originally in January of 1987 by W. M. Waite
+and J. Hoffmann.
+Further development in the fall of 1989 by R. Jakob made it a basis for an
+analyzer for the ``Force'' extension of FORTRAN.
+Both of these versions only handled ``nice looking'' FORTRAN programs,
+because of weakness in the lexical analyzer.
+These restrictions were removed in the summer of 1993 by W. M. Waite,
+while he was a visiting researcher at the GMD in Berlin.

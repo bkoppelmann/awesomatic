@@ -1,0 +1,47 @@
+This plugin contains documentation for the Eli language
+processor generation system.
+
+To update the documentation in this plugin to the latest version:
+
+1. Obtain the latest version of the elionline documentation.  This
+will normally come as a TAR gzip archive.  We assume that it is
+elionline4.4.tgz in the following.
+
+2. Unpack the documentation in the plugin directory.
+
+% tar xvzf elionline4.4.tgz
+
+4. Rename the "elionline4.4" sub-directory to "html".
+
+% mv elionline4.4 html
+
+5. Run the script rmtables.  This will remove the side-bar in the
+documentation that contains the list of documents.  This is no longer
+needed since the Eclipse help browser will have an outline of the
+documents in its table of contents.
+
+% rmtables
+
+6. Edit the section introductions in the intros/ directory.  These
+   introductions serve to describe the main sections in the
+   documentation.  They are needed because the regular Eli
+   documentation doesn't have them and we get blank pages when the
+   documentation sections are clicked on in the Eclipse help.
+
+7. When you are happy with the section introductions, copy all of
+   them to the html directory.
+
+% cp intros/*.html html
+
+8. Remove the old documentation and tables of contents (but not main_toc.xml).
+
+% rm doc.zip gen_toc.xml lib_toc.xml ref_toc.xml tasks_toc.xml tools_toc.xml tute_toc.xml
+
+9. Run the script builddocs which will create the new tables of
+contents files.
+
+% buildtocs
+
+10. Zip the html directory into doc.zip.
+
+zip -r doc.zip html

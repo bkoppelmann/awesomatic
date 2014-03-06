@@ -1,0 +1,29 @@
+Specifications for FORTRAN 77 and FORTRAN 90 processors.  The contents of
+this directory are:
+
+Phrase		Directory containing specifications for the phrase
+		structures of FORTRAN 77 and FORTRAN 90.  See the README
+		file in that directory for more detail.
+
+Semantic	Directory containing specifications for the context
+		conditions of FORTRAN 77.  See the README file in that
+		directory for more detail.
+
+Odinfile	Commands that build some useful products
+
+You can request any of the following products by invoking "eli" with the
+name of the product as its argument (e.g. "eli f77.exe"):
+
+f77.exe		Executable "lint" program for FORTRAN 77
+
+f90.exe		Executable scanner/parser for FORTRAN 90
+
+The following products should be redirected to a directory (e.g. "eli
+'%f77.src>src'").  They consist of all files, including a Makefile, needed
+to implement the corresponding processor:
+
+%f77.src	Source of a "lint" program for FORTRAN 77
+
+%f90.src	Source of a scanner/parser for FORTRAN 90
+
+$Id: README,v 1.5 1998/01/01 00:54:55 waite Exp $

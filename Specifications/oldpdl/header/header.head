@@ -1,0 +1,5 @@
+/* $Id: header.head,v 1.1 1992/06/20 19:20:47 kadhim Exp $ */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+#include "header.h"
+

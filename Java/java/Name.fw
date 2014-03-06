@@ -1,0 +1,872 @@
+@p typesetter = latex2html
+@p maximum_input_line_length = infinity
+
+@A@<Name Analysis@>
+\label{name}
+
+Names are used to refer to entities declared in a Java program.
+A declared entity is a package, class type, interface type, member (field
+or method) of a reference type, parameter (to a method, constructor, or
+exception handler), or local variable.
+
+Every name introduced by a declaration has a @/scope@/, which is the part
+of the Java program text within which the declared entity can be referred
+to by a simple name.
+
+This specification implements the scope rules of Java.
+It uses a number of Eli modules specifying computational roles that are
+useful in name analysis.
+
+@O@<Name.specs@>==@{@-
+@<Instantiate required modules@>
+@}
+
+A precondition for using any of Eli's name analysis modules is that every
+identifier occurrence have a @{Sym@} attribute:
+
+@O@<Name.lido@>==@{@-
+CLASS SYMBOL IdentOcc COMPUTE SYNT.Sym=TERM; END;
+
+@<Packages@>
+@<Scopes@>
+@<Applied occurrences of names@>
+@<Labeled Statements@>
+@}
+
+The same identifier can be used in a specific context to denote a package,
+a type, a method, or a field.
+Although a local variable name can hide a field name, local variables and
+fields obey different scope rules.
+Thus each of the five kinds of entities has its own name space,
+implemented by an instantiation of an Eli name analysis module.
+All of the computational roles of a specific module instance are qualified
+by the instance name.
+
+@$@<Instantiate required modules@>+=@{
+$/Name/AlgScope.gnrc +instance=Typ +referto=Typ :inst
+$/Name/AlgInh.gnrc   +instance=Typ +referto=Typ :inst
+$/Name/ScopeProp.gnrc+instance=Typ +referto=Typ :inst
+
+$/Name/AlgScope.gnrc +instance=Fld +referto=Fld :inst
+$/Name/AlgInh.gnrc   +instance=Fld +referto=Fld :inst
+$/Name/ScopeProp.gnrc+instance=Fld +referto=Fld :inst
+
+$/Name/AlgScope.gnrc +instance=Mth +referto=Mth :inst
+$/Name/AlgInh.gnrc   +instance=Mth +referto=Mth :inst
+$/Name/ScopeProp.gnrc+instance=Mth +referto=Mth :inst
+
+$/Name/CScope.gnrc   +instance=Var +referto=Var :inst
+@}
+
+@B
+
+A package consists of a number of compilation units.
+A compilation unit automatically has access to all types declared in its
+package.
+To model this behavior, we associate a definition table key with each
+package, and make that key available in each compilation unit via the
+compilation unit's @{PackageDeclarationOpt@} child:
+
+@$@<Packages@>+=@{@-
+TREE SYMBOL PackageDeclarationOpt: PkgKey: DefTableKey;
+
+TREE SYMBOL PackageName INHERITS PkgIdDefScope END;
+
+RULE: PackageDeclarationOpt ::= 'package' PackageName ';' COMPUTE
+  PackageDeclarationOpt.PkgKey=PackageName.PkgKey;
+END;
+@}
+
+A compilation unit that has no package declaration is part of an unnamed
+package.
+We have chosen to support an arbitrary number of unnamed packages, each
+containing a single compilation unit:
+
+@$@<Packages@>+=@{@-
+RULE: PackageDeclarationOpt ::= COMPUTE
+  PackageDeclarationOpt.PkgKey=NewKey();
+END;
+@}
+
+@$@<Instantiate required modules@>+=@{
+$/Name/AlgScope.gnrc +instance=Pkg +referto=Pkg :inst
+@}
+
+The members of a package are class and interface types, which are declared
+in compilation units of the package.
+We model this behavior by the @{Pty@} name space.
+
+@$@<Instantiate required modules@>+=@{
+$/Name/AlgScope.gnrc +instance=Pty +referto=Pty :inst
+@}
+
+All of the declarations of package members are children of the
+@{TypeDeclarationsOpt@} child of a compilation unit.
+The @{Pty@} name space must, however, define the full set of type scopes to
+hide lower-level definitions:
+
+@$@<Packages@>+=@{@-
+TREE SYMBOL TypeDeclarationsOpt  INHERITS PtyRangeScope END;
+TREE SYMBOL ClassBody            INHERITS PtyRangeScope END;
+TREE SYMBOL InterfaceBody        INHERITS PtyRangeScope END;
+TREE SYMBOL MethodDeclaration    INHERITS PtyRangeScope END;
+TREE SYMBOL Block                INHERITS PtyRangeScope END;
+TREE SYMBOL SwitchBlockStatement INHERITS PtyRangeScope END;
+
+TREE SYMBOL TypeIdDef            INHERITS PtyIdDefScope END;
+@}
+
+A single environment is used for all compilation units in a single package.
+The package key is used to retrieve that environment:
+
+@$@<Packages@>+=@{@-
+RULE: CompilationUnit ::=
+        PackageDeclarationOpt
+        ImportJavaLang ImportDeclarationsOpt TypeDeclarationsOpt
+COMPUTE
+  TypeDeclarationsOpt.PtyEnv=
+    PackagePtyScope(PackageDeclarationOpt.PkgKey,INCLUDING Goal.PtyEnv);
+END;
+@}
+
+@{PackagePtyScope@} obtains the package's environment from the definition
+table, if it exists.
+Otherwise, it returns a new environment and stores that environment as the
+package's environment:
+
+@O@<Name.pdl@>==@{
+PtyScope: Environment [Package];	"envmod.h"
+
+Environment Package(DefTableKey key, Environment env)
+{ if (key == NoKey) return NoEnv;
+  if (!ACCESS) VALUE = NewScope(env);
+  return VALUE;
+}
+@}
+
+@B@<Scope of a simple name@>
+
+The @/scope@/ of a declaration is the region of the program within which
+the entity declared by the declaration can be referred to using a simple
+name.
+
+@C@<Imported types@>
+\label{sec:imports}
+
+@/FIXME@/:
+This is actually an incorrect rendition of the import policy.
+A @{SingleTypeImportDeclaration@} should act precisely like the declaration
+of a class or interface in this compilation unit.
+In order to implement that, however, the compilation unit would have to be
+a range sequence, with the range elements being the
+@{SingleTypeImportDeclaration@}s and the @{TypeDeclarationsOpt@}.
+I'm not certain whether it is possible for a single symbol to inherit
+@/both@/ @{RangeSequence@} and @{RangeMulInh@}, and I don't want to get
+distracted by that issue (which is irrelevant for type analysis).
+
+The scope of a type imported by a single-type-import declaration or
+type-import-on-demand declaration is all of the class and interface type
+declarations in the compilation unit in which the import declaration
+appears.
+
+@$@<Scopes@>+=@{
+TREE SYMBOL CompilationUnit INHERITS TypExportRange COMPUTE
+  SYNT.TypScopeKey=NoKey;
+END;
+
+RULE: CompilationUnit ::=
+        PackageDeclarationOpt
+        ImportJavaLang ImportDeclarationsOpt TypeDeclarationsOpt
+COMPUTE
+  CompilationUnit.TypGotLocKeys=
+    ImportJavaLang.TypGotLocKeys
+    <- ImportDeclarationsOpt CONSTITUENTS (
+      TypeImportOnDemandDeclaration.TypGotLocKeys,
+      SingleTypeImportDeclaration.TypGotLocKeys);
+END;
+
+TREE SYMBOL ImportJavaLang INHERITS PkgIdUseEnv END;
+
+RULE: ImportJavaLang ::= COMPUTE
+  ImportJavaLang.Sym=MakeName("java.lang");
+  ImportJavaLang.TypGotLocKeys=
+    AddPackage(
+      GetPtyScope(ImportJavaLang.PkgKey,NoEnv),
+      INCLUDING CompilationUnit.TypEnv);
+END;
+
+TREE SYMBOL QualInhName INHERITS PkgIdUseEnv END;
+
+RULE: TypeImportOnDemandDeclaration ::= 'import' QualInhName '.' '*' COMPUTE
+  TypeImportOnDemandDeclaration.TypGotLocKeys=
+    AddPackage(
+      GetPtyScope(QualInhName.PkgKey,NoEnv),
+      INCLUDING CompilationUnit.TypEnv);
+END;
+@}
+
+Each of the donating environments must be created from information about
+the specified packages and types.
+We must ensure that all of the members of all packages have been defined.
+Those computations are specific to the context of the donating environment:
+
+@$@<Scopes@>+=@{
+TREE SYMBOL Goal COMPUTE
+  SYNT.TypEnv = TypRootEnv <- CONSTITUENTS PtyAnyScope.PtyGotLocKeys;
+END;
+
+TREE SYMBOL TypeDeclarationsOpt INHERITS TypExportRange COMPUTE
+  INH.TypEnv=AddPackage(THIS.PtyEnv,NewScope(INCLUDING TypAnyScope.TypEnv));
+END;
+
+RULE: CompilationUnit ::=
+        PackageDeclarationOpt
+        ImportJavaLang ImportDeclarationsOpt TypeDeclarationsOpt
+COMPUTE
+  TypeDeclarationsOpt.TypScopeKey=PackageDeclarationOpt.PkgKey;
+END;
+
+RULE: SingleTypeImportDeclaration ::= 'import' QualInhName COMPUTE
+  SingleTypeImportDeclaration.TypGotLocKeys=
+    BindKeyInScope(
+      INCLUDING CompilationUnit.TypEnv,
+      HeadintList(QualInhName.Ids),
+      KeyInScope(TypRootEnv, QualInhName.Sym));
+END;
+@}
+
+FIXME: If the identifier is already bound in the environment,
+@{BindKeyInScope@} returns @{NoBinding@} and does not re-bind the
+identifier.
+Depending on the particular environment used, that condition might indicate
+a multiple definition error that should be reported.
+
+FIXME: Depending on the situation, we might want to check modifiers of the
+type being bound.
+
+@$@<Environment AddPackage(Environment pkg, Environment env)@>==@{@-
+/* Add the types in a package to an environment
+ *   On entry-
+ *     pkg=environment of the package
+ *     env=environment to which types are to be added
+ *   On exit-
+ *     All visible types of package sym have been added to env
+ ***/
+{ Binding bind;
+
+  for (bind = DefinitionsOf(pkg);
+       bind != NoBinding;
+       bind = NextDefinition(bind)) {
+    BindKeyInScope(env, IdnOf(bind), KeyOf(bind));
+  }
+
+  return env;
+}
+@}
+
+@C@<Class and interface declarations@>
+
+The scope of a type introduced by a class type declaration or interface
+type declaration is the declarations of all class and interface types in
+all the compilation units of the package in which it is declared.
+Class and interface declarations are children of the @{TypeDeclarationsOpt@}
+child of the @{CompilationUnit@} node.
+Thus each @{TypeDeclarationsOpt@} node provides the appropriate scope for
+these declarations.
+
+@{TypIdDefScope@} computations normally create a new definition table key
+to be bound to the identifier.
+In this case, however, we want to bind the key for the fully-qualified type
+identifier to the simple type name being defined.
+Therefore we need to override the normal binding computation:
+
+@$@<Scopes@>+=@{
+ATTR IsLocalClass: int;
+
+TREE SYMBOL Goal COMPUTE SYNT.IsLocalClass=0; END;
+
+CLASS SYMBOL LocalTypeRange INHERITS TypExportRange COMPUTE
+  SYNT.TypScopeKey=NoKey;
+  SYNT.IsLocalClass=1;
+END;
+
+TREE SYMBOL MethodDeclaration    INHERITS LocalTypeRange END;
+TREE SYMBOL Block                INHERITS LocalTypeRange END;
+TREE SYMBOL SwitchBlockStatement INHERITS LocalTypeRange END;
+
+TREE SYMBOL TypeIdDef INHERITS IdentOcc, TypIdDefScope, MultDefChk END;
+
+RULE: TypeDeclaration ::=
+        Modifiers 'class' TypeIdDef Super Interfaces ClassBody  COMPUTE
+  TypeDeclaration.Ids=
+    ConsintList(TypeIdDef.Sym,INCLUDING CompilationUnit.Ids);
+END;
+
+RULE: TypeDeclaration ::=
+        Modifiers 'interface' TypeIdDef Interfaces InterfaceBody COMPUTE
+  TypeDeclaration.Ids=
+    ConsintList(TypeIdDef.Sym,INCLUDING CompilationUnit.Ids);
+END;
+
+RULE: CompilationUnit ::=
+        PackageDeclarationOpt
+        ImportJavaLang ImportDeclarationsOpt TypeDeclarationsOpt
+COMPUTE
+  CompilationUnit.Ids=PackageDeclarationOpt.Ids;
+END;
+
+RULE: PackageDeclarationOpt ::= 'package' PackageName ';' COMPUTE
+  PackageDeclarationOpt.Ids=PackageName.Ids;
+END;
+
+RULE: PackageDeclarationOpt ::= COMPUTE
+  PackageDeclarationOpt.Ids=SingleintList(0);
+END;
+@}
+
+@C@<Member declarations@>
+
+The scope of a member declared or inherited by a class type or interface
+type is the entire declaration of the class or interface type.
+A class or interface may also inherit members from other classes or
+interfaces that it extends:
+
+@$@<Scopes@>+=@{
+ATTR TypScopeKey, FldScopeKey, MthScopeKey: DefTableKey;
+ATTR TypEnv, FldEnv, MthEnv: Environment;
+
+TREE SYMBOL ClassBody     INHERITS TypeBody END;
+TREE SYMBOL InterfaceBody INHERITS TypeBody END;
+
+CLASS SYMBOL TypeBody INHERITS TypExportInhRange, FldExportInhRange,
+                               MthExportInhRange END;
+
+RULE: TypeDeclaration ::=
+        Modifiers 'class' TypeIdDef Super Interfaces ClassBody  COMPUTE
+  ClassBody.TypScopeKey=TypeDeclaration.Type;
+  ClassBody.TypGotInh=CONSTITUENTS InheritMembers.TypInheritOk;
+  TypeDeclaration.TypEnv=ClassBody.TypEnv;
+  TypeDeclaration.TypScopeKey=TypeDeclaration.Type;
+
+  ClassBody.FldScopeKey=TypeDeclaration.Type;
+  ClassBody.FldGotInh=CONSTITUENTS InheritMembers.FldInheritOk;
+  TypeDeclaration.FldEnv=ClassBody.FldEnv;
+  TypeDeclaration.FldScopeKey=TypeDeclaration.Type;
+
+  ClassBody.MthScopeKey=TypeDeclaration.Type;
+  ClassBody.MthGotInh=CONSTITUENTS InheritMembers.MthInheritOk;
+  TypeDeclaration.MthEnv=ClassBody.MthEnv;
+  TypeDeclaration.MthScopeKey=TypeDeclaration.Type;
+END;
+
+RULE: TypeDeclaration ::=
+	Modifiers 'interface' TypeIdDef Interfaces InterfaceBody COMPUTE
+  InterfaceBody.TypScopeKey=TypeDeclaration.Type;
+  InterfaceBody.TypGotInh=1;/* FIXME CONSTITUENTS
+  InheritMembers.TypInheritOk; */
+  TypeDeclaration.TypEnv=InterfaceBody.TypEnv;
+  TypeDeclaration.TypScopeKey=TypeDeclaration.Type;
+
+  InterfaceBody.FldScopeKey=TypeDeclaration.Type;
+  InterfaceBody.FldGotInh=CONSTITUENTS InheritMembers.FldInheritOk;
+  TypeDeclaration.FldEnv=InterfaceBody.FldEnv;
+  TypeDeclaration.FldScopeKey=TypeDeclaration.Type;
+
+  InterfaceBody.MthScopeKey=TypeDeclaration.Type;
+  InterfaceBody.MthGotInh=CONSTITUENTS InheritMembers.MthInheritOk;
+  TypeDeclaration.MthEnv=InterfaceBody.MthEnv;
+  TypeDeclaration.MthScopeKey=TypeDeclaration.Type;
+END;
+@}
+
+Array types have a @{length@} field that is not explicitly declared:
+
+@$@<Scopes@>+=@{@-
+TREE SYMBOL ArrayType INHERITS FldExportRange COMPUTE
+  INH.FldScopeKey=
+    ORDER(
+      ResetTypeOf(DefineIdn(THIS.FldEnv,MakeName("length")),intType),
+      THIS.Type);
+END;
+@}
+
+The inheritances for classes and interfaces can be handled in the same way:
+
+@$@<Scopes@>+=@{@-
+CLASS SYMBOL InheritMembers INHERITS FldInheritScope, MthInheritScope,
+				     TypInheritScope
+COMPUTE
+  INH.FldInnerScope=INCLUDING TypeDeclaration.FldEnv;
+  INH.MthInnerScope=INCLUDING TypeDeclaration.MthEnv;
+  INH.TypInnerScope=INCLUDING TypeDeclaration.TypEnv;
+  IF(AND(
+      NE(INCLUDING TypeDeclaration.Type,objectType),
+      OR(
+	NOT(THIS.TypInheritOk),
+        OR(NOT(THIS.FldInheritOk),NOT(THIS.MthInheritOk)))),
+    message(ERROR,"Improper inheritance",0,COORDREF));
+END;
+
+TREE SYMBOL Super INHERITS InheritMembers COMPUTE
+  SYNT.TypScopeKey=THIS.Type;
+  SYNT.FldScopeKey=THIS.Type;
+  SYNT.MthScopeKey=THIS.Type;
+END;
+
+RULE: Super ::= 'extends' InhName COMPUTE
+  Super.Type=InhName.Type;
+END;
+
+RULE: Super ::= COMPUTE
+  Super.Type=objectType;
+END;
+
+TREE SYMBOL InterfaceType INHERITS InheritMembers END;
+
+RULE: InterfaceType ::= InhName COMPUTE
+  InterfaceType.TypScopeKey=InhName.Type;
+  InterfaceType.FldScopeKey=InhName.Type;
+  InterfaceType.MthScopeKey=InhName.Type;
+  InterfaceType.Sym=InhName.Sym;
+END;
+
+@}
+
+Neither fields nor methods have fully-qualified names.
+Thus there is no need to override the module's computation of their
+bindings.
+Method identifiers can be overloaded, however, and therefore
+we don't want to report an error if one has multiple defining occurrences:
+
+@$@<Scopes@>+=@{
+TREE SYMBOL FieldIdDef  INHERITS IdentOcc, FldIdDefScope, MultDefChk END;
+TREE SYMBOL MethodIdDef INHERITS IdentOcc, MthIdDefScope             END;
+@}
+
+@C@<Anonymous classes@>
+
+@$@<Scopes@>+=@{
+TREE SYMBOL TypeIdUse INHERITS IdentOcc, TypQualIdUse END;
+
+RULE: Expression ::=
+  Expression '.' 'new' TypeIdUse '(' Arguments ')' AnonymousClass
+COMPUTE
+  TypeIdUse.TypScopeKey=Expression[2].Type;
+  TypeIdUse.Key=TypeIdUse.TypKey;
+END;
+
+SYMBOL AnonymousClass INHERITS TypRangeScope, FldRangeScope, MthRangeScope
+END;
+@}
+
+@C@<Parameter and variable declarations@>
+
+The scope of a parameter is the entire body of the method, constructor or
+exception handler in which it is declared.
+The scope of a local variable declaration in a block is the rest of the
+block in which the declaration appears, starting with its own initializer
+and including any further declarators to the right in the local variable
+declaration.
+The scope of a local variable declared in the @{ForInit@} part of a @{for@}
+statement includes its own initializer, any further declarators to the
+right in the @{ForInit@} part of the @{for@} statement, the @{Expression@}
+and @{ForUpdate@} parts of the @{for@} statement, and the contained
+@{Statement@}.
+The scope of the parameter of a @{CatchClause@} is the @{Block@} of that
+clause.
+
+@$@<Scopes@>+=@{
+TREE SYMBOL MethodDeclaration      INHERITS VarRangeScope END;
+TREE SYMBOL ConstructorDeclaration INHERITS VarRangeScope END;
+TREE SYMBOL Block                  INHERITS VarRangeScope END;
+TREE SYMBOL ForStatement           INHERITS VarRangeScope END;
+TREE SYMBOL CatchClause            INHERITS VarRangeScope END;
+@}
+
+Although a parameter actually obeys Algol scope rules rather than C scope
+rules, its declaration occurs syntactically at the beginning of the
+construct that is its scope.
+In this case, the Algol scope rules and C scope rules have the same effect.
+Therefore we can use the Eli @{CScope@} module to implement the scope rules
+for parameters.
+This simplifies the analysis of applied occurrences, because parameters and
+local variables are disambiguated in the same way.
+
+@B
+
+Applied occurrences of names are classified according to their syntactic
+context.
+Each may be a single identifier (a @/simple name@/) or a sequence of two
+or more identifiers, separated by dots (a @/qualified name@/).
+
+@$@<Applied occurrences of names@>+=@{@-
+@<Type names@>
+@<Expression names@>
+@<Method names@>
+@<Ambiguous names@>
+@<Qualified names@>
+@}
+
+@C
+
+@$@<Type names@>+=@{@-
+RULE: TypeName ::= Name $pTypeName COMPUTE
+  TypeName.Key=pTypeName.Key;
+END;
+
+TREE SYMBOL sTypeIdUse    INHERITS TypIdUseEnv,  IdentOcc END;
+TREE SYMBOL qTypeIdUse    INHERITS TypQualIdUse, IdentOcc END;
+TREE SYMBOL pPkgOrTypName INHERITS PkgIdUseEnv COMPUTE
+  SYNT.Sym=FullyQualifiedName(THIS.Ids);
+END;
+TREE SYMBOL pTypeName COMPUTE
+  SYNT.Sym=FullyQualifiedName(THIS.Ids);
+END;
+
+RULE: pTypeName ::= sTypeIdUse COMPUTE
+  pTypeName.Ids=SingleintList(sTypeIdUse.Sym);
+  pTypeName.Key=sTypeIdUse.TypKey;
+END;
+
+RULE: pTypeName ::= pPkgOrTypName qTypeIdUse COMPUTE
+  pTypeName.Ids=ConsintList(qTypeIdUse.Sym,pPkgOrTypName.Ids);
+  pTypeName.Key=qTypeIdUse.TypKey;
+  qTypeIdUse.TypScopeKey=TransDefer(pPkgOrTypName.TypScopeKey);
+END;
+
+RULE: pPkgOrTypName ::= sTypeIdUse COMPUTE
+  pPkgOrTypName.Ids=SingleintList(sTypeIdUse.Sym);
+  pPkgOrTypName.TypScopeKey=
+    IF(NE(sTypeIdUse.TypKey,NoKey),TransDefer(sTypeIdUse.TypKey),
+    pPkgOrTypName.PkgKey);
+END;
+
+RULE: pPkgOrTypName ::= pPkgOrTypName qTypeIdUse COMPUTE
+  pPkgOrTypName[1].Ids=ConsintList(qTypeIdUse.Sym,pPkgOrTypName[2].Ids);
+  pPkgOrTypName[1].TypScopeKey=
+    IF(NE(qTypeIdUse.TypKey,NoKey),TransDefer(qTypeIdUse.TypKey),
+    pPkgOrTypName[1].PkgKey);
+  qTypeIdUse.TypScopeKey=pPkgOrTypName[2].TypScopeKey;
+END;
+@}
+
+@C
+
+@$@<Expression names@>+=@{@-
+RULE: Expression ::= Name $pExpressionName COMPUTE
+END;
+
+TREE SYMBOL sExprIdUse    INHERITS VarIdUseEnv,  FldIdUseEnv,  IdentOcc END;
+TREE SYMBOL qExprIdUse    INHERITS               FldQualIdUse, IdentOcc END;
+TREE SYMBOL pExpressionName COMPUTE
+  SYNT.Sym=FullyQualifiedName(THIS.Ids);
+END;
+
+RULE: pExpressionName ::= COMPUTE
+  pExpressionName.Ids=SingleintList(NoStrIndex);
+  pExpressionName.Key=NoKey;
+END;
+
+RULE: pExpressionName ::= sExprIdUse COMPUTE
+  pExpressionName.Ids=SingleintList(sExprIdUse.Sym);
+  pExpressionName.Key=
+    IF(NE(sExprIdUse.VarKey,NoKey),sExprIdUse.VarKey,
+    IF(NE(sExprIdUse.FldKey,NoKey),sExprIdUse.FldKey,
+    NoKey));
+END;
+
+RULE: pExpressionName ::= pAmbiguousName qExprIdUse COMPUTE
+  pExpressionName.Ids=ConsintList(qExprIdUse.Sym,pAmbiguousName.Ids);
+  pExpressionName.Key=qExprIdUse.FldKey;
+  qExprIdUse.FldScopeKey=pAmbiguousName.TypScopeKey;
+END;
+@}
+
+@C
+
+@$@<Method names@>==@{@-
+RULE: MethodName ::= Name $pMethodName COMPUTE
+  MethodName.Key=pMethodName.Key;
+END;
+
+TREE SYMBOL sMethIdUse    INHERITS MthIdUseEnv,  IdentOcc END;
+TREE SYMBOL qMethIdUse    INHERITS MthQualIdUse, IdentOcc END;
+TREE SYMBOL pMethodName COMPUTE
+  SYNT.Sym=FullyQualifiedName(THIS.Ids);
+END;
+
+RULE: pMethodName ::= sMethIdUse COMPUTE
+  pMethodName.Ids=SingleintList(sMethIdUse.Sym);
+  pMethodName.Key=sMethIdUse.MthKey;
+END;
+
+RULE: pMethodName ::= pAmbiguousName qMethIdUse COMPUTE
+  pMethodName.Ids=ConsintList(qMethIdUse.Sym,pAmbiguousName.Ids);
+  pMethodName.Key=qMethIdUse.MthKey;
+  qMethIdUse.MthScopeKey=pAmbiguousName.TypScopeKey;
+END;
+@}
+
+@C
+
+@$@<Ambiguous names@>==@{@-
+TREE SYMBOL sAmbgIdUse     INHERITS VarIdUseEnv,
+				    FldIdUseEnv,  TypIdUseEnv,  IdentOcc END;
+TREE SYMBOL qAmbgIdUse     INHERITS FldQualIdUse, TypQualIdUse, IdentOcc END;
+TREE SYMBOL pAmbiguousName INHERITS PkgIdUseEnv COMPUTE
+  SYNT.Sym=FullyQualifiedName(THIS.Ids);
+END;
+
+RULE: pAmbiguousName ::= sAmbgIdUse COMPUTE
+  pAmbiguousName.Ids=SingleintList(sAmbgIdUse.Sym);
+  pAmbiguousName.TypScopeKey=
+    IF(NE(sAmbgIdUse.VarKey,NoKey),
+      TransDefer(GetTypeOf(sAmbgIdUse.VarKey,NoKey)),
+    IF(NE(sAmbgIdUse.FldKey,NoKey),
+      TransDefer(GetTypeOf(sAmbgIdUse.FldKey,NoKey)),
+    IF(NE(sAmbgIdUse.TypKey,NoKey),
+      TransDefer(sAmbgIdUse.TypKey),
+    pAmbiguousName.PkgKey)));
+END;
+
+RULE: pAmbiguousName ::= pAmbiguousName qAmbgIdUse COMPUTE
+  pAmbiguousName[1].Ids=ConsintList(qAmbgIdUse.Sym,pAmbiguousName[2].Ids);
+  pAmbiguousName[1].TypScopeKey=
+    IF(NE(qAmbgIdUse.FldKey,NoKey),
+      TransDefer(GetTypeOf(qAmbgIdUse.FldKey,NoKey)),
+    IF(NE(qAmbgIdUse.TypKey,NoKey),
+      TransDefer(qAmbgIdUse.TypKey),
+    pAmbiguousName[1].PkgKey));
+  qAmbgIdUse.TypScopeKey=pAmbiguousName[2].TypScopeKey;
+  qAmbgIdUse.FldScopeKey=pAmbiguousName[2].TypScopeKey;
+END;
+@}
+
+@C
+
+All qualified names are represented by the single nonterminal @{Name@}.
+
+In some contexts, an initial segment of the qualified name is a package
+name.
+We consider a package name to be a single symbol consisting of the intial
+segment of the qualified name including the separating dots.
+Thus we must be able to convert any initial segment of a qualified name
+to a single symbol.
+Our strategy is to accumulate the identifiers making up the qualified name
+as a list of string table indices in reverse order:
+
+@$@<Qualified names@>==@{@-
+ATTR Ids: intList;
+
+TREE SYMBOL InhBaseId INHERITS IdentOcc END;
+
+RULE: QualInhName ::= InhBaseId COMPUTE
+  QualInhName.Ids=SingleintList(InhBaseId.Sym);
+END;
+
+TREE SYMBOL InhQualId INHERITS IdentOcc END;
+
+RULE: QualInhName ::= QualInhName '.' InhQualId COMPUTE
+  QualInhName[1].Ids=ConsintList(InhQualId.Sym,QualInhName[2].Ids);
+END;
+@}
+
+@$@<Instantiate required modules@>+=@{
+$/Adt/List.gnrc +instance=int :inst
+@}
+
+Any sublist of this list easily be converted to a string by a recursive
+function that reassembles the components in the proper order:
+
+@$@<int FullyQualifiedName(intList rep)@>==@{@-
+/* Convert a qualified name to a single symbol
+ *   On entry-
+ *     rep=list representing the initial segment to be converted
+ *   On exit-
+ *     FullyQualifiedName=string table index of the symbol
+ ***/
+{ if (rep) {
+    MakeFQName(rep);
+    obstack_1grow(Csm_obstk, '\0');
+    CsmStrPtr = (char *)obstack_finish(Csm_obstk);
+    return MakeName(CsmStrPtr);
+  } else
+    return 0;
+}
+@}
+
+@$@<void MakeFQName(intList rep)@>==@{@-
+/* Build a string by reversing a list
+ *   On entry-
+ *     rep=list to be reversed and converted
+ *   On exit-
+ *     Csm_obstk contains the converted string, unterminated
+ ***/
+{ char *temp;
+
+  intList tail = TailintList(rep);
+  if (tail != NULLintList) {
+    MakeFQName(tail);
+    obstack_1grow(Csm_obstk, '.');
+  }
+  temp = StringTable(HeadintList(rep));
+  obstack_grow(Csm_obstk, temp, strlen(temp));
+}
+@}
+
+@$@<Instantiate required modules@>+=@{
+$/Tech/MakeName.gnrc +instance=Identifier :inst
+@}
+
+@$@<Applied occurrences of names@>+=@{@-
+ATTR Key: DefTableKey;
+
+RULE: PackageName ::= QualInhName COMPUTE
+  PackageName.Ids=QualInhName.Ids;
+  PackageName.Sym=QualInhName.Sym;
+END;
+
+RULE: InhName ::= QualInhName COMPUTE
+  InhName.Ids=QualInhName.Ids;
+  InhName.Sym=QualInhName.Sym;
+  InhName.Key=QualInhName.Key;
+  InhName.Type=TransDefer(QualInhName.Type);
+END;
+@}
+
+@C@<Determining the meaning of a name@>
+
+@$@<Applied occurrences of names@>+=@{
+ATTR Sym: int;
+
+TREE SYMBOL QualInhName INHERITS PkgIdUseEnv, TypeDefUseId COMPUTE
+  SYNT.Sym=FullyQualifiedName(THIS.Ids);
+END;
+
+TREE SYMBOL InhBaseId INHERITS TypIdUseEnv END;
+
+RULE: QualInhName ::= InhBaseId COMPUTE
+  QualInhName.Key=InhBaseId.TypKey;
+  QualInhName.TypScopeKey=
+    IF(NE(InhBaseId.TypKey,NoKey),TransDefer(InhBaseId.TypKey),
+    QualInhName.PkgKey);
+END;
+
+TREE SYMBOL InhQualId INHERITS TypQualIdUse COMPUTE
+  SYNT.TypBind=
+    BindingInScope(THIS.TypScope,THIS.Sym)
+    <- (INCLUDING TypAnyScope.TypGotVisibleKeysNest);
+END;
+
+RULE: QualInhName ::= QualInhName '.' InhQualId COMPUTE
+  QualInhName[1].Key=InhQualId.TypKey;
+  QualInhName[1].TypScopeKey=
+    IF(NE(InhQualId.TypKey,NoKey),TransDefer(InhQualId.TypKey),
+    QualInhName[1].PkgKey);
+  InhQualId.TypScopeKey=QualInhName[2].TypScopeKey;
+END;
+@}
+
+@C@<Field access@>
+
+@$@<Applied occurrences of names@>+=@{
+SYMBOL FieldIdUse INHERITS IdentOcc, FldQualIdUse COMPUTE
+  SYNT.Key=THIS.FldKey;
+END;
+
+RULE: Expression ::= Expression '.' FieldIdUse COMPUTE
+  FieldIdUse.MthScopeKey=Expression[2].Type;
+END;
+
+RULE: Expression ::= 'super' '.' FieldIdUse COMPUTE
+  FieldIdUse.MthScopeKey=FinalType(INCLUDING TypeDeclaration.SuperType);
+END;
+
+RULE: Expression ::= Name $pTypeName '.' 'super' '.' FieldIdUse COMPUTE
+  FieldIdUse.MthScopeKey=
+    FinalType(GetSuperType(FinalType(pTypeName.Type),NoKey));
+END;
+@}
+
+@C@<Method access@>
+
+@$@<Applied occurrences of names@>+=@{
+SYMBOL MethodIdUse INHERITS IdentOcc, MthQualIdUse COMPUTE
+  SYNT.Key=THIS.MthKey;
+END;
+
+RULE: Expression ::= 'super' '.' MethodIdUse '(' Arguments ')' COMPUTE
+  MethodIdUse.MthScopeKey=FinalType(INCLUDING TypeDeclaration.Type);
+END;
+
+RULE: Expression ::= Expression '.' MethodIdUse '(' Arguments ')' COMPUTE
+  MethodIdUse.MthScopeKey=Expression[2].Type;
+END;
+@}
+
+@B
+
+@$@<Labeled Statements@>==@{
+TREE SYMBOL LabeledStatement INHERITS LblRangeScope END;
+TREE SYMBOL LabelIdDef       INHERITS IdentOcc, LblIdDefScope END;
+TREE SYMBOL LabelIdUse       INHERITS IdentOcc, LblIdUseEnv, LblChkIdUse END;
+@}
+
+@$@<Instantiate required modules@>+=@{
+$/Name/CScope.gnrc +instance=Lbl +referto=Lbl :inst
+@}
+
+@B@<Support code@>
+
+@O@<Name.h@>==@{
+#ifndef NAME_H
+#define NAME_H
+
+#include "eliproto.h"
+#include "envmod.h"
+#include "intList.h"
+
+extern Environment AddPackage ELI_ARG((Environment, Environment));
+extern int FullyQualifiedName ELI_ARG((intList));
+
+#endif
+@}
+
+@O@<Name.head@>==@{@-
+#include "Name.h"
+@}
+
+A type-@{c@} file implements the operations and data structures of the
+abstract data types:
+
+@O@<Name.c@>==@{
+#include "pdl_gen.h"
+#include "Strings.h"
+#include "MakeName.h"
+#include "PkgAlgScope.h"
+#include "Name.h"
+
+Environment
+#if PROTO_OK
+AddPackage(Environment pkg, Environment env)
+#else
+AddPackage(pkg, env) Environment pkg, env;
+#endif
+@<Environment AddPackage(Environment pkg, Environment env)@>
+
+static void
+#if PROTO_OK
+MakeFQName(intList rep)
+#else
+MakeFQName(rep) intList rep;
+#endif
+@<void MakeFQName(intList rep)@>
+
+int
+#if PROTO_OK
+FullyQualifiedName(intList rep)
+#else
+FullyQualifiedName(rep) intList rep;
+#endif
+@<int FullyQualifiedName(intList rep)@>
+@}

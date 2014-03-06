@@ -1,0 +1,5 @@
+begin comment $Id: 4.6.4-1.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+Verify the type of a step expression;
+
+integer x; for x := 0 step true until 10 do ;
+end

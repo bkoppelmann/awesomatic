@@ -1,0 +1,5 @@
+begin comment $Id: 3.2.3-2.a60,v 1.1 1996/07/18 15:01:59 waite Exp $
+  Procedure with type cannot be used in a statement;
+
+  integer procedure foo; { }; foo;
+end

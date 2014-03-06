@@ -1,0 +1,51 @@
+/* $Id: Suif.specs,v 1.7 1998/01/04 13:15:44 waite Exp $ */
+/* Specifications relating FORTRAN 77 to SUIF */
+
+#define SUIF    /home/scotty/mah/basesuif-1.1.2/
+#define SUIFSRC SUIF/src/basesuif
+#ifdef out
+#define SUIFLIB SUIF/alpha-dec-osf1/lib
+#endif
+#define SUIFLIB SUIF/hppa1.1-hp-hpux9/lib
+
+	/* Translator specifications */
+
+Suif.fw
+F77Suif.fw
+../Semantic/F77Lint.specs
+
+	/* SUIF interface Files */
+
+SUIFSRC/suif/suif.h
+
+SUIFSRC/suif/cmdparse.h
+SUIFSRC/suif/misc.h
+SUIFSRC/suif/bitset.h
+SUIFSRC/suif/xarray.h
+SUIFSRC/suif/glist.h
+SUIFSRC/suif/dlist.h
+SUIFSRC/suif/mtflist.h
+SUIFSRC/suif/alist.h
+SUIFSRC/suif/hash.h
+SUIFSRC/suif/stringtable.h
+SUIFSRC/suif/initsuif.h
+SUIFSRC/suif/suifstreams.h
+SUIFSRC/suif/aman.h
+SUIFSRC/suif/suifobj.h
+SUIFSRC/suif/symaddr.h
+SUIFSRC/suif/immed.h
+SUIFSRC/suif/annote.h
+SUIFSRC/suif/types.h
+SUIFSRC/suif/symbols.h
+SUIFSRC/suif/vardef.h
+SUIFSRC/suif/symtab.h
+SUIFSRC/suif/fileset.h
+SUIFSRC/suif/opcodes.h
+SUIFSRC/suif/operand.h
+SUIFSRC/suif/instruction.h
+SUIFSRC/suif/trees.h
+
+	/* SUIF libraries */
+
+SUIFLIB/libsuif.a
+SUIFLIB/libuseful.a

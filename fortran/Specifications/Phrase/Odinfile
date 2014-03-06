@@ -1,0 +1,14 @@
+# $Id: Odinfile,v 1.3 1998/01/01 18:28:25 waite Exp $
+# Fortran scanner/parser
+
+f77.exe == F77Phrase.specs :exe
+f90.exe == F90Phrase.specs :exe
+
+f77.src == F77Phrase.specs :source
+f90.src == F90Phrase.specs :source
+
+Scan.html == HtmlScan.fw :fwHtml
+Scan.ps == TexScan.fw :fwTex :ps
+
+Parse.html == HtmlParse.fw :fwHtml
+Parse.ps == TexParse.fw :fwTex :ps

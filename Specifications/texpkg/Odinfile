@@ -1,0 +1,13 @@
+# $Id: Odinfile,v 1.2 2004/06/16 08:32:49 profw Exp $
+# Definition of the Odin TeX package
+
+%package ! == <<
+  ! if [ ! -d tex ]; then mkdir tex; fi
+  texpkg.fw :fwGen :direlms > tex
+  ! chmod +x tex/*.sh
+
+report.ps  == texpkg.fw :fwTex :ps
+report.pdf == texpkg.fw :fwTex :pdf
+
+%clean ! == <<
+  ! rm -rf tex report.ps

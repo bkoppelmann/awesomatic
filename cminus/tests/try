@@ -1,0 +1,89 @@
+#! /bin/sh
+# $Id: try,v 1.2 1996/05/02 15:13:32 waite Exp $
+# Test the Eli-generated C-- processor
+
+# C-- does not use CPP
+cpp=cat
+
+verbose=0
+tryall=0
+deviant=0
+error=0
+
+while true
+do
+	check=$1
+	case $check in
+	   -v  ) verbose=1; shift ;;
+           -n  ) tryall=1; shift ;;
+           -d  ) deviant=1; shift ;;
+	   -*  ) error=1; exit 1 ;;
+	   *   ) break ;;
+	esac
+done
+
+if test ! $# -eq 2
+then error=1;
+elif test ! -x $1 -o ! -d $2
+then error=1;
+fi
+
+if test "$error" = "1"
+then
+	echo "Usage: $0 [ -v ] [ -n ] [ -d ] prog dir"
+	echo "   -v  : verbose"
+	echo "   -n  : non-stop.  Doesn't stop on error"
+	echo "   -d  : deviant.   Expects error reports"
+	echo "   prog: compiler being exercised"
+	echo "   dir : directory containing the test programs"
+	exit 1
+fi
+
+if test "$deviant" = "1"
+then
+	for f in `ls $2/*.c`
+	do
+		if test "$verbose" = "1"; then
+			echo "Checking: $f"
+		fi
+		rm -f ERRS
+		$1 $f > ERRS 2>&1
+		if test $? -eq 0 -o ! -s ERRS
+		then
+			$cpp $f > input
+			echo "The C-- compiler did not detect an error in $f"
+			echo "$f expanded to \"input\""
+			if test "$tryall" = "0"; then
+				exit 1
+			fi
+		fi
+		if test "`grep core ERRS`" != ""
+		then
+			echo "Core dump detected!!"
+		fi
+	done
+else
+	for f in `ls $2/*.c`
+	do
+		if test "$verbose" = "1"; then
+			echo "Checking: $f"
+		fi
+		rm -f ERRS
+		$1 $f > ERRS 2>&1
+		if test $? -ne 0 -o -s ERRS
+		then
+			if test "`grep core ERRS`" != ""
+			then
+				echo "Core dump detected!!"
+			fi
+			$cpp $f > input
+			echo "Errors detected in $f"
+			echo "$f expanded to \"input\""
+			if test "$tryall" = "0"; then
+				exit 1
+			fi
+		fi
+	done
+fi
+
+rm ERRS

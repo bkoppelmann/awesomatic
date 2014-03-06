@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <description url="http://www.comp.mq.edu.au/~asloane/eclipse">
+      %updateSiteDescription
+   </description>
+   <feature url="features/au.edu.mq.ics.plrg.edtfeature_1.0.5.jar" id="au.edu.mq.ics.plrg.edtfeature" version="1.0.5">
+      <category name="Eli"/>
+   </feature>
+   <category-def name="Eli" label="Eli">
+      <description>
+         Features that provide support for the Eli Language Processor Generation System.
+      </description>
+   </category-def>
+</site>

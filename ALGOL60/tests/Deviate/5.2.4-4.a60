@@ -1,0 +1,6 @@
+begin comment $Id: 5.2.4-4.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+A variable in a bound expression cannot be local;
+
+  integer x; array r[1:x];
+
+end

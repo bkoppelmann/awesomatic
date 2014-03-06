@@ -1,0 +1,9 @@
+/* $Id: code.specs,v 1.1 1996/04/30 19:52:03 waite Exp $ */
+/* Code generation for C-- */
+
+../lint/cminus.fw	/* C-- language definition */
+
+		/* Needs the static single-assignment module */
+
+code.fw		/* Create a flow graph for C-- */
+target.fw	/* Print target code */

@@ -1,0 +1,208 @@
+@p maximum_input_line_length = infinity
+
+@O@<code.ptg@>@{
+
+Grammar:
+  "/*******************************************/\n"
+  "/*   Automated translated pgram bison      */\n"
+  "/*                                         */\n"
+  "/*       S P E C I F I C A T I O N         */\n"
+  "/*                                         */\n"
+  "/*  pgram2bison.exe (Ulf Schwekendiek)     */\n"
+  "/*                   sulf(at)upb.de        */\n"
+  "/*  Universitaet Paderborn 2007            */\n"
+  "/*******************************************/\n"
+  "\n\n"
+  "%{\n"
+  "#include \"bison.h\"\n"
+  "#define YYSTYPE TOKENTYPE\n"
+  "%}\n\n"
+  "%glr-parser\n\n"
+  $ /* TokenDefinitons */"\n"
+  "%start " $ /* Start Symbol */"\n\n"
+  "%%\n"
+  $ /* Grammar */"\n"
+  "%%\n\n"
+  "int yylex(void) {\n" 
+  "\tGET_TOKEN(curtok);\n" 
+  "\tyylval = curtok;\n" 
+  "\tint retval =  T_CODE(curtok);\n" 
+  "\tif (retval == 1) return -1;\n" 
+  "\treturn retval;\n" 
+  "}\n\n" 
+  "void yyerror (const char *s){\n\tmessage(ERROR, (char*) s, 0, &T_POS(yylval)); \n}\n\n"
+  "void Zerteiler (void) { yyparse(); }\n"
+  
+Combine:
+ $ $
+
+List:
+  $ " " $
+
+ProductionSep:
+  $ "\n\n" $
+
+Sequence:
+  $ " \n\t{\n\t\t " $ " \n\t} "
+
+Single:
+  $
+
+Production:
+  $ "\t:\t" $ "\n\t;\n"
+
+SequenceSep:
+  $ "\n\t|\t" $
+
+SequenceSingle:
+  $ 
+
+Tokendefintions:
+  $ "\n"
+
+TDefInt:
+  "%token " $ " " $ "\n"
+
+TDefIntSpec:
+  "%token TERM" $ " " $ " \"" $ "\"\n"
+
+Quoted:
+  "\"" $ "\""
+
+Semantic:
+  " \n\t{\n\t\t " $ " \n\t}\n\t\t"
+
+Empty:
+  ""
+
+String:       $ string
+Int:       $ int
+@}
+
+@O@<Names.pdl@>@{
+Terminal : int;
+@}
+
+@O@<code.lido@>@{
+ATTR Ptg: PTGNode;
+SYMBOL Entity INHERITS IdPtg END;
+
+
+SYMBOL Grammar COMPUTE
+   PTGOut (PTGGrammar (
+     CONSTITUENT Specifications.Ptg,
+     CONSTITUENT StartSymbol.Ptg,
+     CONSTITUENT Productions.Ptg));
+END;
+
+SYMBOL SequenceEntry COMPUTE
+  SYNT.Ptg = PTGSingle(
+    CONSTITUENTS Symbol.Ptg WITH (PTGNode, PTGList, PTGSingle, PTGNull)
+    );
+END;
+
+SYMBOL Productions COMPUTE
+   SYNT.Ptg = PTGSingle(
+     CONSTITUENTS Production.Ptg 
+       WITH (PTGNode, PTGProductionSep, PTGSingle, PTGNull));
+END;
+
+SYMBOL Production COMPUTE 
+  SYNT.Ptg = PTGProduction(
+     CONSTITUENT LHS_symb.Ptg,
+     CONSTITUENTS SequenceEntry.Ptg 
+       WITH (PTGNode, PTGSequenceSep, PTGSequenceSingle, PTGNull)
+  );
+END;
+
+SYMBOL TokenDefinitionList COMPUTE
+   SYNT.Ptg = PTGTokendefintions(
+      CONSTITUENTS TokenDefinition.Ptg 
+         WITH (PTGNode, PTGCombine, PTGSingle, PTGNull)
+    );
+END;
+
+SYMBOL Specifications COMPUTE
+   SYNT.Ptg = PTGSingle ( CONSTITUENTS TokenDefinitionList.Ptg WITH 
+    (PTGNode, PTGCombine, PTGSingle, PTGNull));
+END;
+
+SYMBOL StartSymbol COMPUTE
+   SYNT.Ptg = PTGSingle ( 
+     CONSTITUENTS StartSymbolSymbol.Ptg WITH
+       (PTGNode, PTGCombine, PTGSingle, PTGNull)
+   );
+END;
+
+
+/*PPP*/
+
+SYMBOL StartSymbolSymbol INHERITS Entity END;
+SYMBOL Semrec INHERITS Entity END;
+SYMBOL Number INHERITS Entity END;
+SYMBOL LHS_symb INHERITS Entity END;
+SYMBOL Entity COMPUTE
+  SYNT.Sym=TERM;
+END;
+
+/*PPP*/
+
+/* ============================== */
+RULE: Symbol ::= symb COMPUTE
+   Symbol.Ptg = PTGString(StringTable(symb));
+END;
+
+RULE: Symbol ::= litsymb COMPUTE
+   Symbol.Ptg = PTGQuoted(PTGString(StringTable(litsymb)));
+END;
+
+RULE: Symbol ::= '$' litsymb COMPUTE
+   # this is a pgs parser modification meaning "don't reduce".
+   # it does not contribute to the production
+   Symbol.Ptg = PTGEmpty();
+END;
+
+RULE: Symbol ::= '@@' litsymb COMPUTE
+   # this is a pgs parser modification meaning "don't reduce in conflicting productions ".
+   # it does not contribute to the production
+   Symbol.Ptg = PTGEmpty();
+END;
+
+RULE: Symbol ::= '@@' symb COMPUTE
+   # this is a pgs parser modification meaning "don't reduce in conflicting productions ".
+   # it does not contribute to the production
+   Symbol.Ptg = PTGEmpty();
+END;
+
+RULE: Symbol ::= '$' symb COMPUTE
+   # this is a pgs parser modification meaning "don't reduce".
+   # it does not contribute to the production
+   Symbol.Ptg = PTGEmpty();
+END;
+
+RULE: Symbol ::= semantic COMPUTE
+   Symbol.Ptg = PTGSemantic(PTGString(transformsemaction(StringTable(semantic))));
+END;
+
+RULE: TokenDefinition ::=  symb '=' number '.' COMPUTE
+   TokenDefinition.Ptg = PTGTDefInt (
+        PTGString(StringTable(symb)),
+        PTGString(StringTable(number))
+   );
+END;
+
+RULE: TokenDefinition ::=  litsymb '=' number '.' COMPUTE
+   TokenDefinition.Ptg = PTGTDefIntSpec (
+        PTGString(StringTable(number)),
+		PTGString(StringTable(number)),
+		PTGString(StringTable(litsymb))      
+   );
+END;
+
+@}
+
+@O@<code.HEAD.phi@>@{
+#include "err.h"
+#define NoErrors (ErrorCount[ERROR]==0)
+
+@}

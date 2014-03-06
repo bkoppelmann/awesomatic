@@ -1,0 +1,41 @@
+      REAL FUNCTION CD (REY)
+C
+C        CALCULATE DRAG COEFFICIENT AS A FUNCTION OF REYNOLDS
+C        NUMBER FOR A RIGHT CIRCULAR CYLINDER (REF:  PAGE 190
+C        OF AIP 50TH ANNIVERSARY PHYSICS VADE MECUM
+C
+      IMPLICIT REAL (A-H,O-Z)
+      PARAMETER (NDATA=11)
+      DIMENSION R(NDATA),DRAG(NDATA)
+      LOGICAL FIRST
+      DATA FIRST /.TRUE./
+      DATA R/0.1,1.0,10.0,100.0,1.E3,2.E3,1.E4,1.E5,2.E5,5.E5,1.E6/
+      DATA DRAG /60.0,10.0,3.0,1.8,1.0,1.0,1.2,1.2,1.2,0.3,0.38/
+      IF(FIRST) THEN
+          FIRST=.FALSE.
+          IOLD=NDATA-1
+      ENDIF
+C
+C        INTERPOLATE ON REYNOLD'S NUMBER
+C
+      IF(REY.GE.R(NDATA)) THEN
+          N=NDATA-1
+      ELSEIF (REY.LT.R(1)) THEN
+          N=1
+      ELSE
+          NN=NDATA-1
+          IF(REY.LT.R(IOLD+1)) NN=IOLD
+          DO 10 I=NN,1,-1
+              N=I
+              IF(REY.GE.R(I).AND.REY.LT.R(I+1)) GO TO 20
+   10     CONTINUE
+      ENDIF
+   20 X1=R(N)
+      Y1=DRAG(N)
+      X2=R(N+1)
+      Y2=DRAG(N+1)
+      IOLD=N
+      SLOPE=(Y2-Y1)/(X2-X1)
+      B=Y2-SLOPE*X2
+      CD=REY*SLOPE+B
+      END

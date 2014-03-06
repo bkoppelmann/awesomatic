@@ -1,0 +1,8 @@
+# $Id: Odinfile,v 1.6 1998/01/01 00:54:54 waite Exp $
+# Control generation of a FORTRAN processor
+
+f77.exe == Semantic/F77Lint.specs :exe
+%f77.src == Semantic/F77Lint.specs :source
+
+f90.exe == Phrase/F90Phrase.specs :exe
+%f90.src == Phrase/F90Phrase.specs :source

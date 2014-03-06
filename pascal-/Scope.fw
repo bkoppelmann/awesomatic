@@ -1,0 +1,431 @@
+@A@<Scope Analysis@>
+
+A Pascal- program uses names to refer to constants, types, fields, variables,
+procedures and parameters.
+Each name must be defined, and then may be used anywhere within the @/scope@/
+of that definition.
+The scope of a definition is a phrase of the program, and within such a phrase
+there can be only one definition of a particular name.
+The purpose of scope analysis is to make certain that every name has exactly
+one definition, and to associate each use of that name with its definition.
+
+It is convenient to split scope analysis into two parts.
+The first, which associates definitions of names with their uses, is called
+@/consistent renaming@/.
+Once this association has been made, it is easy to report missing definitions
+and multiple definitions.
+
+@B@<Consistent renaming@>
+
+The constants, types, fields, variables, procedures and parameters referred to
+by names are basic components of the algorithm described by the program.
+Brinch-Hansen calls these basic components @/objects@/.
+Each object has properties that are established by that object's definition
+and examined at each use.
+It is therefore reasonable to represent each object internally by a unique key
+that allows access to arbitrary information in a global data base.
+The consistent renaming process associates the appropriate key with each
+occurrence of a name, ``renaming'' it with the key that represents the object
+referred to by the name.
+
+Definitions and uses of names are distinguished in the grammar.
+For example, a @{ConstantNameDef@} phrase is the definition of a constant name
+and a @{TypeNameUse@} phrase is a use of a type name.
+A definition's scope is the smallest @/block@/ containing its definition,
+excluding the text of nested blocks defining the same name.
+Three phrases, @{ProcedureBlock@}, @{Program@} and @{StandardBlock@},
+are classified as blocks.
+A @{ProcedureBlock@} can be nested within another @{ProcedureBlock@}
+or within the @{Program@}.
+The @{StandardBlock@} is an imaginary block in which the standard objects are
+defined.
+
+Scope rules based on nested phrases, in which the scope of a definition is the
+phrase containing the definition exclusive of nested phrases defining the same
+name, are common in programming languages.
+Eli provides a library module to implement consistent renaming
+according to these scope rules.
+The consistent renaming problem is therefore solved by analogy.
+Its solution requires that the user understand the problem,
+know that an appropriate library module exists and how to use it,
+and instantiate that library module.
+
+Directory @{$@} contains a set of @/generic@/ library modules that
+solve common subproblems.
+Each module is a file of type @{gnrc@}, and is instantiated by requesting a
+derivation to @{:inst@}.
+They are gathered into subdirectories according to the kinds of problems
+they solve; the consistent renaming problem for nested scopes is solved by
+an Eli library module:
+
+@$@<Instantiate the scope analysis module@>==@{
+$/Name/AlgScope.gnrc :inst
+@}
+
+@{AlgScope.gnrc@} exports four symbols to embody the concepts involved:
+a @{RangeScope@} is a phrase that can contain definitions,
+the @{RootScope@} is the ``outermost'' such phrase,
+an @{IdDefScope@} is a name definition,
+and an @{IdUseEnv@} is a name use.
+Name definitions and uses are assumed to be represented by tree nodes having a
+@{Sym@} attribute of type @{int@} that specifies the corresponding name.
+(Distinct names result in different values for the @{Sym@} attribute of the
+corresponding nodes; identical names result in the same value for the @{Sym@}
+attribute of the corresponding nodes.)
+The module will compute the value of a @{Key@} attribute of type @{DefTableKey@}
+at each tree node representing a name definition or use.
+@{Key@} attribute values of associated definitions and uses will be identical.
+If a use is not associated with any definition, its @{Key@} attribute value
+will be the distinguished @{DefTableKey@} value ``@{NoKey@}''.
+
+The library module is used by defining symbols that embody Pascal-
+scope rule concepts, and attaching the properties of the appropriate library
+symbols to them by inheritance.
+Pascal- scope rule concepts include those embodied by the four symbols of the
+library module, but also include the concept that definitions in a block must be
+unique and that every name used in a block must have a definition in that block
+or an enclosing one.
+These additional concepts do not affect the consistent renaming process,
+but they mean that Pascal- scope rule concepts are not identical to those of the
+library module and should therefore be represented by different symbols:
+
+@$@<Pascal- scope rule concepts@>==@{
+ATTR Key: DefTableKey;
+
+SYMBOL Block INHERITS RangeScope END;
+
+ATTR Sym: int;
+SYMBOL NameOccurrence COMPUTE SYNT.Sym=TERM; END;
+
+SYMBOL NameDef INHERITS IdDefScope, NameOccurrence END;
+SYMBOL NameUse INHERITS IdUseEnv, NameOccurrence END;
+@}
+
+You will recall that name definition and use phrases were all defined as
+occurrences of the basic symbol @{Name@}.
+During lexical analysis, a unique integer is computed for each name and attached
+to the tree node representing that basic symbol.
+This integer must be established as the value of the @{Sym@} attribute of the
+tree node representing the name definition or use in order to satisfy an
+interface condition of the consistent renaming module.
+@{NameOccurrence@} embodies this requirement.
+
+The Pascal- concept of the symbol block corresponds directly to the concept
+represented by the module's @{RootScope@} symbol.
+It is true that definitions in the symbol block must be unique,
+and that every name used in the symbol block must have a definition in that
+block,
+but these properties are trivially satisfied because name definition and use in
+the symbol block is fixed by the language design.
+Therefore no additional symbol is needed to embody the Pascal- concept of a
+symbol block; @{RootScope@} suffices.
+
+@B
+
+The requirement that a definition be unique within its scope
+is common in programming languages,
+and so Eli provides a module to report violations:
+
+@$@<Instantiate the unique identifier module@>==@{
+$/Prop/Unique.gnrc :inst
+@}
+
+It is important to remember that this requirement is distinct from the
+requirements of consistent renaming, and for that reason are represented by
+distinct modules.
+Unique definition is a property of both
+the phrase in which the definitions occur and the definitions themselves,
+but it is @/not@/ a property of the uses of a name.
+Thus the symbols that embody Pascal- scope rules inherit the properties of the
+symbols exported by the modules as follows:
+
+@$@<Reporting scope rule violations@>+=@{
+SYMBOL Block INHERITS RangeUnique END;
+SYMBOL NameDef INHERITS Unique END;
+@}
+
+Similarly, the requirement that every use of a name be associated with some
+definition is a property @/only@/ of name uses.
+The consistent renaming process yields the distinguished value @{NoKey@}
+for a name use that is not associated with any definition.
+This value can be tested directly to report undefined names:
+
+@$@<Reporting scope rule violations@>+=@{
+SYMBOL NameUse COMPUTE
+  IF(EQ(THIS.Key,NoKey),
+    message(ERROR,"Undefined identifier",0,COORDREF));
+END;
+@}
+
+@B
+
+Although the programmer regards the standard block as an imaginary block,
+the compiler must actually implement it in order to make the definitions of the
+standard objects accessible to the scope analysis algorithms.
+As far as the scope rules are concerned, the program is nested within the
+standard block.
+Therefore the program should be a component phrase of the standard block phrase,
+and the grammar must be augmented with a production describing this
+relationship:
+
+@$@<The standard block@>==@{
+StandardBlock: Program .
+@}
+
+@C
+
+The standard block is the outermost phrase in which definitions can appear, and
+this concept is embodied in the symbol @{RootScope@} exported by the consistent
+renaming module.
+@{RootScope@} is assumed to be represented by a tree node having an attribute
+@{Env@}, of type @{Environment@}, that defines all of the names of standard
+objects.
+By default, no standard objects exist.
+Because standard objects do exist in Pascal-, this default must be overridden by
+a computation specific to Pascal-:
+
+@$@<Scope rules for the standard block@>==@{
+SYMBOL StandardBlock: Env: Environment;
+
+SYMBOL StandardBlock INHERITS RootScope COMPUTE
+  SYNT.Env = StandardEnv(NewEnv());
+END;
+@}
+
+@{NewEnv@} is a library routine that creates a value of type @{Environment@}
+containing no definitions.
+@{StandardEnv@} (described below) populates the environment specified by its
+argument with definitions of the standard objects of Pascal-.
+
+@C
+
+Pascal- assumes six standard objects: two constants, two types and two
+procedures.
+We shall see in later chapters that it is important to be able to refer directly
+to the keys that represent standard objects.
+The easiest way to satisfy this requirement is to have a single C module
+exporting variables containing the keys as well as the operation
+@{StandardEnv@} that defines those keys and populates an environment with them.
+Implementation of the standard objects is thus a problem that we describe by
+solution.
+
+The exported variable containing the key representing the Pascal- @{boolean@}
+type will be named @{BooleanKey@}, the exported variable containing the key
+representing the constant @{false@} will be named @{FalseKey@}, and so forth.
+These names will be needed in three different contexts within the module:
+as external declarations in the module interface,
+as variable definitions in the module body,
+and as targets of assignments in the module body.
+Thus it is convenient to describe the set of standard objects by calls to a C
+pre-processor macro that can be redefined to suit the context:
+
+@$@<Standard objects@>@M@{
+  StdObj("Boolean",BooleanKey)
+  StdObj("False",FalseKey)
+  StdObj("Integer",IntegerKey)
+  StdObj("Read",ReadKey)
+  StdObj("True",TrueKey)
+  StdObj("Write",WriteKey)
+@}
+
+External declarations in the module interface and variable definitions in the
+module body have a similar form, but must appear in different files:
+
+@$@<External declarations in the module interface@>==@{
+#define StdObj(n,k) extern DefTableKey k;
+@<Standard objects@>
+#undef StdObj
+@}
+
+@$@<Variable definitions in the module body@>==@{
+#define StdObj(n,k) DefTableKey k;
+@<Standard objects@>
+#undef StdObj
+@}
+
+The variables are assigned their values by the operation that populates the
+initial environment:
+
+@$@<StandardEnv operation@>==@{
+#include "termcode.h"
+
+Environment
+StandardEnv(e)
+Environment e;
+/* Create the standard environment
+ *   On entry-
+ *     e=empty environment
+ *   On exit-
+ *     StandardEnv=e populated with the pre-defined identifiers
+ ***/
+{
+  int Code = Name, Attr;
+
+#define StdObj(n,k) \
+  mkidn(n, strlen(n), &Code, &Attr); k = DefineIdn(e, Attr);
+@<Standard objects@>
+#undef StdObj
+
+  return e;
+}
+@}
+
+For each standard object, @{StandardEnv@} obtains the unique integer encoding
+of the object's name by invoking @{mkidn@}.
+This is the routine invoked by the lexical analyzer, via the canned
+description @{PASCAL_IDENTIFIER@}, to provide unique encoding for names.
+Use of the same routine guarantees the same encoding.
+
+The first two arguments to @{mkidn@} are a pointer to the string to be
+encoded and the length of that string.
+The third argument is the syntax code that should be associated with the
+string on the basis of this instance.
+If the string has already been coded, this value is replaced by the syntax
+code previously associated with the string.
+@{Name@} is the syntax code associated with Pascal- names by Eli.
+Its value is given in file @{termcode.h@}, which Eli generates.
+Upon return from @{mkidn@}, the variable defined as the fourth argument has
+been set to the value of the intrinsic attribute for this string.
+
+@{DefineIdn@} is a library routine that defines a name in an environment,
+returning the definition table key associated with that definition.
+If the given name has not been defined previously in the given environment,
+a new definition table key is generated and associated with the given
+name.
+
+@B
+
+To complete the specification of the Pascal- scope rules, the phrases that are
+blocks, name definitions and name uses must be provided with the properties
+associated with those concepts.
+Since the concepts are represented by symbols, this can be done simply by having
+the symbols for the phrases inherit from the symbols representing the concepts:
+
+@$@<Scope rules for the program@>==@{
+SYMBOL Program INHERITS Block END;
+SYMBOL ProcedureBlock INHERITS Block END;
+
+SYMBOL ConstantNameDef INHERITS NameDef END;
+SYMBOL TypeNameDef INHERITS NameDef END;
+SYMBOL VariableNameDef INHERITS NameDef END;
+SYMBOL ProcedureNameDef INHERITS NameDef END;
+SYMBOL ParameterNameDef INHERITS NameDef END;
+
+SYMBOL ConstantNameUse INHERITS NameUse END;
+SYMBOL TypeNameUse INHERITS NameUse END;
+SYMBOL VariableNameUse INHERITS NameUse END;
+SYMBOL ProcedureNameUse INHERITS NameUse END;
+SYMBOL ParameterNameUse INHERITS NameUse END;
+@}
+
+Note that the symbols for these phrases will inherit other concepts,
+and may have additional properties that are unique.
+These other concepts and properties are defined by other parts of the
+specification, independent of the properties discussed in this chapter.
+
+@B@<Specification files for scope analysis@>
+
+Most of the Pascal- scope analysis problem is characterized by analogy,
+using library modules provided by Eli.
+The only component of the scope analysis problem characterized by solution
+is the creation of the standard environment.
+
+Library modules do not require specification files.
+They are instantiated by requests contained in the list of specification.
+The relationship between symbols of the library module and symbols of the
+grammar must, however, be established by specification files.
+
+@C
+
+The scope analysis demanded that a physical representation of the
+fictitious ``standard block'' be added to the Pascal- grammar.
+This information is conveyed by a type-@{con@} file containing the
+necessary phrase.
+Eli merges the contents of all type-@{con@} files to produce the final
+specification from which the parser is constructed.
+
+@O@<scope.con@>@{
+@<The standard block@>
+@}
+
+@C
+
+A type-@{lido@} file is used to describe the relationships between the
+library modules and the Pascal- grammar.
+It also specifies additional computations to take place during attribution.
+The specifications in type-@{lido@} files are merged and used to create the
+attribute evaluator.
+
+@O@<scope.lido@>@{
+@<Pascal- scope rule concepts@>
+@<Reporting scope rule violations@>
+@<Scope rules for the standard block@>
+@<Scope rules for the program@>
+@}
+
+@C
+
+A type-@{c@} file implements the solution to a problem that is
+characterized by solution.
+Each such file is the code for a single module.
+Type-@{c@} files are @/not@/ merged by Eli; each is compiled separately.
+
+@O@<scope.c@>==@{
+#include "scope.h"
+
+@<Variable definitions in the module body@>
+@<StandardEnv operation@>
+@}
+
+@C
+
+A type-@{h@} file defines the interface for a single C module.
+It uses C pre-processor directives to ensure that it is included in a given
+program no more than once.
+Type-@{h@} files are not merged by Eli.
+
+@O@<scope.h@>@{
+#ifndef PREDEF_H
+#define PREDEF_H
+
+#include "deftbl.h"
+#include "envmod.h"
+
+@<External declarations in the module interface@>
+
+extern Environment StandardEnv(/* Environment e; */);
+/* Create the standard environment
+ *   On entry-
+ *     e=empty environment
+ *   On exit-
+ *     StandardEnv=e populated with the pre-defined identifiers
+ ***/
+#endif
+@}
+
+@C
+
+A type-@{head@} file is used to incorporate information into the tree
+construction and attribution modules.
+All type-@{head@} files are merged by Eli into a single file called
+@{HEAD.h@}, and this file is included by the tree construction and
+attribution modules.
+
+@O@<scope.head@>@{
+#include "scope.h"
+@}
+
+The operations of the standard environment creation module are made
+available to the computations described in @{source.lido@}
+by including the interface of the standard environment creation module in a
+type-@{head@} file (here @{scope.head@}).
+
+@C
+
+A type-@{specs@} file is used to instantiate generic modules from the Eli
+library, and to make non-generic modules available.
+
+@O@<scope.specs@>@{
+@<Instantiate the scope analysis module@>
+@<Instantiate the unique identifier module@>
+@}

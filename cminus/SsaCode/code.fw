@@ -1,0 +1,269 @@
+@A@<Translation to a Flowgraph@>
+
+Translation of an abstract syntax tree to a flowgraph involves two tasks
+that are largely independent of one another:
+creating basic blocks and
+converting computations to a target-oriented form.
+The first task is quite simple, requiring the specifier to invoke the
+operations of the flowgraph module appropriately for each context
+representing a phrase that defines control flow.
+Most programming languages have relatively few such constructs,
+and similar constructs have similar semantics regardless of the language.
+
+Conversion of computations to a target-oriented form, on the other hand,
+is more complex and varies more from one translator to another.
+
+@B
+
+@$@<Creating basic blocks@>==@{
+ATTR none,test,body,then,else,end: DefTableKey;
+
+SYMBOL Program INHERITS FlowGraph COMPUTE
+  SYNT.none=NoKey;
+END;
+
+RULE: Statement ::= 'if' '(' Expression ')' Statement
+COMPUTE
+  .then=NewKey();
+  .end=NewKey();
+  Statement[1].Bb=
+    ORDER(Link(Statement[2].Bb,.end),Link(Expression.Bb,.end),.end);
+  Statement[2].Bb=ORDER(Link(Expression.Bb,.then),.then);
+END;
+
+RULE: Statement ::= 'if' '(' Expression ')' Statement 'else' Statement
+COMPUTE
+  .then=NewKey();
+  .else=NewKey();
+  .end=NewKey();
+  Statement[1].Bb=
+    ORDER(Link(Statement[2].Bb,.end),Link(Statement[3].Bb,.end),.end);
+  Statement[2].Bb=ORDER(Link(Expression.Bb,.then),.then);
+  Statement[3].Bb=ORDER(Link(Expression.Bb,.else),.else);
+END;
+
+RULE: WhileStmt ::= 'while' '(' Expression ')' Statement
+COMPUTE
+  WhileStmt.test=NewKey();
+  .body=NewKey();
+  WhileStmt.end=NewKey();
+  WhileStmt.Bb=
+    ORDER(
+      Link(Statement.Bb,WhileStmt.test),
+      Link(WhileStmt.test,WhileStmt.end),
+      WhileStmt.end);
+  Expression.Bb=ORDER(Link(WhileStmt.Bb,WhileStmt.test),WhileStmt.test);
+  Statement.Bb=ORDER(Link(Expression.Bb,.body),.body);
+END;
+
+RULE: Statement ::= 'break' ';'
+COMPUTE
+  Statement.Bb=
+    ORDER(Link(Statement.Bb,INCLUDING(WhileStmt.end,Program.none)),NoKey);
+END;
+
+RULE: Statement ::= 'continue' ';'
+COMPUTE
+  Statement.Bb=
+    ORDER(Link(Statement.Bb,INCLUDING(WhileStmt.test,Program.none)),NoKey);
+END;
+
+RULE: Statement ::= 'return' Expression ';'
+COMPUTE
+  Statement.Bb=ORDER(Link(Statement.Bb,INCLUDING Program.exit),NoKey);
+END;
+@}
+
+@B
+
+@$@<Target computation tree representation@>@{
+TERM IntConstant: int;
+TERM FloatConstant: int;
+TERM Ident: int;
+TERM Operation: tOilOp;
+
+RULE Assign:  Expr ::= Operation VarSet Expr END;
+RULE Dyadic:  Expr ::= Operation Expr Expr END;
+RULE Monadic: Expr ::= Operation Expr END;
+
+RULE Cj: Expr ::= Expr Name Name END;
+RULE Uj: Expr ::= Expr Name      END;
+
+RULE Varb: Expr ::= VarUse END;
+RULE Icon: Expr ::= IntConstant END;
+RULE Fcon: Expr ::= FloatConstant END;
+
+RULE Vard: VarSet ::= Ident
+COMPUTE
+  VarSet.Sym=Ident;
+END;
+
+RULE Varu: VarUse ::= Ident
+COMPUTE
+  VarUse.Sym=Ident;
+END;
+@}
+
+@B
+
+@$@<Generate the target computation tree@>@{
+ATTR Ttree: NODEPTR;
+@<Expression evaluation@>
+@<Statement execution@>
+@}
+
+@C
+
+@$@<Expression evaluation@>==@{
+RULE: Expression ::= IntDenotation
+COMPUTE
+  Expression.Ttree=MkIcon(COORDREF, IntDenotation);
+END;
+
+RULE: Expression ::= FloatDenotation
+COMPUTE
+  Expression.Ttree=MkFcon(COORDREF, FloatDenotation);
+END;
+
+RULE: Expression ::= IdUse
+COMPUTE
+  Expression.Ttree=MkVaru(COORDREF, RelatedSymbol(IdUse.Key, IdUse.Sym));
+END;
+
+RULE: Expression ::= Unop Expression
+COMPUTE
+  Expression[1].Ttree=
+    MkMonadic(COORDREF,Unop.operator,Expression[2].Ttree);
+END;
+
+RULE: Expression ::= Notop Expression
+COMPUTE
+  Expression[1].Ttree=
+    MkMonadic(COORDREF,Notop.operator,Expression[2].Ttree);
+END;
+
+RULE: Expression ::= Expression Binop Expression
+COMPUTE
+  Expression[1].Ttree=
+    MkDyadic(COORDREF,Binop.operator,Expression[2].Ttree,Expression[3].Ttree);
+END;
+
+RULE: Expression ::= Expression ShortCircuitOp Expression
+COMPUTE
+  Expression[1].Ttree=
+    MkDyadic(
+      COORDREF,
+      ShortCircuitOp.operator,
+      Expression[2].Ttree,
+      Expression[3].Ttree);
+END;
+
+RULE: Expression ::= Expression '?' Expression ':' Expression
+COMPUTE
+  Expression[1].Ttree=NULLNODEPTR;
+END;
+
+RULE: Expression ::= IdUse '='  Expression
+COMPUTE
+  Expression[1].Ttree=
+    MkAssign(
+      COORDREF,
+      .operator,
+      MkVard(COORDREF, RelatedSymbol(IdUse.Key, IdUse.Sym)),
+      Expression[2].Ttree);
+END;
+@}
+
+@C
+
+@$@<Statement execution@>==@{
+CHAIN Tt: VOID;
+
+SYMBOL Program COMPUTE
+  CHAINSTART HEAD.Tt=0;
+END;
+
+RULE: Statement ::= Expression ';'
+COMPUTE
+  Statement.Tt=
+    GenCode(Expression.Bb,Expression.Ttree) DEPENDS_ON Expression.Tt;
+END;
+
+RULE: Statement ::= 'return' Expression ';'
+COMPUTE
+  Statement.Tt=
+    GenCode(
+      Expression.Bb,
+      MkUj(COORDREF,Expression.Ttree,INCLUDING Program.exit))
+    DEPENDS_ON Expression.Tt;
+END;
+
+RULE: Statement ::= 'if' '(' Expression ')' Statement
+COMPUTE
+  Statement[2].Tt=
+    GenCode(Expression.Bb,MkCj(COORDREF,Expression.Ttree,.then,.end))
+    DEPENDS_ON Expression.Tt;
+END;
+
+RULE: Statement ::= 'if' '(' Expression ')' Statement 'else' Statement
+COMPUTE
+  Statement[2].Tt=
+    GenCode(Expression.Bb,MkCj(COORDREF,Expression.Ttree,.then,.else))
+    DEPENDS_ON Expression.Tt;
+END;
+
+RULE: WhileStmt ::= 'while' '(' Expression ')' Statement
+COMPUTE
+  WhileStmt.Tt=
+    GenCode(Expression.Bb,MkCj(COORDREF,Expression.Ttree,.body,WhileStmt.end))
+    DEPENDS_ON Expression.Tt;
+END;
+@}
+
+@$@<Symbol property@>==@{
+Symbol: int [Related];
+
+int Related(DefTableKey key, int sym)
+{ if (key == NoKey) return GenerateName(StringTable(sym));
+  if (!ACCESS) VALUE = GenerateName(StringTable(sym));
+  return VALUE;
+} "MakeName.h" "csm.h"
+@}
+
+@B
+
+@$@<Link the dominator tree@>==@{
+RULE: Axiom ::= Program $Target
+COMPUTE
+  Target.GENTREE=Program.DomTree;
+END;
+@}
+
+@B@<Specification files@>
+
+@C
+
+@O@<code.lido@>@{
+@<Creating basic blocks@>
+@<Target computation tree representation@>
+@<Generate the target computation tree@>
+@<Link the dominator tree@>
+@}
+
+@C
+
+@O@<code.pdl@>@{
+@<Symbol property@>
+@}
+
+@C
+
+@O@<code.specs@>@{
+$/Tech/MakeName.gnrc +instance=Identifier :inst
+@}
+
+@C
+
+@O@<code.head@>@{
+#include "Index.h"
+@}

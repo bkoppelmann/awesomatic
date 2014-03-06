@@ -1,0 +1,14 @@
+# $Id: Odinfile,v 1.5 1998/02/03 18:26:00 waite Exp $
+# Fortran semantic analysis
+
+%t ! == <<
+  .+cmd=(F77Lint.specs:exe) (in):run
+
+%p ! == <<
+  .+cmd=(PrintSym.specs:exe) (in):run
+
+f77.exe == F77Lint.specs :exe
+%s77 == F77Lint.specs :source
+
+Semantics.html == HtmlSemantics.fw :fwHtml
+Semantics.ps == TexSemantics.fw :fwTex :ps

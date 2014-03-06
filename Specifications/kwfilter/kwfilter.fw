@@ -1,0 +1,140 @@
+@! $Id: kwfilter.fw,v 1.5 2009/04/19 20:59:31 profw Exp $
+@! Copyright 1992, The Regents of the University of Colorado
+
+@A@<Keyword Specification Filter@>
+
+This tool accepts a GLA file that may contain canned descriptions and
+produces an equivalent GLA file with no canned descriptions.
+It also guarantees that no processor is specified for any token, and flags
+the presence of an auxiliary scanner as an error.
+Most of the constructs in the GLA file are simply copied to the output, but
+descriptions of non-literal basic symbols must be examined and modified.
+
+@B@<Non-literal Basic Symbols@>
+
+@$@<Non-literal basic symbol specifications@>==@{
+RULE: rest ::= RegularExpr optAuxScanner optProcessor
+COMPUTE
+  rest.code=PTGId(RegularExpr);
+END;
+
+RULE: rest ::= librRef optAuxScanner optProcessor
+COMPUTE
+  rest.code=Canned(librRef.Sym, COORDREF);
+END;
+
+RULE: librRef ::= Identifier
+COMPUTE
+  librRef.Sym=Identifier;
+END;
+
+RULE: optAuxScanner ::= '(' Identifier ')'
+COMPUTE
+  message(ERROR,"Keyword definition cannot specify a scanner",0,COORDREF);
+END;
+@}
+
+@$@<Specification component output format@>==@{
+NonLit:
+  "\t" $/*RegularExpression*/ "\n"
+@}
+
+Canned descriptions are looked up in the library and the appropriate
+construction operations invoked for any non-null components:
+
+@$@<Operation to handle canned descriptions@>==@{
+PTGNode
+#ifdef PROTO_OK
+Canned(int symbol, POSITION *loc)
+#else
+Canned(symbol, loc) int symbol; POSITION *loc;
+#endif
+{ CannedDescrPtr i;
+
+  i = libLookup(StringTable(symbol));
+  if (i == NullDescr) {
+    message(ERROR, "No such canned description", 0, loc);
+    return PTGId(symbol);
+  }
+  if (i->Lscanner)
+    message(ERROR, "Keyword definition cannot specify a scanner", 0, loc);
+  return PTGRegExp(PTGAsIs(i->Lpattern));
+}
+@}
+
+@$@<Regular expression representation@>==@{
+RegExp:
+  "$" $/*String*/
+@}
+
+@B@<Code@>
+
+@O@<filter.ptg@>==@{
+@<Specification component output format@>
+@<Regular expression representation@>
+@}
+
+@O@<filter.lido@>==@{
+@<Non-literal basic symbol specifications@>
+ATTR Sym: int;
+ATTR code: PTGNode;
+SYMBOL spec COMPUTE
+  PTGOutFile(
+    "filtered",
+    CONSTITUENTS rest.code WITH (PTGNode, PTGSeq, PTGNonLit, PTGNull));
+END;
+@}
+
+@O@<filter.c@>==@{
+#include "csm.h"
+#include "err.h"
+#include "can.h"
+#include "filter.h"
+@<Operation to handle canned descriptions@>
+@}
+
+@O@<filter.h@>==@{
+#ifndef FILTER_H
+#define FILTER_H
+
+#include "ptg_gen.h"
+#include "eliproto.h"
+extern PTGNode Canned ELI_ARG((int, POSITION *));
+
+#endif
+@}
+
+@O@<filter.HEAD.phi@>==@{
+#include "filter.h"
+@}
+
+@O@<filter.specs@>==@{
+$/Output/PtgCommon.fw
+@}
+
+@O@<glafe.gla@>==@{
+Identifier:	C_IDENTIFIER_ISO
+RegularExpr:	$\$[\041-~]+		[mkstr]
+		PASCAL_COMMENT
+		AWK_COMMENT
+@}
+
+@O@<glafe.con@>==@{
+spec: nonLitDesc+ .
+
+nonLitDesc:
+  [Identifier ':'] rest .
+
+rest:
+  RegularExpr optAuxScanner optProcessor /
+  librRef optAuxScanner optProcessor .
+
+librRef:
+  Identifier .
+
+optAuxScanner:
+  '(' Identifier ')' / .
+
+optProcessor:
+  '[' Identifier ']' / .
+@}

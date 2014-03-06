@@ -1,0 +1,13 @@
+Q: 
+begin
+  integer i,k;
+  real w;
+  real array A[1:10,1:10];
+  for i:=1 step 1 until 10 do
+     for k:=i+1 step 1 until 10 do
+        begin
+	  w := A[i,k];
+	  A[i,k]:=A[k,i];
+	  A[k,i]:=w;
+	end for i and k
+end block Q 

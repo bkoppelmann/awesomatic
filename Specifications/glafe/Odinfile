@@ -1,0 +1,23 @@
+# $Id: Odinfile,v 1.2 2009/04/19 20:57:43 profw Exp $
+# Odinfile for GLA front end
+
+%current == glafe.specs+monitor+debug+cc=gcc
+%data    == data
+
+%a    == %current:abstree
+%c    == %current:consyntax
+%d  ! == %current:gdb
+%e    == %current:ExpInfo
+%o    == %current:OrdInfo
+%g  ! == %current:gencode:viewlist
+%h  ! == %current:exe:help
+%m  ! == %current+arg=(%data):mon
+%mt ! == %current+arg=(input):mon
+%p    == %current:parsable
+%r  ! == .+cmd=(%current:exe) (%data)                            :run
+%t  ! == .+cmd=(%current:exe) (input)                            :run
+%tc ! == .+cmd=(tests/try)    (%current:exe) (tests/conformance) :run
+%td ! == .+cmd=(tests/try) -d (%current:exe) (tests/deviance)    :run
+%tm ! == %current+arg=(input):mon
+
+%source == glafe.specs :source :dir_of :vir_dir +copy_dest=(frontend) :copy

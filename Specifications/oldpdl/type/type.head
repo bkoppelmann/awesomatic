@@ -1,0 +1,6 @@
+/* $Id: type.head,v 1.1 1992/06/20 19:16:36 kadhim Exp $ */
+/* PDL type analysis computation interface */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+#include "type.h"
+

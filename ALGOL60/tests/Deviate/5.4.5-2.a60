@@ -1,0 +1,7 @@
+begin comment $Id: 5.4.5-2.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+Identifiers in the value part must be declared in the specification part;
+
+integer x;
+procedure p(y); value x; integer y; ;
+
+end

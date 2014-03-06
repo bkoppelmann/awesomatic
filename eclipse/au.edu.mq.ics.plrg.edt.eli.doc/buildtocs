@@ -1,0 +1,82 @@
+#! /usr/bin/env ruby
+# buildtocs
+# Build the Eclipse Help tables of contents for the Eli documentation.
+# Assumes that the current formatted elionline documentation is in the
+# current dir named "html".
+
+# Return the base part number of html file containing part of a document.
+# E.g., for "html/lidoref_12.html" returns 12
+
+def basenum(filename)
+  filename.sub(/^[^_]+/,'').sub!(/\.html/,'').to_i
+end
+
+# Routine to generate the table of contents xml file with a given
+# title and extracting sections from a given list of Eli documents.
+
+def gentoc(filename, title, docs)
+
+  File.open(filename + '_toc.xml','w+') { |toc|
+    toc.puts('<?xml version="1.0" encoding="UTF-8"?>')
+    toc.puts('<?NLS TYPE="org.eclipse.help.toc"?>')
+    toc.puts('<toc label="Eli Documentation" href="html/index.html">')
+    toc.puts('  <topic label="' + title + '" href="html/' + filename + '.html">')
+    seen = Hash.new
+    level = newlevel = 0
+    docs.each { |doc|
+      parts = Dir['html/' + doc + '_*.html'].sort { |fn1,fn2| basenum(fn1) <=> basenum(fn2) }
+      parts.each { |part|
+        File.open(part) { |file|
+          file.each { |line|
+            line.gsub!(/<(CODE|TT)>([^<]+)<\/(CODE|TT)>/,'\2')
+            case line
+              when /^<H1>([^<]+)<\/H1>$/ then
+                if not seen[$1] then
+                  if newlevel != 0 then
+                    toc.print("/>\n")
+                    if level != 0 then
+                      toc.print(' '*((level-1)*2+4),"</topic>\n")
+                    end
+                  end
+                  toc.print('    <topic label="',$1,'" href="html/',doc,'_toc.html"')
+                  seen[$1] = true
+                  level = 0
+                end
+              when /^<H([1-3])><A NAME="(SEC[0-9]+)" HREF="[^"]+">(.+)<\/A><\/H[1-3]>$/ then
+                newlevel = $1.to_i
+                if newlevel == level then toc.puts('/>')
+                elsif newlevel == level + 1 then toc.puts('>')
+                elsif newlevel < level then
+                   toc.print("/>\n")
+                   while level > newlevel do
+                     toc.print(' '*((level-1)*2+4),"</topic>\n")
+                     level = level - 1
+                   end
+                end
+                level = newlevel
+                toc.print(' '*(level*2+4),'<topic label="',$3,'" href="',part,'#',$2,'"')
+            end
+          }
+        }
+      }
+    }
+    toc.puts('/>','    </topic>','  </topic>','</toc>')
+  }
+
+end
+
+# Generate the table of contents for the different categories of documents
+
+gentoc('tute', 'Tutorials',
+       ['EliRefCard','novice','nametutorial','typetutorial'])
+gentoc('ref', 'Reference manuals',
+       ['ui','pp','lidoref'])
+gentoc('lib', 'Libraries',
+       ['lib','modlib','name','prop','type','input','output','adt','problems','oldmod'])
+gentoc('tasks', 'Translation tasks',
+       ['lex','syntax','comptrees'])
+gentoc('tools', 'Tools',
+       ['fw','ptg','deftbl','oil','tp','clp','idem','mon','cola','lcl','show','gorto'])
+gentoc('gen', 'General information',
+       ['faq','sysadmin','news4.4','news4.3','news4.2','news4.1','news4.0','gindex'])
+

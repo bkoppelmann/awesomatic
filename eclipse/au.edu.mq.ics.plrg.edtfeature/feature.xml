@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="au.edu.mq.ics.plrg.edtfeature"
+      label="%featureLabel"
+      version="1.0.6"
+      provider-name="%providerName"
+      image="gifs/elilogo.gif">
+
+   <description>
+      %description
+   </description>
+
+   <copyright>
+      %copyright
+   </copyright>
+
+   <license url="%licenseURL">
+      %license
+   </license>
+
+   <url>
+      <update label="%updateSiteLabel" url="http://www.comp.mq.edu.au/plrg/eclipse"/>
+   </url>
+
+   <requires>
+      <import plugin="org.eclipse.core.resources"/>
+      <import plugin="org.eclipse.core.runtime"/>
+      <import plugin="org.eclipse.ui"/>
+      <import plugin="org.eclipse.ui.console"/>
+      <import plugin="org.eclipse.ui.ide"/>
+      <import plugin="org.eclipse.ui.editors"/>
+      <import plugin="org.eclipse.jface"/>
+      <import plugin="org.eclipse.jface.text"/>
+      <import plugin="org.eclipse.debug.core"/>
+      <import plugin="org.eclipse.debug.ui"/>
+      <import plugin="org.eclipse.help"/>
+   </requires>
+
+   <plugin
+         id="au.edu.mq.ics.plrg.edt.eli.doc"
+         download-size="3265"
+         install-size="3292"
+         version="1.0.5"/>
+
+   <plugin
+         id="au.edu.mq.ics.plrg.edt"
+         download-size="49"
+         install-size="96"
+         version="1.0.5"/>
+
+   <plugin
+         id="au.edu.mq.ics.plrg.edt.doc"
+         download-size="7"
+         install-size="28"
+         version="1.0.5"/>
+
+</feature>

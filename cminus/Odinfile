@@ -1,0 +1,7 @@
+# $Id: Odinfile,v 1.2 1996/05/02 15:14:30 waite Exp $
+
+%lint ! == <<
+  . +cmd=(tests/try) (cminus/cminus.exe) (tests/conformance) :run
+  . +cmd=(tests/try) '-d' (cminus/cminus.exe) (tests/deviance) :run
+
+%SsaCode ! == . +cmd=(tests/try) (SsaCode%cminus.exe) :run

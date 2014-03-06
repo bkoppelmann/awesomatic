@@ -1,0 +1,5 @@
+begin comment $Id: 3.3.4.1-2.a60,v 1.1 2012/11/28 21:15:25 profw Exp $
+Multiplication is an arithmetic operation;
+
+  integer x; x := x * false;
+end

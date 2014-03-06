@@ -1,0 +1,5 @@
+/* $Id: F77Lint.specs,v 1.1 1997/12/28 19:15:46 waite Exp $ */
+/* Fortran 77 Lint Processor */
+
+F77Semantics.fw			/* Semantic analysis */
+../Phrase/F77Phrase.specs	/* Required scanner/parser */

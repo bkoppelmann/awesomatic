@@ -1,0 +1,259 @@
+@O@<name.lido@>==@{
+/* PDL name analysis */
+
+ATTR def: VOID;
+ATTR key: DefTableKey;
+ATTR openv: Environment;	/* environment for operation declarations */
+
+SYMBOL Source: env: Environment, GotAllDefs: VOID, GotAllOps: VOID;
+
+RULE Axiom: Source ::= Range '$LIBRARY' LibraryList 
+COMPUTE
+  /* Return a new environment and define the reserved word 'TYPE' */
+  Source.env=InitEnv();
+
+  /* Create a new scope for the users' declarations */
+  Source.openv=NewScope(LibraryList.openv);
+
+  /* global ordering dependencies */
+  Source.GotAllDefs=CONSTITUENTS (TypeIdent.def,PropertyNameDecl.def);
+  Source.GotAllOps=CONSTITUENTS OperationDecl.def;
+END;
+
+RULE LibrarySpec: LibraryList ::= OperationList
+COMPUTE
+  /* Creates the environment and creates the identifiers "Get" and "Set" */
+  /* and "Reset" for later use */
+  LibraryList.openv=InitOpEnv();
+END;
+
+RULE TypeName: TypeIdent ::= Identifier
+COMPUTE
+  TypeIdent.key=DefineIdn(INCLUDING Source.env, Identifier);
+
+  /* Set the kind of the identifier to Type and detect any name clashes */
+  TypeIdent.def=ORDER(ResetSym(TypeIdent.key, Identifier),
+			KindIs(TypeIdent.key, TypeClass));
+
+  /* if the identifier has already been used for a property name, then */
+  /* give an error */
+  IF(EQ(GetKind(TypeIdent.key,Undefined),NameClash),
+  message(FATAL, "Property and Type names must be different", 0, COORDREF))
+  DEPENDS_ON INCLUDING Source.GotAllDefs;
+END;
+
+RULE PropertyName: PropertyNameDecl ::= Identifier
+COMPUTE
+  PropertyNameDecl.key=DefineIdn(INCLUDING Source.env, Identifier);
+
+  /* Set the kind of the identifier to Property and detect any name clashes */
+  PropertyNameDecl.def=KindIs(PropertyNameDecl.key, PropertyClass); 
+
+  /* Give an error if this identifier has already been used as a type name */
+  IF(EQ(GetKind(PropertyNameDecl.key,Undefined),NameClash),
+  message(FATAL,"Property and Type names must be different", 0, COORDREF))
+  DEPENDS_ON INCLUDING Source.GotAllDefs;
+END;
+
+RULE OperationSpec: OperationDecl ::=
+                        TypeSpecifier Identifier '(' ParameterList ')' Text
+COMPUTE
+  /* Set all the properties associated with an operation declaration key */
+  OperationDecl.def=OpDefine(OperationDecl.key, OperationDecl.opout, 
+				OperationDecl.arglist, OperationDecl.formallist,
+				OperationDecl.extstruct, Identifier);
+
+  OperationDecl.key=DefineIdn(INCLUDING(LibraryList.openv,Source.openv),
+				Identifier);
+
+  /* Detect if the operation has been multiply defined */
+  IF(EQ(GetDefine(OperationDecl.key, Undefined), MultDefined),
+  message(FATAL,"Operation is multiply defined", 0, COORDREF))
+  DEPENDS_ON INCLUDING Source.GotAllOps;
+END;
+
+RULE OperationName: OperationNameDecl ::= Identifier
+COMPUTE
+  /* Detect if the named operation does not have an associated declaration */
+  IF(EQ(KeyInEnv(INCLUDING Source.openv, Identifier), NoKey),
+  message(FATAL,"Operation not defined", 0, COORDREF))
+  DEPENDS_ON INCLUDING Source.GotAllOps;
+END;
+
+@}
+
+@O@<name.head@>==@{
+/* PDL name analysis computation interface */
+
+#include "name.h"
+@}
+
+@O@<name.h@>==@{
+/* Exported definitions for attribute computations in PDL name analysis */
+
+#ifndef NAME_H
+#define NAME_H
+
+#include "envmod.h"	/* definition for Environment */
+#include "deftbl.h"	/* definition for DefTableKey */
+#include "func.h"	/* definition for OpOutput */
+#include "header.h"	/* definition for ExtOutput */
+
+/* Constants for the class identifier attribute to indicate if it is a */
+/* property or type name */
+#define Undefined         0
+#define PropertyClass     1
+#define TypeClass         2
+#define NameClash         3
+
+/* Constants to indicate if an operation has been defined more than once */
+#define Defined           1
+#define MultDefined       2
+
+/* exported functions */
+
+#if defined(__cplusplus) || defined(__STDC__)
+extern Environment InitEnv();
+extern Environment InitOpEnv();
+extern void KindIs(DefTableKey key, int kind);
+extern void OpDefine(DefTableKey key, OpOutput output, PTGNode arglist, 
+			PTGNode formallist, ExtOutput extrn, int sym);
+#else
+extern Environment InitEnv();
+extern Environment InitOpEnv();
+extern void KindIs();
+extern void OpDefine();
+#endif
+
+#endif
+@}
+
+@O@<name.specs@>==@{
+$/Scan/idn.specs
+@}
+
+@O@<name.c@>==@{
+/* PDL attribute computations for name analysis */
+
+#include <stdio.h>
+#include "err.h"	/* error module */
+#include "csm.h"	/* string table module */
+#include "idn.h"	/* identifier table module */
+#include "deftbl.h"	/* definition table module */
+#include "envmod.h"	/* environment module */
+#include "ptg_gen.h"    /* output generation definitions */
+#include "header.h"	/* definition for ExtOutput */
+#include "name.h"	/* constants and exported functions */
+#include "pdl_gen.h"	/* PDL generated functions */
+
+int GetHandle;		/* identifier handle for "Get" */
+int SetHandle;		/* identifier handle for "Set" */
+int ResetHandle;        /* identifier handle for "Reset" */
+int TypeHandle;		/* identifier handle for "TYPE" */
+
+/* Create an environment for operation names and predefine the operations */
+/* 'Get' and 'Set' and 'Reset' */
+#if defined(__cplusplus) || defined(__STDC__)
+Environment
+InitOpEnv (void)
+#else
+Environment
+InitOpEnv()
+#endif
+{
+  int temp;
+
+  mkidn("Get", 3, &temp, &GetHandle);
+  mkidn("Set", 3, &temp, &SetHandle);
+  mkidn("Reset", 5, &temp, &ResetHandle);
+  return NewEnv();
+}
+
+/* Create an environment for type and property names and predefine the */
+/* keyword 'TYPE' */
+#if defined(__cplusplus) || defined(__STDC__)
+Environment
+InitEnv (void)
+#else
+Environment
+InitEnv()
+#endif
+{
+  Environment env;
+  int temp;
+  DefTableKey key;
+
+  mkidn("TYPE", 4, &temp, &TypeHandle);
+  env = NewEnv();
+  key = DefineIdn(env, TypeHandle);
+  SetKind(key, TypeClass, TypeClass);
+  return env;
+}
+
+/***/
+#if defined(__cplusplus) || defined(__STDC__)
+void
+KindIs (DefTableKey key, int kind)
+#else
+void
+KindIs(key,kind)
+DefTableKey key; int kind;
+#endif
+/* Verify the definition of an entity
+ *    On entry-
+ *       key defines the entity
+ *       kind specifies the type of entity
+ *    On exit-
+ *       The Kind and Index properties have been set
+ ***/
+{
+   int CurrentKind;
+
+   switch (CurrentKind = GetKind(key,Undefined)) {
+   case PropertyClass:
+   case TypeClass:
+      if (CurrentKind != kind) SetKind(key, NameClash, NameClash);
+   case NameClash:
+      return;
+   case Undefined:
+      SetKind(key, kind, NameClash);
+   }
+}
+
+/* Set all properties for an operation declaration key */
+#if defined(__cplusplus) || defined(__STDC__)
+void
+OpDefine (DefTableKey key, OpOutput output, PTGNode arglist,
+	  PTGNode formallist, ExtOutput extrn, int sym)
+#else
+void
+OpDefine(key,output,arglist,formallist,extrn,sym)
+DefTableKey key; OpOutput output; PTGNode arglist; PTGNode formallist; 
+ExtOutput extrn; int sym;
+#endif
+{
+  SetFuncOut(key, output, output);
+  SetArgList(key, arglist, arglist);
+  SetFormalList(key, formallist, formallist);
+  SetExtOut(key, extrn, extrn);
+  SetSym(key, sym, sym);
+  SetDefine(key, Defined, MultDefined);
+  return;
+}
+@}
+
+@O@<name.pdl@>==@{
+/* Properties for checking definition status */
+
+"deftbl.h"
+"ptg_gen.h"
+"func.h"
+"header.h"
+
+Kind: int;			/* Type or Property */
+FuncOut: OpOutput;		/* Function output for an operation decl */
+ArgList: PTGNode;		/* argument list output for generated macros */
+FormalList: PTGNode;		/* argument list output for generated macros */
+ExtOut: ExtOutput;		/* function extern declaration */
+Sym: int;			/* string table lookup for deftbl key */
+@}

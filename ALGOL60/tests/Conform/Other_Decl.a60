@@ -1,0 +1,21 @@
+begin
+own real a;
+own integer b;
+own Boolean c;
+real d;
+integer e;
+Boolean f;
+own integer g,h;
+Boolean i,j;
+
+own real array arr1[1:10];
+array arr2[10:1];
+own integer array arr3[3:15],arr4[8:8];
+array arr5[10:100],arr6[9:19];
+own Boolean array arr7[3:15,2:10],arr8[8:8];
+array arr9[10:100],arr10[-1:-9,9:19];
+
+switch s1 := foo, s2[1];
+switch s2 := bar, baz;
+foo: bar: baz:
+end

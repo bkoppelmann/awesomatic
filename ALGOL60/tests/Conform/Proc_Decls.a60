@@ -1,0 +1,61 @@
+begin
+
+procedure Spur(a)Order:(n)Result:(s) ; value n;
+array a; integer n; real s;
+begin integer k;
+s := 0;
+for k := 1 step 1 until n do s:=s+a[k,k]
+end;
+
+procedure Transpose(a)Order:(n); value n;
+array a; integer n;
+begin real w; integer i,k;
+   for i:=1 step 1 until n do
+     for k:=1+i step 1 until n do
+       begin w := a[i,k];
+	     a[i,k] := a[k,i];
+	     a[k,i] := w
+       end
+end;
+
+integer procedure Step(u); real u;
+Step := if 0 <= u and u <= 1 then 1 else 0;
+
+procedure Absmax(a)size:(n,m)Result:(y)Subscripts:(i,k);
+array a;  integer n,m,i,k;  real y;
+begin integer p,q;
+y := 0;
+for p := 1 step 1 until n do
+  for q := 1 step 1 until m do
+    if abs(a[p,q]) > y
+      then begin y := abs(a[p,q]); i := p; k := q end
+end Absmax;
+
+procedure Innerproduct(a,b)Order:(k,p)Result:(y); value k,p;
+integer k,p; real y,a,b;
+begin real s;
+s := 0;
+for p := 1 step 1 until k do s := s + a * b;
+y := s
+end Innerproduct;
+
+procedure NOP;
+begin
+end;
+
+integer procedure kounter;
+begin own integer i;
+  i := i + 1;
+  kounter := i
+end;
+
+integer procedure counter(k); integer k;
+begin own integer i;
+  if ( k > 0 ) then i := k;
+  i := i + 1;
+  counter := i
+end;
+
+procedure printInteger(i); integer i; { /* Code body */ };
+
+end

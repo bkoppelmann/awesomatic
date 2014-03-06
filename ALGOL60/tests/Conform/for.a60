@@ -1,0 +1,13 @@
+begin
+  integer i,j,k;
+
+  integer array A[1:10],B[1:10];
+
+  for i:=1 step 1 until 10 do
+      A[i]:=B[i];
+
+  for i:=1,j while i < 5 do
+     for k:= 1,2,3 step 1 until 5,7 do
+         A[i]:=B[j];
+
+end

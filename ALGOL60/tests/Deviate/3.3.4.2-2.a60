@@ -1,0 +1,5 @@
+begin comment $Id: 3.3.4.2-2.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+Integer division requires integer operands;
+
+  integer x; x := x div 1.2;
+end

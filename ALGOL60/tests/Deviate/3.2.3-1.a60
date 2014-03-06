@@ -1,0 +1,6 @@
+begin comment $Id: 3.2.3-1.a60,v 1.1 1996/07/18 15:01:59 waite Exp $
+  Procedure without type cannot be used in an expression;
+
+  procedure foo; { };
+  integer x; x := foo;
+end

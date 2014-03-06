@@ -1,0 +1,7 @@
+begin comment $Id: 4.1.3-3.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+A label separated by a colon from a statement behaves as though declared at
+the head of the smallest embracing block;
+
+go to x;
+  begin real y; x: end;
+end

@@ -1,0 +1,20 @@
+#! /usr/bin/env ruby
+# rmtables 
+# Remove the side table columns from Eli documents that includes the
+# list of documents since that is being done by Eclipse now.
+# Also removes the background gif that creates the blue stripe
+# background to the list of documents.
+
+# Assumes that the current formatted elionline documentation is in the
+# current dir named "html".  You only want to run this once each time
+# you copy the elionline doc to the plugin.
+
+Dir['html/*.html'].each { |part|
+  contents = IO.readlines(part).to_s
+  contents.sub!(/ BACKGROUND="gifs\/bg.gif"/,'')
+  contents.sub!(/<HR size=1 noshade width=785 align=left>.*<TD VALIGN=TOP WIDTH="600">/m,'')
+  contents.sub!(/left>.<\/TD>.<\/TR>.<\/TABLE>/m,'left>')
+  File.open(part,'w') {|file|
+    file.write(contents)
+  }
+}

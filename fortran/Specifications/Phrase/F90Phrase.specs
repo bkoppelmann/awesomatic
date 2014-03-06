@@ -1,0 +1,9 @@
+/* $Id: F90Phrase.specs,v 1.4 1998/01/01 18:28:19 waite Exp $ */
+/* Specifications for a FORTRAN 90 scanner/parser */
+
+F90Phrase.fw		/* Selection of the FORTRAN 90 scanner/parser */
+F90/keywds.delit	/* FORTRAN 90 keywords */
+F90/keywds.h
+
+Include.fw		/* Include file processing */
+$/Input/CmdLineIncl.gnrc:inst

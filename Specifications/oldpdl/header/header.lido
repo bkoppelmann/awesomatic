@@ -1,0 +1,92 @@
+/* $Id: header.lido,v 1.6 1994/03/26 19:20:56 waite Exp $ */
+/* Attribution for header output generation */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+ATTR extout: PTGNode;		/* output for extern declaration */
+ATTR extstruct: ExtOutput;	/* output information struct for externs */
+ATTR macroout: PTGNode;		/* output for generated macro */
+
+CHAIN fileout: PTGNode;		/* include files */
+
+RULE Axiom: Source ::= Range '$LIBRARY' LibraryList
+COMPUTE
+  /* Begin chain for output for include files */
+  CHAINSTART Range.fileout=PTGNULL;
+
+  /* Collect all output and place in file pdl_gen.h */
+  Source.extout=CONSTITUENTS Type.extout
+			WITH(PTGNode, concatptgnode, creatptgnode, nullptgnode);
+  Source.macroout=CONSTITUENTS PropertyNameDecl.macroout
+			WITH(PTGNode, concatptgnode, creatptgnode, nullptgnode);
+  PTGOutFile(
+    "pdl_gen.h",
+    PTGHGen(
+      Range.fileout,
+      Source.extout,
+      Source.macroout,
+      Source.Define));
+END;
+
+RULE FileSpec: FileDecl ::= String
+COMPUTE
+  /* Add the current #include to the already generated ones */
+  FileDecl.fileout=PTGSeq(FileDecl.fileout,
+			PTGInclude(PTGIdentifier(String.sym)));
+END;
+
+RULE PropertyName: PropertyNameDecl ::= Identifier
+COMPUTE
+  /* Generate macros for this property declaration */
+  PropertyNameDecl.macroout=GenMacros(PropertyNameDecl.key, Identifier.sym,
+			INCLUDING Source.openv,
+			GetFuncList(PropertyNameDecl.key, dummyfunclist))
+		DEPENDS_ON (INCLUDING Source.GotAllFuncs, 
+				INCLUDING Source.GotAllOps);
+END;
+
+RULE TypeNoOp: Type ::= TypeSpecifier
+COMPUTE
+  /* Generate externs for functions generated for this type */
+  Type.extout=GenExterns(TypeSpecifier.key, TypeSpecifier.sym, 
+			INCLUDING Source.openv,
+			GetFuncList(TypeSpecifier.key, dummyfunclist))
+		DEPENDS_ON INCLUDING Source.GotAllFuncs;
+END;
+
+RULE TypeWithOp: Type ::= TypeSpecifier '[' OperationNameList ']'
+COMPUTE
+  /* Generate externs for functions generated for this type */
+  Type.extout=GenExterns(TypeSpecifier.key, TypeSpecifier.sym, 
+			INCLUDING Source.openv,
+			GetFuncList(TypeSpecifier.key, dummyfunclist))
+		DEPENDS_ON INCLUDING Source.GotAllFuncs;
+END;
+
+RULE OperationSpec: OperationDecl ::=
+                        TypeSpecifier Identifier '(' ParameterList ')' Text
+COMPUTE
+  /* Generate the output for the extern declaration */
+  OperationDecl.extstruct=BuildExternSpec(TypeSpecifier.out,
+					PTGIdentifier(Identifier.sym),
+					ParameterList.extout);
+END;
+
+RULE MultipleParameters: ParameterList ::= ParameterList ',' ParameterDecl
+COMPUTE
+  ParameterList[1].extout=
+		PTGCommaSeq(ParameterList[2].extout, ParameterDecl.extout);
+END;
+
+RULE SingleParameter: ParameterList ::= ParameterDecl
+COMPUTE
+  ParameterList.extout=ParameterDecl.extout;
+END;
+
+RULE ParameterSpec: ParameterDecl ::= TypeSpecifier Identifier Modifier
+COMPUTE
+  /* Parameter declaration output for externs */
+  ParameterDecl.extout=PTGExtParamDecl(TypeSpecifier.out,
+					PTGIdentifier(Identifier.sym),
+					Modifier.out);
+END;
+

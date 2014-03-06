@@ -1,0 +1,10 @@
+%b == Suif.specs \
+  +ignore='/usr/include' \
+  +ignore='/home/scotty/mah/basesuif-1.1.2' \
+  +cc='g++ \
+    -I/home/scotty/mah/basesuif-1.1.2/src/basesuif \
+    -I/home/scotty/mah/basesuif-1.1.2/src/basesuif/suif'
+
+f77suif.exe == %b :exe
+
+%d == %b +debug

@@ -1,0 +1,22 @@
+@p typesetter = html
+
+<TITLE>Java Specification</TITLE>
+
+@t title titlefont centre "Executable Java Specification"
+
+<TABLE WIDTH="100%">
+<TR>
+<TD ALIGN=CENTER>
+<A HREF="mailto:William.Waite@@colorado.edu">
+<ADDRESS>William.Waite@@colorado.edu</ADDRESS></A></TD>
+</TR>
+</TABLE>
+<HR>
+
+@i abstract.fw
+
+@t table_of_contents
+
+<HR>
+
+@i Java.fw

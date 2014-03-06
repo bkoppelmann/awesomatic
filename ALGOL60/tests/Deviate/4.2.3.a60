@@ -1,0 +1,7 @@
+begin comment $Id: 4.2.3.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+Assignment to a procedure identifier may only occur within the body of a
+procedure defining the value of a function designator;
+
+integer procedure f; f := 0;
+f := 1;
+end

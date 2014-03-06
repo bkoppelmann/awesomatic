@@ -1,0 +1,383 @@
+$Id: glafe.fw,v 1.9 2009/04/23 20:38:23 profw Exp $
+Copyright 1996, The Regents of the University of Colorado
+GLA frontend processor
+
+@O@<glafe.gla@>==@{
+Identifier:	C_IDENTIFIER
+Integer:	PASCAL_INTEGER
+RegularExpr:	$\$[\041-~\0241-\0377]+		[mkstr]
+		PASCAL_COMMENT
+@}
+
+@O@<glafe.con@>==@{
+spec: nonLitDescs options encodings .
+
+nonLitDescs: nonLitDescs nonLitDesc / .
+nonLitDesc: Identifier ':' rest / value ':' rest / rest .
+rest: RegularExpr optAuxScanner optProcessor /
+	librRef optAuxScanner optProcessor .
+librRef: Identifier .
+optAuxScanner: '(' Identifier ')' / .
+optProcessor: '[' Identifier ']' / .
+
+options: options option / option .
+option: '%%' / EofOption / '%MAXCODES' value / '%NOTABS' .
+EofOption: '%EOFTOKEN' value .
+
+encodings: encodings encoding / .
+encoding: LitEncoding / NonlitEncoding .
+LitEncoding: RegularExpr value .
+NonlitEncoding: Identifier value .
+
+value: Integer / '+' Integer / '-' Integer .
+@}
+
+@O@<glafe.specs@>==@{
+$/Name/AlgScope.gnrc :inst
+$/Tech/Strings.specs
+$/Prop/Unique.gnrc :inst
+@}
+
+@O@<glafe.lido@>==@{
+RULE: nonLitDesc ::= IdDef ':' rest END;
+RULE: IdDef ::= Identifier END;
+
+RULE: NonlitEncoding ::= '?' IdUse value END;
+RULE: NonlitEncoding ::= IdUse value
+COMPUTE
+  IF(EQ(IdUse.Key, NoKey),
+    message(ERROR, CatStrInd("No GLA specification for ", IdUse.Sym),
+            0, COORDREF));
+END;
+
+RULE: IdUse ::= Identifier END;
+
+ATTR Sym: int SYNT;
+CLASS SYMBOL IdentOcc COMPUTE SYNT.Sym = TERM; END;
+
+SYMBOL IdDef INHERITS IdDefScope, IdentOcc END;
+SYMBOL IdUse INHERITS IdUseEnv, IdentOcc END;
+
+SYMBOL spec INHERITS RootScope, RangeUnique END;
+
+SYMBOL IdDef INHERITS Unique COMPUTE
+  IF(NOT(THIS.Unique),
+    message(ERROR, CatStrInd("Identifier is multiply defined: ", THIS.Sym),
+            0, COORDREF));
+END;
+
+ATTR Num: int;
+
+RULE: value ::= Integer
+COMPUTE
+  value.Num = Integer;
+END;
+
+RULE: value ::= '+' Integer
+COMPUTE
+  value.Num = Integer;
+END;
+
+RULE: value ::= '-' Integer
+COMPUTE
+  value.Num = NEG(Integer);
+END;
+
+SYMBOL value COMPUTE
+  IF(EQ(THIS.Num, NORETURN),
+    message(WARNING, "Encoding used internally", 0, COORDREF));
+END;
+
+CHAIN LitCount, NonlitCount: int;
+ATTR Counter: int;
+ATTR Key: DefTableKey;
+
+SYMBOL spec COMPUTE
+  CHAINSTART HEAD.LitCount = 0;
+  CHAINSTART HEAD.NonlitCount = TAIL.LitCount;
+END;
+
+SYMBOL nonLitDesc COMPUTE
+  SYNT.Counter = ADD(THIS.NonlitCount, 1);
+  THIS.NonlitCount = THIS.Counter;
+  SYNT.GotCounter = ResetCounter(THIS.Key, THIS.Counter);
+  SYNT.GotEncoding = 0;
+END;
+
+RULE: nonLitDesc ::= IdDef ':' rest
+COMPUTE
+  nonLitDesc.Key = ORDER(ResetStr(IdDef.Key, StringTable(IdDef.Sym)),
+                         IdDef.Key);
+  nonLitDesc.NonlitCount = ADD(1, nonLitDesc.NonlitCount);
+  IF(EQ(GetEncoding(nonLitDesc.Key, NORETURN), NORETURN),
+    message(WARNING,
+      CatStrInd("Symbol is not a terminal in the grammar: ", IdDef.Sym),
+      0, COORDREF))
+    DEPENDS_ON INCLUDING spec.GotEncoding;
+END;
+
+RULE: nonLitDesc ::= value ':' rest
+COMPUTE
+  nonLitDesc.Key = NewKey();
+  nonLitDesc.GotEncoding = ResetEncoding(nonLitDesc.Key, value.Num);
+END;
+
+RULE: nonLitDesc ::= rest
+COMPUTE
+  nonLitDesc.Key = NewKey();
+END;
+
+SYMBOL LitEncoding COMPUTE
+  SYNT.Key = NewKey();
+  SYNT.Counter = ADD(THIS.LitCount, 1);
+  THIS.LitCount = THIS.Counter;
+  SYNT.GotCounter = ResetCounter(THIS.Key, THIS.Counter);
+END;
+
+SYMBOL encoding COMPUTE
+  SYNT.GotEncoding = ResetEncoding(CONSTITUENT(LitEncoding.Key, IdUse.Key),
+                                       CONSTITUENT value.Num);
+END;
+
+RULE: LitEncoding ::= RegularExpr value
+COMPUTE
+  LitEncoding.GotRegex = ResetRegex(LitEncoding.Key,
+                           ADD(StringTable(RegularExpr), 1));
+END;  
+
+RULE: rest ::= RegularExpr optAuxScanner optProcessor 
+COMPUTE
+  rest.GotRegex = ResetRegex(INCLUDING nonLitDesc.Key,
+                    ADD(StringTable(RegularExpr), 1));
+  rest.GotScanner = CONSTITUENTS optAuxScanner.GotScanner;
+  rest.GotProcessor = CONSTITUENTS optProcessor.GotProcessor;
+END;
+
+ATTR libentry: CannedDescrPtr;
+
+SYMBOL librRef INHERITS IdentOcc END;
+
+RULE: rest ::= librRef optAuxScanner optProcessor
+COMPUTE
+  .libentry = libLookup(StringTable(librRef.Sym));
+  rest.GotRegex = ResetRegex(INCLUDING nonLitDesc.Key,
+                    PTRSELECT(.libentry, Lpattern));
+  rest.GotScanner = GuaranteeScanner(INCLUDING nonLitDesc.Key,
+                      PTRSELECT(.libentry, Lscanner)) DEPENDS_ON
+                      CONSTITUENTS optAuxScanner.GotScanner;
+  rest.GotProcessor = GuaranteeProcessor(INCLUDING nonLitDesc.Key,
+                        PTRSELECT(.libentry, Lprocessor)) DEPENDS_ON
+                        CONSTITUENTS optProcessor.GotProcessor;
+
+  IF(EQ(.libentry, NullDescr),
+    message(FATAL, "No such canned description", 0, COORDREF));
+END;
+
+RULE: optAuxScanner ::= '(' Identifier ')'
+COMPUTE
+  optAuxScanner.GotScanner = ResetScanner(INCLUDING nonLitDesc.Key,
+                               StringTable(Identifier));
+END;
+
+RULE: optAuxScanner ::=
+COMPUTE
+  optAuxScanner.GotScanner = 0;
+END;
+
+RULE: optProcessor ::= '[' Identifier ']'
+COMPUTE
+  optProcessor.GotProcessor = ResetProcessor(INCLUDING nonLitDesc.Key,
+                                StringTable(Identifier));
+END;
+
+RULE: optProcessor ::=
+COMPUTE
+  optProcessor.GotProcessor = 0;
+END;
+
+ATTR FlexOut, BackOut: PTGNode;
+
+SYMBOL nonLitDesc COMPUTE
+  SYNT.FlexOut = PTGFlexEntry(
+                   PTGStr(GetRegex(THIS.Key, 0)),
+                   PTGNum(GetCounter(THIS.Key, 0)),
+                   PTGNum(GetEncoding(THIS.Key, NORETURN)),
+                   PTGNum(LINE))
+                 DEPENDS_ON (INCLUDING spec.GotRegex,
+                             INCLUDING spec.GotCounter,
+                             INCLUDING spec.GotEncoding);
+
+  SYNT.BackOut = PTGBEEntry(
+                   PTGStr(GetStr(THIS.Key, 0)),
+                   PTGStr(GetRegex(THIS.Key, 0)),
+                   PTGStr(GetScanner(THIS.Key, 0)),
+                   PTGStr(GetProcessor(THIS.Key, 0)),
+                   PTGNum(GetEncoding(THIS.Key, NORETURN)))
+                 DEPENDS_ON (INCLUDING spec.GotRegex,
+                             INCLUDING spec.GotScanner,
+                             INCLUDING spec.GotProcessor,
+                             INCLUDING spec.GotEncoding);
+END;
+
+SYMBOL LitEncoding COMPUTE
+  SYNT.FlexOut = PTGFlexEntry(
+                   PTGQuoted(PTGStr(GetRegex(THIS.Key, 0))),
+                   PTGNum(GetCounter(THIS.Key, 0)),
+                   PTGNum(GetEncoding(THIS.Key, NORETURN)),
+                   PTGNum(LINE))
+                 DEPENDS_ON (INCLUDING spec.GotRegex,
+                             INCLUDING spec.GotCounter,
+                             INCLUDING spec.GotEncoding);
+
+  SYNT.BackOut = PTGBEEntry(
+                   PTGStr(0),
+                   PTGStr(GetRegex(THIS.Key, 0)),
+                   PTGStr(0),
+                   PTGStr(0),
+                   PTGNum(GetEncoding(THIS.Key, NORETURN)))
+                 DEPENDS_ON (INCLUDING spec.GotRegex,
+                             INCLUDING spec.GotEncoding);
+END;
+
+RULE: EofOption ::= '%EOFTOKEN' value
+COMPUTE
+  EofOption.Num = value.Num;
+END;
+
+ATTR GotRegex, GotScanner, GotProcessor, GotCounter: VOID;
+
+SYMBOL spec COMPUTE
+  SYNT.GotRegex = CONSTITUENTS (LitEncoding.GotRegex, rest.GotRegex);
+  SYNT.GotScanner = CONSTITUENTS rest.GotScanner;
+  SYNT.GotProcessor = CONSTITUENTS rest.GotProcessor;
+  SYNT.GotCounter =
+    CONSTITUENTS (LitEncoding.GotCounter, nonLitDesc.GotCounter);
+  SYNT.GotEncoding =
+    CONSTITUENTS (encoding.GotEncoding, nonLitDesc.GotEncoding);
+
+  PTGOutFile("xflex.l",
+    PTGFlex(
+      CONSTITUENTS LitEncoding.FlexOut
+        WITH(PTGNode, PTGSeq, IDENTICAL, PTGNull),
+      CONSTITUENTS nonLitDesc.FlexOut
+        WITH(PTGNode, PTGSeq, IDENTICAL, PTGNull)));
+
+  PTGOutFile("backend.data",
+    PTGBackend(
+       PTGNum(CONSTITUENTS EofOption.Num
+                WITH(int, NoDups, IDENTICAL, BOGUS)),
+       PTGNum(TAIL.LitCount),
+       PTGNum(SUB(TAIL.NonlitCount, TAIL.LitCount)),
+       PTGSeq(
+         CONSTITUENTS LitEncoding.BackOut
+           WITH(PTGNode, PTGSeq, IDENTICAL, PTGNull),
+         CONSTITUENTS nonLitDesc.BackOut
+           WITH(PTGNode, PTGSeq, IDENTICAL, PTGNull))));
+END;
+@}
+
+@O@<glafe.ptg@>==@{
+Flex:	"%%\n\n"
+	$1
+	"\n\n"
+	$2
+
+FlexEntry:	$1 "\t" $2 "; /* ext=" $3 " sourceLine=" $4 " */\n"
+
+Backend:	$1 " " $2 " " $3 "\n"
+		$4
+
+BEEntry:	$1 "\n"
+		$2 "\n"
+		$3 "\n"
+		$4 "\n"
+		$5 "\n"
+
+Quoted:		"\"" $1 "\""
+
+Str:	[PrString $1 string]
+Num:	$ int
+Seq:	$ $
+@}
+
+@O@<glafe.pdl@>==@{
+"Strings.h"
+"glafe.h"
+Regex: CharPtr;
+Encoding: int;
+Counter: int;
+Scanner: CharPtr [Guarantee];
+Processor: CharPtr [Guarantee];
+Str: CharPtr;
+
+void Guarantee(DefTableKey key, TYPE val)
+{
+  if (key == NoKey)
+    return;
+  else if (!ACCESS)
+    VALUE = val;
+}
+@}
+
+@O@<glafe.head@>==@{
+#include "can.h"
+#include "glafe.h"
+
+#define BOGUS()		NORETURN
+@}
+
+@O@<glafe.c@>==@{
+#include <stdio.h>
+#include <string.h>
+#include "ptg_gen.h"
+#include "err.h"
+#include "glafe.h"
+
+void
+#if PROTO_OK
+PrString (PTG_OUTPUT_FILE f, CONST char *str)
+#else
+PrString (f, str) PTG_OUTPUT_FILE f; char *str;
+#endif
+{
+  if (str == (char *)0)
+    fprintf(f, "(null)");
+  else if (strncmp(str, "%%", 2) == 0)
+    fprintf(f, "\"%%%%\"%s", &str[2]);
+  else
+    fprintf(f, "%s", str);
+}
+
+int
+#if defined(__cplusplus) || defined(__STDC__)
+NoDups (int x, int y)
+#else
+NoDups (x, y)
+int x, y;
+#endif
+{
+  if (x == NORETURN)
+    return y;
+  else if (y == NORETURN)
+    return x;
+  else {
+    message(ERROR, "More than one Eof encoding supplied", 0, NoPosition);
+    return x;
+  }
+}
+@}
+
+@O@<glafe.h@>==@{
+#ifndef GLAFE_H
+#define GLAFE_H
+
+#include "eliproto.h"
+#include "ptg_gen.h"
+
+#define NORETURN	15001
+
+extern void PrString ELI_ARG((PTG_OUTPUT_FILE f, CONST char *str));
+extern int NoDups ELI_ARG((int x, int y));
+
+#endif
+@}

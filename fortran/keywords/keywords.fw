@@ -1,0 +1,502 @@
+@A@<Statement of the Problem@>
+
+The problem is to accept an input file containing a context-free grammar,
+and to generate two output files.
+The precise formats of the input file and the two output files
+are defined in this section.
+No justification for these formats will be given; those design decisions
+are outside the scope of the file generation problem.
+
+@B
+
+The input file is a context-free grammar written in the notation accepted
+by Eli.
+Here is the specification of that notation, in the notation itself:
+
+@$@<The Form of the Input File@>==@{
+Grammar: Specification .
+Specification: Rule / Specification Rule .
+Rule: Name ':' Expression '.' .
+Name: Identifier .
+Expression: Tertiary / Expression '//' Atom .
+Tertiary: '/' Secondary / Tertiary '/' Secondary / Secondary .
+Secondary: Secondary Primary / Primary .
+Primary: Unit '*' / Unit '+' / '[' Expression ']' / Unit .
+Unit: Atom / '$' Atom / '@@' Atom / '&' Literal / '(' Expression ')' .
+Atom: Identifier / Literal .
+@}
+
+An @{Identifier@} is a sequence of letters and digits, the first of which
+is a letter.
+A @{Literal@} is any sequence of characters delimited by apostrophes;
+if an apostrophe appears in the sequence then it must be doubled.
+This specification contains both identifiers (e.g. @{Grammar@})
+and literals (e.g. @{':'@}).
+
+Three forms of comment may appear in the input file,
+C comments (delimited by @{/*@} and @{*/@}),
+comments that begin with @{%@} and terminate at the end of the line,
+and comments that begin with @{#@} and terminate at the end of the line.
+
+When writing a grammar for a programming language, one usually describes
+the keywords of the language by literals in the grammar.
+FORTRAN keywords appear in the grammar as literals
+consisting solely of lower case letters.
+@/Any@/ literal of this form should be considered a keyword.
+
+@B@<The Forms of the Output Files@>
+
+The two output files are both text files.
+One describes the table of keywords to the processor.
+It is a header file that will be introduced into the processor via an
+@{#include@} directive.
+The other file specifies the keywords to Eli, and provides names for them.
+It is an Eli specification that will be given to Eli as part of the
+description of the FORTRAN compiler.
+
+@C
+
+File @{keywds.h@} defines an initialized array of structures.
+Each element of the array describes one keyword and is defined
+by one line of the file.
+The element has three components:
+a string consisting of the characters of the keyword,
+an identifier consisting of @{Kw@} followed by the characters of the
+keyword,
+and the number of characters in the keyword.
+Components are separated by commas and white space.
+
+The elements of the array must be arranged in increasing order by their
+first component.
+The order is the normal dictionary order, with a string that is a prefix of
+another string appearing before that string.
+The file must also define a constant @{MAXKWD@} to be the index of the last
+element of the array.
+
+Here is an example of such a file, which specifies four keywords.
+Note that @{MAXKWD@}, being the maximum array index, is one less than the
+number of keywords:
+
+@$@<File keywds.h@>@Z@{
+#define MAXKWD 3                /* Maximum index in KeyTable */
+
+static Keywd KeyTable[] = {
+  "allocatable", KwALLOCATABLE, 11,
+  "allocate", KwALLOCATE, 8,
+  "while", KwWHILE, 5,
+  "write", KwWRITE, 5
+};
+@}
+
+The form of the file can be described by templates that
+decompose it into fixed and variable strings:
+
+@$@<Text templates describing keywds.h@>==@{
+Keywds:
+  "#define MAXKWD " $ "\t\t/* Maximum index in KeyTable */\n\n"
+  "static Keywd KeyTable[] = {\n"
+  $ "\n"
+  "};"
+
+KwdEntry:
+  "  \"" $1 "\", Kw" $1 ", " $2
+
+KwdEntrySeq:
+  $ ",\n" $
+@}
+
+There are three templates in this specification: @{Keywds@}, @{KwdEntry@}
+and @{KwdEntrySeq@}.
+@{Keywds@} describes the overall structure of the file.
+It consists of a number of C strings defining the fixed parts of the file,
+and two parameters (indicated by @{$@} characters) defining the variable
+parts.
+The first parameter must be replaced by an integer giving the index of the
+last element of the array, and the second must be replaced by the lines
+specifying the array elements.
+
+@{KwdEntry@} describes one line specifying an array element.
+It uses two parameters, the first (indicated by @{$1@}) being substituted
+in two places.
+The characters of the keyword will be substituted for the first parameter.
+They will be surrounded by quotes to form the first component of the
+array element, and preceded by the characters @{Kw@} to form the second.
+The number of characters in the keyword will be substituted for the second
+parameter, which becomes the third component of the array element.
+
+@{KwdEntrySeq@} describes how two sequences of elements are combined.
+It has two parameters, representing the two element sequences.
+When they are combined,
+a comma and a newline character are placed between them.
+When the complete element sequence is incorporated into the file as the
+second parameter of the @{Keywds@} template, a newline character is added;
+there must be no comma after the last component of the last element.
+(This is the reason that @{KwdEntry@} does not specify a comma or
+newline character.)
+
+@C
+
+File @{keywds.delit@} defines the literal keywords
+that are not to be recognized by the scanner.
+Each line of the file defines one literal keyword.
+The definition has two components:
+a regular expression consisting of @{$@} followed by the characters of the
+keyword,
+and an identifier consisting of @{Kw@} followed by the characters of the
+keyword.
+Components are separated by white space.
+
+Here is an example of such a file, which specifies four literal keywords.
+Note that the literal keywords need not be specified in any particular order:
+
+@$@<File keywds.delit@>@Z@{
+$allocate KwALLOCATE
+$while KwWHILE
+$allocatable KwALLOCATABLE
+$write KwWRITE
+@}
+
+File @{keywds.delit@} is is simply a sequence of lines.
+Template @{DelitEntry@} describes the individual lines,
+and @{DelitEntrySeq@} describes how two sequences of lines are combined
+into a longer sequence:
+
+@$@<Text templates describing keywds.delit@>==@{
+DelitEntry:
+  "$" $1 " Kw" $1
+
+DelitEntrySeq:
+  $ "\n" $
+@}
+
+@A@<Generating the Output Files@>
+
+Eli will create a text construction module
+from a set of templates like those used in Section 1.2
+to describe the output file formats.
+The name of each function exported by that module is @{PTG@}
+followed by the name of the template that it implements,
+and each function takes a number of arguments equal to the number of
+parameters in the template.
+Each function returns a tree of type @{PTGNode@},
+and all of the arguments are of type @{PTGNode@}.
+
+In order to use these functions, two additional facilities are needed:
+Tree leaves of type @{PTGNode@} must be created from strings and integers,
+and a complete tree of type @{PTGNode@} must be output to a file.
+
+@B
+
+Values of type @{PTGNode@} can be created from strings and integers by
+using typed insertion points:
+
+@$@<Text Templates Describing Leaves@>==@{
+Text:
+  $ string
+
+Numb:
+  $ int
+@}
+
+In this case the template specifies the type of the argument to the
+function.
+A @{string@} argument must be a value of the C type @{char *@},
+while an @{int@} argument must be a value of the C type @{int@}.
+The names of these functions are also @{PTG@} followed by the name of the
+template, and each returns a tree of type @{PTGNode@}.
+
+To obtain the text construction module, all that is necessary is to
+provide the templates to Eli as the content of a type-@{ptg@} file:
+
+@O@<keywords.ptg@>@{
+@<Text templates describing keywds.h@>
+@<Text templates describing keywds.delit@>
+@<Text Templates Describing Leaves@>
+@}
+
+@B
+
+Suppose that a sorted array of C strings, @{Keyword@}, exists.
+Each of the keywords in a given grammar appears exactly once in
+@{Keyword@}.
+@{NumberOfKeywords@} is a variable of type @{int@} that gives the number of
+elements in the array.
+The functions generated by Eli from the templates could then be used to
+output the two files as follows:
+
+@$@<Describing Tree Construction@>==@{
+HeaderTree = PTGKwdEntry(PTGText(Keyword[0]), PTGNumb(strlen(Keyword[0])));
+DelitTree = PTGDelitEntry(PTGText(Keyword[0]));
+
+for (i = 1; i < NumberOfKeywords; i++) {
+  HeaderTree=
+    PTGKwdEntrySeq(
+      HeaderTree,
+      PTGKwdEntry(PTGText(Keyword[i]), PTGNumb(strlen(Keyword[i]))));
+
+  DelitTree=
+    PTGDelitEntrySeq(DelitTree, PTGDelitEntry(PTGText(Keyword[i])));
+}
+@}
+
+@{HeaderTree@} is initialized to the tree representing the first element of
+the array.
+That tree is created by calling @{PTGKwdEntry@} with two leaves,
+themselves created from the first element of @{Keyword@}.
+Trees representing subsequent elements are created in the same way and
+then combined with the tree representing the sequence of previous elements
+by @{PTGKeywdEntrySeq@}.
+The result of the combination becomes the tree representing the new sequence.
+A similar approach is used to build the tree representing the sequence of
+delit entries.
+
+@B
+
+A complete tree of type @{PTGNode@} is output to a file by invoking the
+function @{PTGOutFile@}, exported by the text construction module.
+@{PTGOutFile@} takes two arguments: the name of the file to be written and
+the @{PTGNode@} value representing the tree.
+Here is a complete C function that creates the output files, given an
+array of pointers to keyword text:
+
+@$@<Writing Trees to Files@>==@{
+#include "ptg_gen.h"
+#include "err.h"
+
+void
+CreateFiles(Keyword, NumberOfKeywords)
+char **Keyword; int NumberOfKeywords;
+{
+  int i;
+  PTGNode HeaderTree, DelitTree;
+
+  if (NumberOfKeywords == 0) message(DEADLY, "No keywords", 0 , &curpos);
+
+@<Sorting the Keyword Array@>
+@<Describing Tree Construction@>
+
+  PTGOutFile("keywds.h", PTGKeywds(PTGNumb(NumberOfKeywords - 1), HeaderTree));
+  PTGOutFile("keywds.delit", DelitTree);
+}
+@}
+
+The header file @{ptg_gen.h@} is the interface of the text construction
+module.
+It defines all of the entities
+(e.g. @{PTGNode@}, @{PTGOutFile@}, @{PTGText@}, etc.)
+exported by that module.
+
+If there were no keywords in the grammar, @{message@} is used to report a
+deadly error.
+Deadly errors terminate processing immediately; @{message@} issues the
+error report but does not return to its caller.
+The header file @{err.h@} is the error module interface.
+
+@B
+
+The set of keywords could be sorted as it is being built, or it could be
+sorted just before it is used to create the file.
+The latter choice is preferable, primarily because it allows us to separate
+concerns.
+It is also more efficient, because keeping an array sorted while building it
+is a quadratic process, but sorting an existing array is @{O(N log N)@}.
+
+A C library routine, @{qsort@}, is used to sort the array of keywords.
+The collating sequence for this sort is determined by the function passed
+as the fourth argument to @{qsort@}.
+That routine will be called with pointers to two elements of the array
+whenever @{qsort@} needs to compare those two elements.
+It must return an integer less than, equal to, or greater than zero,
+depending on whether the first element is less than, equal to, or greater
+than the second respectively.
+Here is the complete call (the third argument is the size of one array
+element):
+
+@$@<Sorting the Keyword Array@>==@{
+qsort(Keyword, NumberOfKeywords, sizeof(char *), CallStrcmp);
+@}
+
+The string comparison routine @{strcmp@}, also from the C library, defines
+the correct collating sequence for this application.
+The return value is exactly that required by @{qsort@}, but the arguments
+must be pointers to strings rather than pointers to elements of an array
+that are themselves pointers to strings.
+Therefore we use the routine @{CallStrcmp@} to dereference the arguments
+provided by @{qsort@}:
+
+@$@<The argument transformer CallStrcmp@>==@{
+#include <string.h>
+
+int
+CallStrcmp(s1ptr, s2ptr)
+char **s1ptr, **s2ptr;
+{ return strcmp(*s1ptr, *s2ptr); }
+@}
+
+The library header file @{string.h@} defines the @{strcmp@} interface.
+Note that @{CallStrcmp@} must be a function rather than a macro because a
+reference to it is passed to @{qsort@}.
+
+@A@<Extracting the Keywords from the Input File@>
+
+The keyword array must be created from data in the input file.
+We need to scan the input file, recognize the keywords as they occur,
+and save new ones for later processing.
+That means we need to take special action on seeing a keyword, but the
+remainder of the text is irrelevant.
+Since keywords are just special kinds of literals, we need to separate them
+from other literals.
+
+@B
+
+Character sequences are described to Eli by regular expressions.
+The regular expression is introduced by a @{$@} and terminated by white
+space.
+A character sequence so described can be given a name, and a routine can be
+invoked to process it:
+
+@$@<Separating Keywords from Other Literals@>==@{
+Keyword: $'[a-z]+'          [SaveKwd]
+Literal: $'[^']*'('[^']*')*
+@}
+
+The first of these two lines says that a non-empty sequence of lower-case
+letters surrounded by apostrophes should be recognized as a @{Keyword@}.
+After the sequence is recognized, the C function @{SaveKwd@} should be
+invoked.
+The second line describes a general @{Literal@}, but does not request
+invocation of any C function.
+
+This specification is ambiguous, because the regular expression on the
+second line will match any character string matched by the regular
+expression on the first line.
+In such a case, a processor generated from the specification will prefer
+the longest match.
+If both regular expressions match strings of the same length, the processor
+will recognize the one described first.
+Thus the order of the two lines is important.
+
+Eli will create a processor that reads an entire file if we give it
+a specification defining the content of that file.
+The grammar of Section 1.1 is such a specification, but it does not accept
+a @{Keyword@} as a basic symbol.
+A @{Keyword@} is really just a @{Literal@} for which we want to do
+something special.
+The grammar must therefore be augmented with a rule that allows a
+@{Keyword@} wherever the original grammar allowed a @{Literal@}:
+
+@O@<keywords.con@>@{
+@<The Form of the Input File@>
+Atom: Keyword .
+@}
+
+Putting the specification into a type-@{con@} file causes Eli to process
+it as a context-free grammar.
+
+Finally, we need to describe the structures of an @{Identifier@} and of the
+various forms of comment.
+These descriptions, plus the descriptions of @{Keyword@} and @{Literal@},
+are placed into a type-@{gla@} file so that Eli will process them as
+regular expressions from which a scanner is to be generated:
+
+@O@<keywords.gla@>@{
+@<Separating Keywords from Other Literals@>
+Identifier:     $[A-Za-z][A-Za-z0-9]*
+                C_COMMENT
+                $[%#][^\n]*
+@}
+
+@{C_COMMENT@} requests the description of the structure of a C comment from
+the Eli library; the other forms of comment are described explicitly.
+
+@B
+
+A routine called @{mkidn@}, which stores a single copy of a character
+sequence as a null-terminated string in permanent memory and leaves a
+pointer to that string in an array,
+can be used to save the keywords as they are recognized.
+After the entire input file has been processed,
+the array can be passed to @{CreateFiles@}.
+
+A common interface, described in the comments of @{SaveKwd@},
+is used for all routines nominated as processors by GLA specifications:
+
+@$@<Saving a Keyword@>==@{
+void
+SaveKwd(c, l, t, s)
+char *c; int l, *t, *s;
+/* Save one copy of a keyword
+ *   On entry-
+ *     c points to the character sequence recognized by the scanner
+ *     l=length of the character sequence recognized by the scanner
+ *     t points to a location classifying the character sequence
+ *     s points to a location for a value representing the sequence
+ */
+{
+   mkidn(c + 1, l - 2, t, s);
+}
+@}
+
+Because @{mkidn@} is designed to be nominated as a processor, it uses the
+same interface.
+Thus the effect of @{SaveKwd@} is to save the characters of the keyword
+without the delimiting apostrophes.
+
+Eli processes type-@{c@} files as C code that must be compiled and linked
+with code generated by Eli.
+We therefore provide a type-@{c@} specification containing all of the C
+routines describing solutions to components of our problem:
+
+@O@<keywords.c@>@{
+@<Saving a Keyword@>
+@<The argument transformer CallStrcmp@>
+@<Writing Trees to Files@>
+@}
+
+@{SaveKwd@} uses @{mkidn@}, which is a component of the Eli module that
+deals with unique identifiers.
+Eli does not attempt to determine the modules used by examining C files,
+and the unique identifier module is not mentioned elsewhere in the
+specification.
+Therefore we need to inform Eli that this module will be needed by
+specifying it in a type-@{reqmod@} file:
+
+@O@<keywords.reqmod@>@{
+$/Scan/idn.specs
+@}
+
+It does no harm to specify modules redundantly in .reqmod files.
+
+@B
+
+Storage for the strings saved by @{mkidn@} is provided by the character
+storage module of the Eli library.
+The name of the exported array holding the string pointers is @{string@},
+and the total number of strings stored is the value of
+the exported variable @{numstr@}.
+Conventionally, @{string[0]@} holds the null string.
+Therefore a pointer to the text of the first keyword is stored in
+@{string[1]@} and the number of keywords stored is one less than the value
+of @{numstr@}.
+
+Here is a code fragment that passes the appropriate information to
+@{CreateFiles@} (header file @{csm.h@} defines the interface of the
+character storage module):
+
+@$@<Invoking CreateFiles@>==@{
+{
+#include "csm.h"
+  extern void CreateFiles(); CreateFiles(string + 1, numstr - 1);
+}
+@}
+
+This code fragment must be executed after the entire input file has been
+read.
+Specification files of type @{finl@} are processed by Eli as C text that
+must be executed after all Eli-generated code has completed execution.
+We therefore provide a type-@{finl@} specification containing the
+invocation of @{CreateFiles@}:
+
+@O@<keywords.finl@>@{
+@<Invoking CreateFiles@>
+@}

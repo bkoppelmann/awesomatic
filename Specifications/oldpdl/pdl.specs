@@ -1,0 +1,14 @@
+/* $Id: pdl.specs,v 1.3 1994/03/29 04:14:12 kadhim Exp $ */
+/* Property Definition Language (PDL) translator */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+#include "phrase/phrase.specs"		/* phrase structure of the language */
+#include "tree/tree.specs"		/* skeleton abstract syntax tree */
+#include "name/name.specs"		/* name analysis */
+#include "type/type.specs"		/* type analysis */
+#include "func/func.specs"		/* function output generation */
+#include "header/header.specs"		/* header output generation */
+
+pdl.head
+
+KnownKey.fw				/* Initialized DefTableKeys */

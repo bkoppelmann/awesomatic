@@ -1,0 +1,42 @@
+\title{An Analyzer for ANSI C}
+\author{D. J. Banta\\
+D. L. Carroll\\
+S. A. Maurich\\
+J. R. Roccatagliata\\
+P. A. Shanahan\\
+C. R. Turner\\
+W. M. Waite}
+\maketitle
+
+This document assumes familiarity with the basic principles of compiler
+construction and access to the Eli documentation.
+It is made up of a collection of FunnelWeb files, one per chapter.
+
+The actual specification is embedded in the text as macros, sequentially
+numbered within each chapter.
+A macro is a relevant chunk of the specification, with a name describing
+its purpose.
+It may have references to other macros as components.
+Our intent is that the names of the referenced macros carry sufficient
+information to make the chunk itself understandable.
+
+Attached to each macro definition is the set of macro numbers in which it
+is used, and attached to each use is the macro number of its definition.
+This allows the reader to easily find more information about a component
+if necessary.
+Some macro definitions are broken up to allow insertion of explanatory text.
+In this case, each section of the definition is given a distinct sequential
+number and all of them are attached both to each definition and to each use.
+
+This specification, originally developed as a class project in the spring
+semester of 1994, implements ANSI/ISO 9899-1990.
+Within the document, ANSI/ISO 9899-1990 is referred to as ``the standard''.
+
+The specification was tested using Eli 4.5.
+A complete description of Eli, including the current public-domain source
+code, can be found on the
+\htmladdnormallinkfoot{web}{http://www.cs.colorado.edu/~eliuser/}.
+
+\newpage
+
+\tableofcontents

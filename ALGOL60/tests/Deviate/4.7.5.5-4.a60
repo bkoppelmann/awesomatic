@@ -1,0 +1,7 @@
+begin comment $Id: 4.7.5.5-4.a60,v 1.1 2012/11/28 21:15:26 profw Exp $
+A formal parameter whose type is label restricts the corresponding
+actual parameter to be a label;
+
+procedure p(x); label x; ;
+p(0);
+end

@@ -1,0 +1,139 @@
+@A@<Check the Characteristics of Simple Names@>
+
+This is a debugging aid for the development of the Java specification.
+It attaches @{NOTE@}-level reports to each node representing a simple name,
+giving the classification and binding for the name.
+
+@B
+
+@$@<Output a Category@>==@{
+RULE: Name ::= SimpleName
+COMPUTE
+  message(
+    NOTE,
+    CatStrStr(
+      CatStrStr("Category=",CategoryOf(Name.Category)),
+      IF(EQ(Name.Category,Name.FinalCategory),
+        "",
+        CatStrStr(", Final=",CategoryOf(Name.FinalCategory)))),
+    0,
+    COORDREF);
+END;
+@}
+
+@$@<Interface for category output@>==@{
+extern char *CategoryStr[];
+#define CategoryOf(c) (CategoryStr[c])
+@}
+
+@$@<Data for category output@>==@{
+char *CategoryStr[] = {
+  "PackageName",
+  "TypeName",
+  "ExpressionName",
+  "MethodName",
+  "AmbiguousName"
+};
+@}
+
+@B
+
+@$@<Output a Key@>==@{
+RULE: Name ::= SimpleName
+COMPUTE
+  IF(EQ(Name.FinalCategory,TypeName),
+    IF(NE(SimpleName.TypKey,NoKey),
+      message(
+        NOTE,
+        StringTable(GetId(GetFQKey(SimpleName.TypKey,NoKey),MakeName("None"))),
+        0,
+        COORDREF),
+    message(NOTE,"No key",0,COORDREF)),
+  IF(EQ(Name.FinalCategory,ExpressionName),
+    IF(NE(SimpleName.VarKey,NoKey),
+      message(
+        NOTE,
+        StringTable(GetUid(SimpleName.VarKey,MakeName("None"))),
+        0,
+        COORDREF),
+    IF(NE(SimpleName.FldKey,NoKey),
+      message(
+        NOTE,
+        StringTable(GetUid(SimpleName.FldKey,MakeName("None"))),
+        0,
+        COORDREF),
+    message(NOTE,"No key",0,COORDREF))),
+  IF(EQ(Name.FinalCategory,MethodName),
+    IF(NE(SimpleName.MthKey,NoKey),
+      message(
+        NOTE,
+        StringTable(GetUid(SimpleName.MthKey,MakeName("None"))),
+        0,
+        COORDREF),
+    message(NOTE,"No key",0,COORDREF)))))
+  DEPENDS_ON INCLUDING Goal.GotAllUids;
+END;
+
+ATTR Uid: int;
+@<Definition@>@(Typ@)
+@<Definition@>@(Fld@)
+@<Definition@>@(Mth@)
+@<Definition@>@(Var@)
+@<Definition@>@(Lbl@)
+
+SYMBOL Goal COMPUTE
+  SYNT.GotAllUids=
+    CONSTITUENTS (
+      TypIdDefScope.GotUid,
+      FldIdDefScope.GotUid,
+      MthIdDefScope.GotUid,
+      VarIdDefScope.GotUid,
+      LblIdDefScope.GotUid);
+END;
+@}
+
+@$@<Definition@>@(@1@)@M@{
+SYMBOL @1IdDefScope COMPUTE
+  SYNT.Uid=GenerateName(StringTable(THIS.Sym));
+  message(NOTE,StringTable(THIS.Uid),0,COORDREF);
+  SYNT.GotUid=ResetUid(THIS.@1Key,THIS.Uid);
+END;
+@}
+
+@$@<Unique identifier property@>==@{
+Uid: int;
+@}
+
+@A@<Specification Files@>
+
+@O@<CheckNames.lido@>==@{
+@<Output a Category@>
+@<Output a Key@>
+@}
+
+@O@<CheckNames.pdl@>==@{
+@<Unique identifier property@>
+@}
+
+@O@<CheckNames.h@>==@{
+#ifndef CHECKNAMES_H
+#define CHECKNAMES_H
+
+@<Interface for category output@>
+
+#endif
+@}
+
+@O@<CheckNames.c@>==@{
+#include "CheckNames.h"
+
+@<Data for category output@>
+@}
+ 
+@O@<CheckNames.head@>==@{
+#include "CheckNames.h"
+@}
+
+@O@<CheckNames.specs@>==@{
+$/Tech/MakeName.gnrc +instance=Identifier :inst
+@}

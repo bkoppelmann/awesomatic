@@ -1,0 +1,34 @@
+/* $Id: pdl.con,v 1.2 1994/03/25 07:52:07 kadhim Exp $ */
+/* Property Definition Language concrete syntax */
+/* Copyright (c) 1992, The Regents of the University of Colorado */
+
+Source: Range '$LIBRARY' OperationList .
+
+OperationList: OperationList OperationDecl / OperationDecl .
+
+Range: (PropertyDecl / FileDecl / OperationDecl)+ .
+
+PropertyDecl: PropertyNameList ':' Type ';' .
+PropertyNameList: PropertyNameList ',' PropertyNameDecl / PropertyNameDecl .
+PropertyNameDecl: Identifier .
+
+Type: TypeSpecifier / TypeSpecifier '[' OperationNameList ']' .
+OperationNameList: OperationNameList ',' OperationNameDecl / OperationNameDecl .
+OperationNameDecl: Identifier .
+
+FileDecl: String .
+
+OperationDecl: TypeSpecifier Identifier '(' ParameterList ')' Text .
+ParameterList: ParameterList ',' ParameterDecl / ParameterDecl .
+ParameterDecl: TypeSpecifier Identifier Modifier .
+
+Modifier: /
+	'(' ')' /
+	'(' ParameterTypeList ')' /
+	'(' ParameterTypeList ',' '...' ')' .
+
+ParameterTypeList: ParameterTypeList ',' ParameterTypeDecl / ParameterTypeDecl .
+ParameterTypeDecl: TypeSpecifier Modifier / TypeSpecifier Identifier Modifier .
+
+TypeSpecifier: 'TYPE' / Identifier .
+

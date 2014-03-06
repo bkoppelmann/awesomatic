@@ -1,0 +1,1174 @@
+@A@<A Pascal Subset@>
+
+The compiler described here accepts a subset of Pascal known as
+``Pascal-''.
+It has enough features to illustrate the basic techniques for specifying
+a compiler.
+With the exception of coercions, the omitted Pascal features do not require
+any techniques beyond those described here.
+
+This chapter begins by describing the differences between Pascal- and Pascal,
+assuming that you are already familiar with Pascal.
+An informal description of the Pascal- vocabulary and a formal description
+of the structure of a Pascal- program complete the language overview.
+
+@B@<General description@>
+
+Pascal- has only two simple types, Boolean and integer, and two structured
+types, array types and record types.
+Boolean and integer are predefined, with the names @{Boolean@} and
+@{integer@} respectively.
+Every structured type also has a name, which is introduced by a type
+definition:
+
+@$@<Type definition example@>==@{
+type
+  table = array [1..100] of integer;
+  stack = record contents: table; size: integer end;
+@}
+
+A type definition always creates a new type; it can never rename an
+existing type.
+The following type definition is therefore incorrect:
+
+@$@<Incorrect type definition@>==@{
+type number = integer;
+@}
+
+All variables must be defined and given a type:
+
+@$@<Variable definition example@>==@{
+var
+  A: table;
+  x, y: integer;
+@}
+
+The type name must always be used in a variable declaration.
+In other words, it is not possible to create an ``anonymous'' type as in
+the following incorrect variable definition:
+
+@$@<Incorrect variable definition@>==@{
+var A: array [1..100] of integer;
+@}
+
+All constants have simple types.
+Two predefined identifiers, @{true@} and @{false@}, represent the two
+possible values of type @{Boolean@}.
+Values of type @{integer@} are represented in the usual way.
+Names for constants can be introduced by constant definitions:
+
+@$@<Constant definition example@>==@{
+const max = 100; on = true;
+@}
+
+Assignment statements, procedure calls, if statements, while statements
+and compound statements are available in Pascal-.
+A statement may be empty.
+There are no labels or goto statements, case statements, repeat statements,
+for statements or with statements.
+
+Procedure declarations can be nested, and a procedure may have variable
+and/or value parameters of any type.
+Procedures cannot be passed to other procedures as parameters, and
+functions cannot be defined.
+There are two standard procedures, @{read(x)@} and @{write(x)@}.
+@{Read@} expects a single variable parameter of type integer, obtains the
+next integer from the standard input stream, and assigns the value of that
+integer to the variable parameter.
+@{Write@} expects a single value parameter of type integer, and places the
+value of that integer onto the standard output stream as a complete line.
+
+Here is an algorithm that illustrates most of the features of Pascal-:
+
+@$@<Complete example program@>==@{
+Program ProgramExample;
+const n=100;
+type table=array[1..n] of integer;
+var A: table; i,x: integer; yes: Boolean;
+
+procedure search(value: integer; var found: Boolean; var index: integer);
+  var limit: integer;
+  begin index:=1; limit:=n;
+  while index<limit do
+    if A[index]=value then limit:=index else index:=index+1;
+  found:=A[index]=value
+  end;
+
+begin {input table} i:=1;
+while i<=n do
+  begin read(A[i]); i:=i+1 end;
+{test search} read(x);
+while x<>0 do
+  begin search(x,yes,i);
+  write(x);
+  if yes then write(i);
+  read(x);
+  end
+end.
+@}
+
+@B@<Vocabulary@>
+
+The vocabulary of a programming language is made up of @/basic symbols@/
+and @/comments@/.
+There are three kinds of basic symbols: identifiers, denotations and
+delimiters.
+Identifiers are names that are freely chosen by the programmer to represent
+entities like constants, types, variables and procedures.
+Denotations represent specific values, according to conventions laid down
+by the language designer.
+Delimiters are used to give the program structure.
+
+In Pascal-, an identifier is called a @{Name@}, and consists of a letter
+that may be followed by any sequence of letters and digits:
+
+@$@<Name examples@>==@{
+x LongName S100
+CaseInsensitive CASEINSENSITIVE caseinsensitive
+@}
+
+There is no distinction made between upper and lower case letters in
+Pascal-, so the three names on the second line of the example are
+indistinguishable from one another.
+
+A @{Numeral@} is the only denotation in the vocabulary of Pascal-.
+It consists of a sequence of decimal digits, and denotes an integer value:
+
+@$@<Numeral examples@>==@{
+1 123
+@}
+
+There are two kinds of delimiters in Pascal-, @/word symbols@/ and
+@/special symbols@/:
+
+@$@<Word symbols@>==@{
+and array begin const div do else end if mod not
+of or procedure program record then type var while
+@}
+
+@$@<Special symbols@>==@{
++ - * < = > <= <> >= :=
+( ) [ ] , . : ; ..
+@}
+
+A word symbol cannot be used as a @{Name@} in a Pascal- program.
+
+A comment in Pascal- is an arbitrary sequence of characters enclosed in
+braces @{{@} @{}@}.
+Comments may extend over several lines and may be nested to arbitrary
+depth:
+
+@$@<Comment examples@>==@{
+if x>0 then {reserve resource} x:=x-1;
+{This is a {nested} comment
+that extends over two lines}
+@}
+
+White space (spaces, tabs and new lines) and comments are called
+@/separators@/.
+Any basic symbol may be preceded by one or more separators, and the program
+may be followed by zero or more separators.
+
+Word symbols, names and numerals are called @/undelimited@/ basic symbols.
+Any pair of adjacent undelimited basic symbols must be separated by at
+least one separator:
+
+@$@<Example of basic symbol separation@>==@{
+{Incorrect}
+  ifx>0thenx:=10divx-1;
+
+{Correct}
+  if x>0
+then{Can divide}x:=10	div x-1;
+@}
+
+In this example, separators needed between @{if@} and @{x@}, @{0@} and
+@{then@}, @{then@} and @{x@}, @{0@} and @{div@}, @{div@} and @{x@}.
+The separators can be white space and/or comments, as indicated.
+
+@B
+
+A complete program is called a @/sentence@/ of the programming language in
+which it is written.
+The structure of that sentence is described in terms of its component
+@/phrases@/.
+Compilation of a program is based on its phrase structure, as defined by
+a @/grammar@/ for the programming language.
+The phrase structure must reflect both the way a program is written and
+the meaning to be conveyed by that program.
+
+It is convenient to divide a grammar into parts that describe coherent
+sets of phrases, and then to discuss each part individually.
+Here is a breakdown appropriate for Pascal-, with two rules describing the
+program structure given explicitly as examples of the notation:
+
+@$@<Grammar@>==@{
+Program: 'program' ProgramName ';' BlockBody '.' .
+
+BlockBody:
+  [ConstantDefinitionPart]
+  [TypeDefinitionPart]
+  [VariableDefinitionPart]
+  (ProcedureDefinition)*
+  CompoundStatement .
+
+@<Constant, type and variable definition grammar@>
+@<Expression grammar@>
+@<Statement grammar@>
+@<Procedure grammar@>
+@}
+
+The first grammar rule says that a sentence in Pascal- has
+two component phrases, a @{ProgramName@} and a @{BlockBody@}.
+Delimiters @{program@}, @{;@} and @{.@} are used to separate these phrases
+in the program text as written.
+
+The @{BlockBody@} phrase is the description of the algorithm,
+and consists of definitions and a statement.
+All of the definitions and the statement together constitute the meaning of
+the algorithm, while the name of the program does not affect the algorithm
+in any way.
+A program is written as the sequence of basic symbols @{program@}, a name,
+@{;@}, a sub-sequence describing the algorithm, and @{.@}.
+Thus these two rules reflect both the way the program is written
+and the underlying meaning.
+
+The Pascal- grammar given here is taken almost verbatim from Brinch-Hansen's
+description in Section 2.4 of ``Brinch-Hansen on Pascal Compilers''.
+His grammar does not make some properties of the program clear, however,
+and these aspects have been changed.
+Each such change is discussed in the appropriate section below.
+
+Eli uses @{( ... )*@} instead of @{{ ... }@} to describe repeated phrases,
+@{:@} instead of @{=@} to separate the left and right hand sides of a rule,
+and @{/@} instead of @{|@} as the separator for alternative right-hand sides.
+These notational changes will not be discussed further.
+
+@C
+
+Constant, type and variable definitions have similar forms in a Pascal-
+program:
+A word symbol describing the kind of definitions to follow, and a list of
+the definitions themselves.
+In each case, one or more names are defined.
+If a particular word symbol is missing, then there are no definitions of
+that kind.
+
+Notice that the grammar distinguishes between a definition of a name and a
+use of that name (e.g @{ConstantNameDef@} and @{ConstantNameUse@}).
+This distinction reflects the meaning of the program, rather than the way
+the program is written.
+The constant name @{max@} is always written in the same way, but when it
+appears to the left of @{=@} in a @{ConstantDefinition@} that is a
+@/defining occurrence@/ and when it appears to the right of @{=@} in a
+@{ConstantDefinition@} that is an @/applied occurrence@/.
+All of the properties of a name are deduced from the context of its
+defining occurrence; those properties are made available at the applied
+occurrences.
+
+@$@<Constant, type and variable definition grammar@>==@{
+ConstantDefinitionPart: 'const' ConstantDefinition (ConstantDefinition)* .
+ConstantDefinition: ConstantNameDef '=' Constant ';' .
+Constant: Numeral / ConstantNameUse .
+
+TypeDefinitionPart: 'type' TypeDefinition (TypeDefinition)* .
+TypeDefinition: TypeNameDef '=' NewType ';' .
+NewType: NewArrayType / NewRecordType .
+
+NewArrayType: 'array' '[' IndexRange ']' 'of' TypeNameUse .
+IndexRange: Constant '..' Constant .
+
+NewRecordType: 'record' FieldList 'end' .
+FieldList: RecordSection (';' RecordSection)* .
+RecordSection: FieldNameDefList ':' TypeNameUse .
+FieldNameDefList: FieldNameDef (',' FieldNameDef)* .
+
+VariableDefinitionPart: 'var' VariableDefinition (VariableDefinition)* .
+VariableDefinition: VariableNameDefList ':' TypeNameUse ';' .
+VariableNameDefList: VariableNameDef (',' VariableNameDef)* .
+@}
+
+Brinch-Hansen does not distinguish between defining and applied occurrences
+of names in his grammar.
+This distinction is made in the text of Section 6.1 of his book,
+where scope rules are discussed.
+When one is specifying a language to a compiler generator like Eli,
+however, natural language descriptions must be formalized.
+
+@C
+
+Like most programming languages, Pascal- defines precedence and association
+rules to eliminate the need for explicit parentheses.
+For example, the precedence rules ensure that the expression @{a+b*c@} has
+the same meaning as @{(a+(b*c))@}, @/not@/ the same meaning as
+@{((a+b)*c)@}.
+Similarly, the association rules ensure that @{a-b-c@} has the same meaning
+as @{((a-b)-c)@}, @/not@/ the same meaning as @{(a-(b-c))@}.
+These rules are embodied in the phrase structure of an expression.
+
+@$@<Expression grammar@>==@{
+Expression: SimpleExpression [RelationalOperator SimpleExpression] .
+RelationalOperator: '<' / '=' / '>' / '<=' / '<>' / '>=' .
+SimpleExpression:
+  [SignOperator] Term / SimpleExpression AddingOperator Term .
+SignOperator: '+' / '-' .
+AddingOperator: '+' / '-' / 'or' .
+Term: Factor / Term MultiplyingOperator Factor .
+MultiplyingOperator: '*' / 'div' / 'mod' / 'and' .
+Factor:
+  Numeral /
+  VariableAccess /
+  '(' Expression ')' /
+  NotOperator Factor .
+
+NotOperator: 'not' .
+
+VariableAccess:
+  VariableNameUse /
+  VariableAccess '[' Expression ']' /
+  VariableAccess '.' FieldNameUse .
+@}
+
+Precedence and association rules affect the way the program is written,
+determining the phrase structure of an expression.
+Once that phrase structure has been determined, however, precedence and
+association rules have no further effect on the meaning of the program.
+As far as the meaning of the program is concerned, it is sufficient to
+distinguish dyadic expressions, monadic expressions, and expressions
+without operators.
+Each operator or operand should therefore be a distinct phrase in the
+sentence.
+Brinch-Hansen's grammar does not associate the @{not@} operator with a
+phrase, because it uses that operator literally in a rule: @{Factor: 'not'
+Factor@}.
+Here the @{not@} operator is made a distinct phrase by writing
+Brinch-Hansen's single rule as two: @{Factor: NotOperator Factor .@} and
+@{NotOperator: 'not' .@}.
+
+The first alternative for @{Factor@} in Brinch-Hansen's grammar is
+@{Constant@}.
+A @{Constant@} is defined as being either a @{Numeral@} or a
+@{ConstantNameUse@} (see Section 2.3.1).
+But notice that a @{VariableAccess@}, another alternative for @{Factor@},
+could be a @{VariableNameUse@}.
+When presented with the @{Factor@} ``@{x@}'', how can the compiler decide
+whether this name represents a constant or a variable?
+The distinction is irrelevant as far as the structure of the program is
+concerned, and the attempt to make it leads to an ambiguous grammar.
+Brinch-Hansen discusses this ambiguity in Section 5.5 of his book,
+and resolves it by altering the grammar to the one given here.
+
+@C
+
+Statements in Pascal- are separated by semicolons, but the fact that a
+statement can also be empty means that semicolon can be considered to be a
+terminator.
+
+@$@<Statement grammar@>==@{
+Statement:
+  AssignmentStatement /
+  ProcedureStatement /
+  IfStatement /
+  WhileStatement /
+  CompoundStatement /
+  Empty .
+
+AssignmentStatement: VariableAccess ':=' Expression .
+
+ProcedureStatement: ProcedureNameUse ActualParameterList .
+ActualParameterList: / '(' ActualParameters ')' .
+ActualParameters: ActualParameter (',' ActualParameter)* .
+ActualParameter: Expression .
+
+IfStatement:
+  'if' Expression 'then' Statement $'else' /
+  'if' Expression 'then' Statement 'else' Statement .
+
+WhileStatement: 'while' Expression 'do' Statement .
+
+CompoundStatement: 'begin' Statement (';' Statement)* 'end' .
+@}
+
+Brinch-Hansen's grammar contains the rule @{ActualParameter: Expression |
+VariableAccess .@}.
+This rule is ambiguous, because a @{VariableAccess@} is one form of an
+@{Expression@}.
+He is trying to distinguish a context in which a value parameter is
+required from that in which a variable parameter is required.
+These contexts can only be distinguished on the basis of information drawn
+from the definitions, and therefore do not affect the structure of the
+program.
+In Section 5.5 of his book, Brinch-Hansen alters the grammar to use the
+rule listed here.
+
+The sequence @{$'else'@} is used in the definition of an @{IfStatement@} to
+avoid another ambiguity:
+What is the meaning of the phrase @{if a then if b then x:=1 else x:=2@}?
+If @{a@} is @{false@}, does @{x@} remain unaltered or is it set to @{2@}?
+The rules of Pascal require it to remain unaltered, because an else clause
+is associated with the closest if.
+Brinch-Hansen's grammar for Pascal- is ambiguous, and there is no mention
+of the ambiguity in his book.
+In the absence of specific guidance, the rules of Pascal are assumed here.
+
+This decision is made explicit in the grammar by the inclusion of the
+sequence @{$'else'@}.
+It specifies that the alternative of which it is a part is only valid if
+@/not@/ followed by the basic symbol @{else@}.
+
+@C
+
+Like a @{Program@}, a @{ProcedureDefinition@} has two constituent phrases.
+The @{ProcedureBlock@} defines the algorithm abstracted by the procedure,
+and the @{ProcedureNameDef@} defines the name by which that algorithm will
+be known.
+
+Formal parameters are a part of the abstraction, not a part of the name.
+Their names are local to the procedure body, whereas the procedure name is
+defined in the surrounding context.
+
+@$@<Procedure grammar@>==@{
+ProcedureDefinition: 'procedure' ProcedureNameDef ProcedureBlock ';' .
+
+ProcedureBlock: FormalParameterList ';' BlockBody .
+
+FormalParameterList: / '(' ParameterDefinitions ')' .
+ParameterDefinitions: ParameterDefinition (';' ParameterDefinition)* .
+ParameterDefinition:
+  'var' ParameterNameDefList ':' TypeNameUse /
+  ParameterNameDefList ':' TypeNameUse .
+ParameterNameDefList:
+  ParameterNameDef / ParameterNameDefList ',' ParameterNameDef .
+@}
+
+@B
+
+Here is a summary of the examples:
+
+@$@<Examples@>@Z@{
+@<Name examples@>
+@<Numeral examples@>
+@<Comment examples@>
+@<Word symbols@>
+@<Special symbols@>
+@<Example of basic symbol separation@>
+@<Constant definition example@>
+@<Type definition example@>
+@<Incorrect type definition@>
+@<Variable definition example@>
+@<Incorrect variable definition@>
+@<Complete example program@>
+@}
+
+@A@<Compiler Organization@>
+
+Eli embodies a large fraction of the knowledge required to build a
+compiler, providing an overall design that will satisfy the requirements
+of almost any translation problem.
+It assumes a particular decomposition of translation problems,
+supports the solution of the resulting subproblems,
+and combines those solutions into a complete program
+that carries out the desired translation.
+
+The compiler generated by Eli reads a file containing the source program,
+examining it character-by-character.
+Character sequences are recognized as basic symbols or discarded, and
+relationships among the basic symbols are used to build a tree that
+reflects the structure of the source program.
+Computations are then carried out over the tree, and the results of these
+computations output as the target program.
+Thus Eli assumes that the original translation problem is decomposed into
+the problems of determining which character sequences are basic symbols and
+which should be discarded, what tree structure should be imposed on
+sequences of basic symbols, what computations should be carried out
+over the resulting tree, and how the computed values should be encoded and
+output.
+
+There is considerable variability in the specific decompositions for
+particular translation problems.
+For example, operator overloading is very simple in Pascal-.
+Only the relational operators are overloaded, and they can be applied only
+to Boolean or integer operands.
+Because of this simplicity, there is no need to treat overload resolution
+as a separate subproblem of the Pascal- translation problem.
+
+This chapter describes the decomposition of the Pascal- translation problem
+and gives the general framework within which the subproblems are specified.
+The complete specifications appear in subsequent chapters.
+
+@B@<Subproblems for Pascal-@>
+
+@/Lexical analysis@/ is the process that examines the source program text,
+recognizing basic symbols and discarding separators.
+Basic symbols are classified by an integer called a @/syntax code@/.
+Each delimiter has a unique syntax code, and there is one syntax code for
+all names and another for all numerals.
+A name or numeral is characterized by a single integer value called an
+@/intrinsic attribute@/ in addition to the syntax code.
+No intrinsic attribute is computed for a delimiter.
+As it recognizes each basic symbol, the lexical analyzer passes the
+information characterizing that basic symbol to the @/syntax analyzer@/.
+
+@/Syntax analysis@/ determines the phrase structure of the source program
+and builds a tree to represent it.
+Each phrase results in a tree node.
+If a phrase has component phrases, the nodes representing those component
+phrases are the children of the node representing the composite phrase.
+Identifiers and denotations are phrases that have no components, and
+therefore represent leaves of the tree.
+Every other phrase corresponds to a rule of the grammar.
+
+Rules like @{NotOperator: 'not'.@} correspond to phrases with no
+components, because literals are not considered to be phrases.
+The phrases corresponding to these rules will therefore result in leaves.
+
+Rules like @{AssignmentStatement: VariableAccess ':=' Expression.@}
+correspond to phrases with components.
+The phrases corresponding to these rules will therefore result in tree
+nodes that have children.
+(In the case of @{AssignmentStatement: VariableAccess ':=' Expression.@}
+there are two components, and hence two children,
+because names are considered to be phrases and literals are not.)
+
+The syntax analyzer uses the syntax codes provided by the lexical analyzer
+to define the basic symbols.
+When it builds a leaf corresponding to an identifier or a denotation, it
+stores the value of the intrinsic attribute supplied by the lexical
+analyzer into that node.
+
+Once the tree is built, the @/attribute evaluator@/ establishes a number of
+values associated with the tree nodes.
+For example, each node representing an expression has a value associated
+with it that specifies the type of result yielded by that expression.
+Consider a Pascal- expression consisting of an operator and two operands.
+The type specification for the result in this case is determined by the
+expression's operator.
+The type specifications for the two operands are used to verify that the
+operands are legal for the expression's operator.
+
+Attribute evaluation is the heart of any compiler, where most of the effort
+and most of the complexity resides.
+For this reason, specifications of attribute evaluation are usually
+partitioned by function to make them easier to understand.
+The major functions of attribute evaluation in Pascal- are scope analysis
+(determining the relationships between name uses and definitions), type
+analysis (verifying the context conditions on expressions) and code
+generation (producing a target program to implement the source code).
+Each of these functions is treated in a separate chapter.
+
+One of the values established by the attribute evaluator is a tree that
+represents the target code.
+The final step in the Pascal- compilation is to linearize
+and output this tree.
+That process is carried out by a @/program text generator@/,
+invoked on the value produced during attribute evaluation.
+
+Some information is associated with specific contexts in the tree, while
+other information is associated with specific entities in the program.
+For example, the type of result yielded by an expression is a property of
+that expression, and is associated with the node representing the
+expression in the tree.
+The type of value yielded by a variable, however, is a property of that
+variable.
+Since a particular variable could be used many places in the tree, the
+information about its type must be available globally.
+The generated compiler includes a @/definition table@/, in which arbitrary
+@/properties@/ can be stored and accessed via @/keys@/.
+To make the information about a variable's type available globally, the
+compiler associates a key with each variable and stores the type
+information in the definition via that key.
+The key is therefore a unique internal representation of the variable,
+and is stored at every use of that variable.
+Because the key is available at each use,
+the type information can be accessed at each use.
+
+@B@<How a compiler is specified@>
+
+Eli focuses the user's attention on the requirements and design decisions
+that are unique to the Pascal- compiler, having already provided solutions
+to problems common to all compilers.
+It accepts descriptions of those requirements and design decisions, and
+combines them with its understanding of compiler construction problems to
+produce the Pascal- compiler.
+Requirements and design decisions can be thought of as specifications of
+instances of subproblems of the Pascal- translation problem.
+There are three basic ways in which a user might specify an instance of a
+subproblem:
+by analogy (``this problem is the same as problem X''),
+by description (``this is a problem of class Y, and is characterized as
+follows...'')
+and by solution(``here is a program to solve this problem'').
+
+To support specification by analogy, Eli provides a library of solutions to
+common compiler subproblems.
+A user must have sufficient understanding of these subproblems to recognize
+that they have been solved before and to find the solutions in the library.
+For example, a Pascal- name is defined in a single procedure.
+If the same name is defined in a nested procedure, the outer definition is
+``hidden'' within the inner procedure.
+This behavior is common to many programming languages, and a solution for
+the problem of associating the definition of a name with each use of that
+name can be solved by analogy by instantiating a module from Eli's library:
+
+@$@<Instantiate a module to analyze nested definitions@>==@{
+$/Name/AlgScope.gnrc :inst
+@}
+
+To support specification by description, Eli provides a set of notations
+for characterizing common compiler subproblems.
+A user must not only be able to recognize the kind of subproblem, but also
+understand the notation used to characterize problems of that kind.
+The grammar of Section 2.3 is specified in such a notation -- a notation
+used to describe the phrase structure of a language and thus characterize
+the syntax analysis subproblem for that language.
+
+To support specification by solution, Eli accepts arbitrary C code that
+solves a unique compiler subproblem, and incorporates it into the generated
+translator.
+A user must not only be able to recognize such subproblems, but also be
+able to solve them completely.
+An example of a subproblem of the Pascal- compiler that is specified by
+solution is that of scanning a comment (Section 4.3.2).
+
+Specifications by analogy and description are two different forms of re-use:
+A specification by analogy re-uses a particular solution, while a
+specification by description re-uses a problem-solving method.
+In each case, re-use simplifies the specification by allowing much to be
+omitted.
+Eli provides leverage in direct proportion to the set of compiler
+subproblems for which it embodies solutions and problem-solving methods.
+In addition to this kind of leverage, however, Eli supports a paradigm for
+structuring the specification known as @/literate programming@/.
+
+The literate programming paradigm suggests that code (or in this case
+specifications) may need to be organized in one way to support human
+understanding and in another to support implementation.
+To solve this dilemma, the user creates a @/document@/ whose organization
+supports human understanding.
+Information describing the organization that supports implementation is
+embedded in this document, which can be processed to yield a printed
+version for human use or a machine-readable version for implementation.
+
+In its simplest form, the literate programming paradigm allows a user to
+group together specifications that are related but have different forms.
+For example, some subproblems of lexical analysis are specified by analogy,
+others by description, and still others by solution.
+Literate programming groups all of these specifications together into one
+file, organizing them so that their tasks and relationships are clear.
+
+The document you are reading is an example of a more sophisticated use of
+literate programming:
+Not only are the various specifications that define subproblems of the
+Pascal- compilation problem organized according to function, but they are
+interspersed with explanations and commentary.
+
+@B
+
+Eli requires that a complete translation problem be described by a single
+file of type @{specs@}.
+A type-@{specs@} file lists all of the specifications for the subproblems
+of that translation problem.
+Subproblems specified by analogy are represented by library references
+(which might be to the Eli library or to some other library).
+Subproblems specified either by description or by solution are represented
+by file references.
+Here is content of @{pascal-.specs@},
+the file that describes the Pascal- translation problem:
+
+@$@<The Pascal- compiler@>@Z==@{
+Structure.fw		/* Lexical and Syntax Analysis */
+keyword.gla :kwd	/* Exclude keywords from the finite-state machine */
+Scope.fw		/* Scope Analysis */
+Type.fw			/* Type Analysis */
+Computer.fw		/* A Pascal Computer */
+Code.fw			/* Code Generation */
+@}
+
+Five of the specifications are type-@{fw@} files, which are documents that
+follow the literate programming paradigm.
+@{Structure.fw@} contains Chapters 1-5; the other documents contain
+one chapter each.
+Each of Chapters 4-9 ends with a section that describes the purpose and
+contents of the specification files generated from that chapter.
+
+Lines that begin with @{$/@} extract modules from the Eli library,
+specifying subproblems by analogy.
+Each of these library modules is described at the appropriate point in this
+report.
+
+The line @{pident.gla :kwd@} is an instruction to Eli to produce a lexical
+analyzer that behaves in a certain way; it is discussed in Section 4.4.
+
+To create a Pascal- compiler from the set of specifications defined by
+@{pascal-.specs@}, one or more of the following requests should be made to
+Eli:
+
+@$@<Requests creating a Pascal- compiler@>@Z@{
+pascal-.specs +fold +arg=(input) :stdout
+pascal-.specs +fold :exe >pascal.exe
+pascal-.specs +fold :source >src
+@}
+
+The first request asks Eli to create the compiler and run it with the
+command-line argument @{input@}.
+Its purpose is to test the generated compiler against a sample Pascal-
+program.
+The second request also asks Eli to create the compiler, but to write the
+executable version into file @{pascal.exe@} in the current directory.
+Its purpose is to create an executable version that can be used
+independently of Eli itself.
+The third request writes into directory @{src@} (which must exist before
+the request is made) all of the files necessary to create an executable
+version of the compiler.
+Its purpose is to create a source code version that can be used
+independently of both Eli and the computer on which Eli is currently
+running.
+Directory @{src@} will contain C files, header files, a Makefile, and a
+Configure script that can tailor the other files for specific
+machine/operating system combinations.
+
+All of the requests specify the parameter @{+fold@}, which causes Eli to
+generate a lexical analyzer that is case-insensitive.
+The meaning of this parameter is further elaborated in Section 4.4.
+
+@B@<Errors and Failures@>
+
+The compiler must report any errors in the source program.
+Lexical errors (character sequences that are neither separators nor basic
+symbols) and syntactic errors (sequences of basic symbols that cannot be
+built into phrases) are detected automatically by the generated lexical and
+syntactic analyzers.
+Contextual errors (such as a Boolean operand for an addition operator) must
+be detected by tests specified as part of the attribution.
+When one of these tests detects an error, it must invoke the error
+reporting module with information about the nature of the error and its
+location.
+The location is determined from coordinate information (source program line
+and character position) stored in the node of the tree at which the
+computation is being made.
+
+@A@<Lexical Analysis@>
+
+The purpose of lexical analysis is to determine the sequence of basic
+symbols making up the source program.
+Vocabulary errors, such as invalid characters, missing separators and
+unterminated comments, are detected and reported during lexical analysis.
+An Eli-generated compiler produces a sequence of basic symbols even if
+vocabulary errors are found.
+That sequence contains only basic symbols that are correct according to the
+language definition, and mirrors the program as closely as possible given
+the particular errors.
+
+The lexical analyzer scans the input text character-by-character,
+recognizing basic symbols and discarding separators.
+It must determine a syntax code for each basic symbol and an intrinsic
+attribute for each @{Name@} and @{Numeral@}.
+
+@B@<Source text@>
+
+Eli supplies a module for reading the source text and making it available
+to the remainder of the system.
+No specification is required for this module.
+It will be extracted from the Eli library if it is needed, unless the user
+supplies a module that defines its operations.
+
+The operation @{initBuf@} initializes the source text module.
+It has two arguments, the character form of the name of an open file and
+the descriptor for that file.
+On return from @{initBuf@}, @{TEXTSTART@} addresses the first character of the
+file.
+If the file is empty, @{TEXTSTART@} addresses a null character (ASCII NUL,
+with value 0).
+Otherwise @{initBuf@} guarantees that the string addressed by @{TEXTSTART@}
+consists of at least one complete line, including its terminating
+newline character.
+If the character following a terminating newline is not the null
+character then the following line, including its terminating newline
+character, is also guaranteed to be a part of the string.
+
+When the client of the source module has dealt completely with the line or
+lines of the input file that are in memory, it invokes the source module
+operation @{refillBuf@}.
+The @{refillBuf@} operation has one argument, a pointer to the null
+character terminating the current string.
+Upon return from @{refillBuf@}, the conditions described in the previous
+paragraph hold (i.e. @{refillBuf@} has the same exit condition as
+@{initBuf@}).
+
+The lexical analyzer imposes a coordinate system on the text, with each
+coordinate consisting of a line number and a column number within the line.
+All components of the lexical analyzer that move across line boundaries
+must maintain these coordinates.
+They are implemented by two variables exported by the lexical analyzer:
+@{LineNum@} and @{StartLine@}.
+@{LineNum@} contains the integer line number, while @{StartLine@} addresses
+the character position preceding the first character of the line.
+Thus the column number can be computed by taking the difference between the
+pointer to the current character and @{StartLine@}.
+Horizontal tab characters, which occupy only one position in the string but
+possibly many in the source line are handled by decrementing @{StartLine@}
+appropriately.
+
+@B@<Intermediate code@>
+
+The syntax code associated with each basic symbol is relevant only for the
+interaction between the lexical and syntactic analyzers.
+It is supplied by Eli, and its value is of no concern.
+There is no need to specify it.
+
+Each distinct Pascal- @{Name@} must be given a unique intrinsic attribute
+value, and instances of the same name must be given the same value.
+We will want to use this value to associate definitions and uses, so it
+must be compatible with the module we use for that process.
+Eli provides a module that can associate definitions with uses, and that
+module expects each name to be represented by a unique, small integer.
+
+A Pascal- @{Numeral@} denotes an integer value, and this value will be placed
+into the target machine code as an integer.
+It is therefore reasonable to make the intrinsic attribute of a @{Numeral@}
+the integer value it denotes.
+
+@B
+
+The delimiters of Pascal- are specified by literals in the grammar.
+Eli will extract those literals from the grammar, so they need not be
+re-specified here.
+Pascal- has two non-literal basic symbols, @{Name@} and @{Numeral@}.
+These must be specified, as must the form of a comment.
+
+Because there are only a few basic symbol formats used in most programming
+languages, Eli provides a library of @/canned descriptions@/.
+These canned descriptions provide not only the format of the basic symbol,
+but also the processors needed to establish the value of an appropriate
+intrinsic attribute.
+They are another example of specifying a subproblem (in this case scanning
+a name) by analogy.
+
+The Pascal- definition of a name is the same as the Pascal definition of
+an identifier, so the specification of a @{Name@} can be stated in terms
+of a canned description.
+Numerals and comments are somewhat more complex, and their specifications
+are discussed below.
+
+@$@<Scanning@>==@{
+Name:		PASCAL_IDENTIFIER
+@<Scan a numeral@>
+@<Scan a comment@>
+@}
+
+This specification defines the basic symbol @{Name@}, which appears to the
+left of a colon (@{:@}), by means of the canned description
+@{PASCAL_IDENTIFIER@}.
+@{PASCAL_IDENTIFIER@} describes a character sequence that begins with a
+letter and continues with a (possibly empty) sequence of letters and
+digits.
+Once this character string has been recognized, the processor @{mkidn@}
+will be used to provide it with an intrinsic attribute.
+(The properties of canned descriptions like @{PASCAL_IDENTIFIER@} are given
+in the Eli documentation dealing with lexical analysis.)
+
+@C
+
+A Pascal- @{Numeral@} is defined as a sequence of digits.
+If the generated scanner simply accepts a sequence of digits as a numeral,
+however, it will decompose the incorrect phrase @{10div 3@}
+into three basic symbols: @{10@}, @{div@} and @{3@}.
+Although this is probably the programmer's intent, it is a violation of the
+language definition.
+
+The generated scanner must therefore accept a sequence of digits and then
+verify that the next character is @/not@/ a letter.
+If a letter is found, then the scanner must report a ``missing separator''
+error.
+Finally, a processor must be invoked to compute the value represented by
+the sequence of digits and deliver that value as an intrinsic attribute.
+Here is the resulting specification:
+
+@$@<Scan a numeral@>==@{
+Numeral:	$[0-9]+	(CheckSep)	[mkint]
+@}
+
+This specification defines the basic symbol @{Numeral@}, which appears to
+the  left of a colon (@{:@}), by means of the regular expression
+@{[0-9]+@} that accepts a sequence of one or more decimal digits.
+When the generated scanner encounters a character that is not a decimal digit,
+it will invoke the auxiliary scanner @{CheckSep@}, passing a pointer to the
+first digit of the sequence and an integer giving the length of the
+sequence.
+Upon return from @{CheckSep@}, the processor @{mkint@} is invoked.
+It computes the value of the digit sequence and delivers that value as an
+intrinsic attribute.
+The processor @{mkint@} is a library routine, but the auxiliary scanner
+@{CheckSep@} must be defined specially for this task.
+
+@{CheckSep@} is a C routine that uses a table to check the character
+following the digit sequence.
+It assumes the ISO standard character set:
+
+@$@<Check for a separator@>==@{
+static char Letter[] = {
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0
+};
+
+char *
+CheckSep(start, length)
+char * start;	/* start of characters already recognized */
+int length;	/* length of what was already recognized */
+{
+  POSITION Now;
+
+  if (Letter[start[length]]){
+    Now = curpos; Now.col += length;
+    message(ERROR, "Missing separator", 0, &Now);
+    }
+  return start+length;	/* First unprocessed character */
+}
+@}
+
+Verifying the separator that must follow a @{Numeral@} is an example of a
+subproblem specified by solution.
+It is solved by the C routine @{CheckSep@}, which obeys the standard
+interface given in the Eli documentation for auxiliary scanners: accept a
+pointer to the start of the basic symbol and the number of characters
+already recognized, and return a pointer to the first character following
+the basic symbol.
+
+@C
+
+Comments can be nested in Pascal-, and all comments are delimited by
+braces.
+They may span multiple lines.
+This behavior does not correspond to any canned description, so the comment
+scanning subproblem must be specified by solution:
+
+@$@<Scan a comment@>==@{
+		$"{"	(Comment)
+@}
+
+The auxiliary scanner @{Comment@} begins with the character following the
+opening brace that was recognized by the specified regular expression,
+and seeks the matching closing brace.
+It invokes itself recursively for a nested comment, handles transitions
+between lines, and detects an unclosed comment:
+
+@$@<Comment scanner@>==@{
+char *
+Comment(start, length)
+char * start;	/* start of characters recognized by reg expr */
+int length;	/* length of what was recognized in reg expr */
+{
+  register char c;
+  register char *p = start + length; /* first char not yet processed */
+
+  for (;;) {
+    while( (c = *p++) && c != '}' && c != '\n' && c != '{' ) ;
+    if(c == '}') return(p);
+    else if (c == '\n'){ LineNum++; StartLine = p-1; }
+    else if (c == '\t'){ StartLine -= TABSIZE(p - StartLine); }
+    else if (c == '{') p = Comment(start, p-start);
+    else /*if (c == '\0')*/ {	/* end of the current input buffer */
+      refillBuf(p-1); p = TEXTSTART; StartLine = p-1;
+      if (*p == '\0'){
+        message(ERROR, "file ends in comment", 0, &curpos);
+        return(p);
+      }
+    }
+  }
+}
+@}
+
+@{Comment@} simply advances @{p@} until it reaches a ``significant''
+character.
+If that character signals a new line, the line number is incremented;
+if it marks the end of the input, additional input is requested from the
+source module (Section 4.1).
+The value returned by @{Comment@} is a pointer to the first character
+position beyond the end of the comment, as required by the standard
+auxiliary scanner interface.
+
+@B@<Identifier table@>
+
+The processor @{mkidn@} assigns a unique integer for each distinct name.
+It uses a hash table to check whether the name has been seen before.
+It stores the string form of each name once in an array of strings,
+returning the index of the stored string.
+That index is then made the value of the intrinsic attribute.
+
+Pascal- requires that letter case not be distinguished in identifiers and
+keywords.
+Two additional specifications must be provided to obtain this behavior:
+@{mkidn@} must be specified case-insensitive and the keywords must be
+recognized as though they were identifiers.
+The @{+fold@} parameter of an Eli request specifies that @{mkidn@} is to
+ignore letter case.
+
+Keywords appear as literals in the grammar.
+Normally, a grammar literal is built into the implementation of the lexical
+analyzer.
+To recognize certain literals using the mechanism used to recognize
+identifiers requires that those literals be removed from the set of
+literals passed to the lexical analyzer generator.
+The file @{keywords.gla@} defines the lexical structure of the Pascal-
+keywords:
+
+@$@<keywords.gla@>@Z==@{
+Name:	PASCAL_IDENTIFIER
+@}
+
+By adding the line @{keywords.gla :kwd@} to the type-@{specs@} file that
+defines the Pascal- compiler (Section 3.3), we tell Eli to remove all
+literals having the structure defined by @{keywords.gla@} from the set
+passed to the lexical analyzer generator.
+It also adds those literals, with their corresponding syntax codes, to the
+table used by @{mkidn@}.
+
+@B@<Specification files for lexical analysis@>
+
+Three kinds of specifications are needed to define the Pascal- lexical
+analysis problem to Eli.
+
+@C
+
+A type-@{gla@} file describes the lexical structure of the comments and the
+basic symbols that do not appear literally in the grammar.
+Eli uses this information, in conjunction with the descriptions of the
+literal basic symbols derived from the grammar, to construct the scanner.
+
+@O@<lexical.gla@>@{
+@<Scanning@>
+@}
+
+@C
+
+A type-@{c@} file describes a problem by giving its solution.
+The problems of checking for a missing separator following a digit string
+and scanning a Pascal- comment were described in this way.
+
+@O@<lexical.c@>==@{
+#include "err.h"
+#include "source.h"
+#include "gla.h"
+#include "tabsize.h"
+
+@<Check for a separator@>
+@<Comment scanner@>
+@}
+
+No interface specification is required for this module, because all
+auxiliary scanners and processors obey fixed interface conventions.
+The scanner generator can therefore provide the appropriate @{extern@}
+declarations, given the routine names.
+
+@A@<Syntax Analysis@>
+
+The purpose of syntax analysis is to determine the phrase structure
+of the source program, and build a tree with one node per phrase.
+Structural errors, such as unbalanced parentheses, are detected and reported
+during syntactic analysis.
+An Eli-generated compiler constructs a tree even if structural errors are
+found.
+That tree's structure is correct according to the language definition, and
+mirrors the source program as closely as possible given the particular errors.
+
+The source language grammar specifies the phrase structure of any source
+program, and serves as the basic specification for syntax analysis.
+It may be necessary to modify the grammar to ensure that it is complete and
+unambiguous.
+To make this guarantee, it may be necessary to distinguish some phrases
+that have identical meanings and should correspond to identical nodes in
+the tree.
+These two points, and the specifications resulting from them, are the
+subject of this chapter.
+
+@B@<Parser construction@>
+
+Eli generates a particular kind of syntax analyzer, called an @/LALR(1)
+parser@/, from the grammar.
+This is possible only if the grammar satisfies certain conditions:
+At every point during a left-to-right scan of the source program's basic
+symbols, the parser must be able to tell whether or not it is at the end of
+a phrase and, if so, @/which@/ phrase it has just completed.
+
+The Pascal- grammar as defined in Section 2.3 satisfies the LALR(1) condition,
+but it is not compatible with the definition of the vocabulary given in
+Section 2.2.
+This section corrects the incompatibilities.
+
+@C
+
+The Pascal- grammar distinguishes several different kinds of names, such as
+@{ConstantNameDef@}, @{ConstantNameUse@} and @{VariableNameUse@}.
+Symbols like these are not defined in the grammar,
+and they are not specified as basic symbols either.
+A human reader has no difficulty in assuming that they are, in fact, names;
+this correspondence must be made explicit if the grammar is to specify the
+parsing process.
+Each of these symbols (except @{ProgramName@}) defines a specific context
+that determines the meaning of the name.
+These contexts must be represented by distinct nodes in the tree, because
+of their distinct meanings:
+
+@$@<Distinguishing name contexts@>==@{
+ProgramName: Name .
+
+ConstantNameDef: Name .
+ConstantNameUse: Name .
+
+TypeNameDef: Name .
+TypeNameUse: Name .
+FieldNameDef: Name .
+FieldNameUse: Name .
+
+VariableNameDef: Name .
+VariableNameUse: Name .
+
+ProcedureNameDef: Name .
+ProcedureNameUse: Name .
+ParameterNameDef: Name .
+@}
+
+@C
+
+The symbol @{Empty@} is used in the grammar to emphasize that an empty
+statement is allowed, but this symbol is never defined.
+There is no need to define it, because any meaning attributed to the empty
+statement would be associated with the tree node representing that
+statement.
+Therefore the symbol @{Empty@} should be replaced in the grammar by nothing
+at all:
+
+@$@<Deleting the symbol ``Empty''@>==@{
+#define Empty
+@}
+
+Grammars are examined by the C pre-processor, as are most Eli specifications.
+Thus pre-processor directives an C-style comments are allowed in grammars,
+as they are in virtually every Eli specification.
+
+@B@<Specification files for syntax analysis@>
+
+A type-@{con@} file specifies the grammar for the source language.
+This information is used to construct the parser and define some of the
+basic symbols.
+
+@O@<syntax.con@>@{
+@<Deleting the symbol ``Empty''@>
+@<Grammar@>
+@<Distinguishing name contexts@>
+@}
+
+@C
+
+A type-@{specs@} file is used to instantiate generic modules from the Eli
+library, and to make non-generic modules available.
+
+@O@<structure.specs@>@{
+@<Instantiate a module to analyze nested definitions@>
+@}
